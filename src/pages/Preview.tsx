@@ -1,28 +1,53 @@
+// src/pages/Preview.tsx
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Eye, Code, Smartphone, Monitor, Tablet, ExternalLink, Rocket, AlertCircle, Download } from 'lucide-react';
+import { 
+  ArrowLeft, Eye, Code, Smartphone, Monitor, Tablet, ExternalLink, 
+  Rocket, AlertCircle, Download, Edit, RotateCcw, Split 
+} from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { deployToNetlify } from '@/lib/netlifyDeploy';
+import { useHtmlParser } from '@/hooks/useHtmlParser';
+import EditableComponent from '@/components/EditableComponent';
+import EditPanel from '@/components/EditPanel';
 
 const NETLIFY_TOKEN = "nfp_ubQ5p2gRqsLfiTf1vj1d1ghjXbPhsXSRea18";
 
 type ViewportSize = 'mobile' | 'tablet' | 'desktop';
+type ViewMode = 'original' | 'edit-only';
 
 const Preview = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  
   const [viewportSize, setViewportSize] = useState<ViewportSize>('desktop');
+  const [viewMode, setViewMode] = useState<ViewMode>('edit-only');
   const [isLoading, setIsLoading] = useState(false);
   
   // Get data from previous page
   const { portfolioData, generatedPortfolio, metadata } = location.state || {};
   
+  // Initialize HTML parser
+  const htmlString = typeof generatedPortfolio === 'string' 
+    ? generatedPortfolio 
+    : generatedPortfolio?.html || '';
+    
+  const {
+    parsedComponents,
+    selectedElementId,
+    selectedElement,
+    selectElement,
+    modifyElement,
+    hasModifications,
+    resetModifications,
+    generateModifiedHtml
+  } = useHtmlParser(htmlString);
+  
   if (!portfolioData || !generatedPortfolio) {
-    // Redirect back to form if no data
     React.useEffect(() => {
       navigate('/');
     }, [navigate]);
@@ -51,65 +76,13 @@ const Preview = () => {
         description: "Creating your live portfolio",
       });
 
-      // Create a simple demo portfolio HTML for now
+      const finalHtml = hasModifications ? generateModifiedHtml() : htmlString;
       const demoPortfolio = {
-        html: `
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>${portfolioData.personalInfo.name} - Portfolio</title>
-              <style>
-                  body {
-                      font-family: 'Arial', sans-serif;
-                      margin: 0;
-                      padding: 0;
-                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                      min-height: 100vh;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      color: white;
-                  }
-                  .container {
-                      text-align: center;
-                      max-width: 800px;
-                      padding: 2rem;
-                  }
-                  h1 {
-                      font-size: 3rem;
-                      margin-bottom: 1rem;
-                      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                  }
-                  p {
-                      font-size: 1.2rem;
-                      opacity: 0.9;
-                      margin-bottom: 2rem;
-                  }
-                  .badge {
-                      background: rgba(255,255,255,0.2);
-                      padding: 0.5rem 1rem;
-                      border-radius: 25px;
-                      backdrop-filter: blur(10px);
-                      display: inline-block;
-                  }
-              </style>
-          </head>
-          <body>
-              <div class="container">
-                  <h1>${portfolioData.personalInfo.name}</h1>
-                  <p>${portfolioData.personalInfo.title}</p>
-                  <div class="badge">Built with Portfolio Builder</div>
-              </div>
-          </body>
-          </html>
-        `,
+        html: finalHtml,
         css: '',
         js: ''
       };
 
-      // Deploy to Netlify
       const deployment = await deployToNetlify(demoPortfolio, NETLIFY_TOKEN);
       
       toast({
@@ -117,7 +90,6 @@ const Preview = () => {
         description: "Your portfolio is now live on the web",
       });
 
-      // Navigate to success page with real deployment data
       navigate('/deployment', { 
         state: { 
           portfolioData,
@@ -131,13 +103,11 @@ const Preview = () => {
       
     } catch (error) {
       console.error('Deployment failed:', error);
-      
       toast({
         variant: "destructive",
         title: "Deployment Failed",
         description: error instanceof Error ? error.message : "An unknown error occurred",
       });
-      
     } finally {
       setIsLoading(false);
     }
@@ -148,11 +118,8 @@ const Preview = () => {
   };
 
   const handleDownloadCode = () => {
-    const htmlContent = typeof generatedPortfolio === 'string' 
-      ? generatedPortfolio 
-      : generatedPortfolio.html || JSON.stringify(generatedPortfolio, null, 2);
-    
-    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const finalHtml = hasModifications ? generateModifiedHtml() : htmlString;
+    const blob = new Blob([finalHtml], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -163,17 +130,38 @@ const Preview = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleOpenInNewTab = () => {
-    const htmlContent = typeof generatedPortfolio === 'string' 
-      ? generatedPortfolio 
-      : generatedPortfolio.html || '';
-    
-    const newWindow = window.open();
-    if (newWindow) {
-      newWindow.document.write(htmlContent);
-      newWindow.document.close();
-    }
+  const handleElementSelect = (elementId: string) => {
+    selectElement(elementId);
   };
+
+  const handleElementEdit = (elementId: string) => {
+    selectElement(elementId);
+  };
+
+  const renderEditableComponents = () => {
+    return (
+      <div className="w-full h-full overflow-auto bg-white">
+        {parsedComponents.map((component) => (
+          <EditableComponent
+            key={component.id}
+            element={component}
+            isSelected={selectedElementId === component.id}
+            onSelect={handleElementSelect}
+            onEdit={handleElementEdit}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderOriginalView = () => (
+    <iframe
+      srcDoc={htmlString}
+      className="w-full h-full border-0"
+      title="Original Portfolio Preview"
+      sandbox="allow-scripts allow-same-origin allow-forms"
+    />
+  );
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -195,7 +183,7 @@ const Preview = () => {
                   AI-Generated Portfolio Preview
                 </h1>
                 <p className="text-muted-foreground">
-                  Review your AI-generated portfolio before deployment
+                  Review and edit your AI-generated portfolio before deployment
                 </p>
               </div>
             </div>
@@ -204,194 +192,157 @@ const Preview = () => {
                 <Eye className="h-4 w-4 mr-2" />
                 AI Generated
               </Badge>
-              {metadata && (
-                <Badge variant="outline" className="px-3 py-1 text-xs">
-                  Generated: {new Date(metadata.generatedAt).toLocaleTimeString()}
+              {hasModifications && (
+                <Badge variant="default" className="px-3 py-1 text-xs">
+                  Modified
                 </Badge>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Controls Sidebar */}
-            <div className="lg:col-span-1">
-              <Card className="shadow-medium border-0 sticky top-8">
-                <CardHeader>
-                  <CardTitle className="text-lg">Preview Controls</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Viewport Size Selector */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-medium text-foreground">
-                      Viewport Size
-                    </label>
-                    <div className="grid grid-cols-1 gap-2">
-                      <Button
-                        variant={viewportSize === 'desktop' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewportSize('desktop')}
-                        className="justify-start"
-                      >
-                        <Monitor className="h-4 w-4 mr-2" />
-                        Desktop
-                      </Button>
-                      <Button
-                        variant={viewportSize === 'tablet' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewportSize('tablet')}
-                        className="justify-start"
-                      >
-                        <Tablet className="h-4 w-4 mr-2" />
-                        Tablet
-                      </Button>
-                      <Button
-                        variant={viewportSize === 'mobile' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewportSize('mobile')}
-                        className="justify-start"
-                      >
-                        <Smartphone className="h-4 w-4 mr-2" />
-                        Mobile
-                      </Button>
-                    </div>
-                  </div>
+          {/* Top Controls Bar */}
+          <div className="flex flex-wrap items-center justify-between mb-8 p-4 bg-card rounded-lg border shadow-soft">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* View Mode Toggle */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium">View:</span>
+                <Button
+                  variant={viewMode === 'original' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('original')}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Original
+                </Button>
+                <Button
+                  variant={viewMode === 'edit-only' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('edit-only')}
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Editable
+                </Button>
+              </div>
 
-                  {/* Project Info */}
-                  <div className="space-y-3 pt-6 border-t border-border">
-                    <label className="text-sm font-medium text-foreground">
-                      Portfolio Details
-                    </label>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Name</p>
-                        <p className="text-sm font-medium">{portfolioData.personalInfo.name}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Title</p>
-                        <p className="text-sm">{portfolioData.personalInfo.title}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Projects</p>
-                        <p className="text-sm">{portfolioData.projects.length} project(s)</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="space-y-3 pt-6 border-t border-border">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                      onClick={handleDownloadCode}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Code
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                      onClick={handleOpenInNewTab}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Open in New Tab
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Viewport Size Selector */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium">Size:</span>
+                <Button
+                  variant={viewportSize === 'desktop' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewportSize('desktop')}
+                >
+                  <Monitor className="h-4 w-4 mr-1" />
+                  Desktop
+                </Button>
+                <Button
+                  variant={viewportSize === 'tablet' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewportSize('tablet')}
+                >
+                  <Tablet className="h-4 w-4 mr-1" />
+                  Tablet
+                </Button>
+                <Button
+                  variant={viewportSize === 'mobile' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewportSize('mobile')}
+                >
+                  <Smartphone className="h-4 w-4 mr-1" />
+                  Mobile
+                </Button>
+              </div>
             </div>
 
-            {/* Preview Area */}
-            <div className="lg:col-span-3">
-              <Card className="shadow-large border-0">
-                <CardHeader className="bg-gradient-primary text-primary-foreground">
-                  <CardTitle className="text-xl">AI-Generated Portfolio</CardTitle>
-                </CardHeader>
-                <CardContent className="p-8">
-                  {/* Preview Container */}
-                  <div className="flex justify-center">
-                    <div className={`${getViewportClasses()} transition-all duration-300 bg-white rounded-lg shadow-medium overflow-hidden border border-border`}>
-                      {/* Render the actual generated portfolio */}
-                      <iframe
-                        srcDoc={typeof generatedPortfolio === 'string' ? generatedPortfolio : generatedPortfolio.html}
-                        className="w-full h-full border-0"
-                        title="Generated Portfolio Preview"
-                        sandbox="allow-scripts allow-same-origin allow-forms"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Deploy Button */}
-                  <div className="flex justify-center mt-8 pt-8 border-t border-border">
-                    <Button
-                      onClick={handleDeploy}
-                      variant="build"
-                      size="lg"
-                      className="px-12 py-4 text-lg"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                          Deploying...
-                        </>
-                      ) : (
-                        <>
-                          <Rocket className="h-5 w-5 mr-2" />
-                          Deploy to Web
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Info Note */}
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-blue-800">
-                        <p className="font-medium">Real Deployment</p>
-                        <p>This will create an actual live website using Netlify's free hosting service. The deployed site will be a simple demo for now.</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* AI Generation Info */}
-              {metadata && (
-                <Card className="shadow-medium border-0 mt-6">
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold text-foreground mb-4 flex items-center">
-                      <Code className="h-4 w-4 mr-2" />
-                      AI Generation Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Generated At:</p>
-                        <p className="font-medium">{new Date(metadata.generatedAt).toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">AI Model:</p>
-                        <p className="font-medium">Claude 3 Sonnet</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Style Applied:</p>
-                        <p className="font-medium">{portfolioData.stylePreferences.mood || 'Professional'}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Layout:</p>
-                        <p className="font-medium">{portfolioData.stylePreferences.layoutStyle || 'Modern'}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="flex items-center space-x-2">
+              {hasModifications && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetModifications}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset Changes
+                </Button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadCode}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
             </div>
           </div>
+
+          {/* Preview Area */}
+          <div>
+          <Card className="shadow-large border-0 mb-8">
+            <CardHeader className="bg-gradient-primary text-primary-foreground">
+              <CardTitle className="text-xl">Portfolio Preview</CardTitle>
+            </CardHeader>
+            <CardContent className="p-8">
+              {/* Preview Container */}
+              <div className="flex justify-center">
+                <div className={`${getViewportClasses()} transition-all duration-300 bg-white rounded-lg shadow-medium overflow-hidden border border-border`}>
+                  {viewMode === 'original' && renderOriginalView()}
+                  {viewMode === 'edit-only' && renderEditableComponents()}
+                </div>
+              </div>
+
+              {/* Deploy Button */}
+              <div className="flex justify-center mt-8 pt-8 border-t border-border">
+                <Button
+                  onClick={handleDeploy}
+                  variant="build"
+                  size="lg"
+                  className="px-12 py-4 text-lg"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Deploying...
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="h-5 w-5 mr-2" />
+                      Deploy to Web
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Edit Panel Below - Only show when element is selected */}
+          {selectedElement && (
+            <Card className="shadow-large border-0">
+              <CardHeader className="bg-gradient-accent text-accent-foreground">
+                <CardTitle className="text-xl flex items-center justify-between">
+                  <span>Editing: {selectedElement.type} element</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => selectElement(null)}
+                    className="text-accent-foreground hover:bg-accent-foreground/20"
+                  >
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <EditPanel
+                  element={selectedElement}
+                  onClose={() => selectElement(null)}
+                  onModify={(changes) => modifyElement(selectedElement.id, changes)}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
-    </div>
+      </div>    </div>
   );
 };
 
