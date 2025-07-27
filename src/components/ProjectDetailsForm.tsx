@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Image as ImageIcon, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface ProjectDetails {
   title: string;
@@ -18,6 +19,7 @@ interface ProjectDetails {
 }
 
 const ProjectDetailsForm = () => {
+  const navigate = useNavigate();
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>({
     title: '',
     subtitle: '',
@@ -64,7 +66,7 @@ const ProjectDetailsForm = () => {
 
   const handleBuild = () => {
     console.log('Building portfolio with:', projectDetails);
-    // Here we'll later navigate to the preview page
+    navigate('/preview', { state: { projectData: projectDetails } });
   };
 
   return (
