@@ -38,11 +38,25 @@ app.use(requestLogger);
 // Rate limiting
 app.use(rateLimit);
 
-// CORS
+// CORS - Updated for frontend connection
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true
+  origin: [
+    'http://localhost:8080',  // Your actual frontend port
+    'http://localhost:5173',  // Vite default port
+    'http://localhost:3000',  // Alternative React port
+    'http://127.0.0.1:8080',
+    'http://127.0.0.1:5173',
+    process.env.CORS_ORIGIN
+  ].filter(Boolean),
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Add pre-flight OPTIONS handling
+app.options('*', cors());
+// Add pre-flight OPTIONS handling
+app.options('*', cors());
 
 // Body parsing
 app.use(express.json({ limit: '50mb' }));

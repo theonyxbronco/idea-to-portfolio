@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, Image as ImageIcon, Plus, X, User, Palette, FolderOpen, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import ConnectionTest from './ConnectionTest';
 
 interface PersonalInfo {
   name: string;
@@ -388,7 +389,7 @@ const ProjectDetailsForm = () => {
       });
       return;
     }
-
+  
     if (!portfolioData.personalInfo.title.trim()) {
       toast({
         title: "Validation Error", 
@@ -397,7 +398,7 @@ const ProjectDetailsForm = () => {
       });
       return;
     }
-
+  
     if (portfolioData.projects.some(project => !project.title.trim())) {
       toast({
         title: "Validation Error",
@@ -406,10 +407,10 @@ const ProjectDetailsForm = () => {
       });
       return;
     }
-
+  
     setIsGenerating(true);
     setGenerationProgress(0);
-
+  
     try {
       // Simulate progress updates
       const progressInterval = setInterval(() => {
@@ -421,53 +422,64 @@ const ProjectDetailsForm = () => {
           return prev + Math.random() * 15;
         });
       }, 500);
-
+  
       // Prepare form data for API
       const formData = new FormData();
       
       // Add portfolio data as JSON
       formData.append('portfolioData', JSON.stringify(portfolioData));
-
-      // Add process images
+  
+      // Add images with descriptive field names
       portfolioData.projects.forEach((project, projectIndex) => {
         project.processImages.forEach((image, imageIndex) => {
-          formData.append('processImages', image, `project_${projectIndex}_process_${imageIndex}`);
+          formData.append(`process_${projectIndex}_${imageIndex}`, image);
         });
         
         if (project.finalProductImage) {
-          formData.append('finalProductImages', project.finalProductImage, `project_${projectIndex}_final`);
+          formData.append(`final_${projectIndex}`, project.finalProductImage);
         }
       });
-
-      // Add moodboard images
+  
       portfolioData.moodboardImages.forEach((image, index) => {
-        formData.append('moodboardImages', image, `moodboard_${index}`);
+        formData.append(`moodboard_${index}`, image);
       });
-
-      console.log('Sending portfolio data to API...');
-
+  
+      console.log('Sending to API:', import.meta.env.VITE_API_URL || 'http://localhost:3001');
+  
       // Call backend API
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
         method: 'POST',
         body: formData,
       });
-
+  
       clearInterval(progressInterval);
       setGenerationProgress(100);
-
+  
+      console.log('Response status:', response.status);
+  
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: 'Server Error', details: errorText };
+        }
+        
+        throw new Error(errorData.details || errorData.error || `HTTP error! status: ${response.status}`);
       }
-
+  
       const result = await response.json();
-
+      console.log('Success:', result);
+  
       if (result.success) {
         toast({
           title: "Portfolio Generated!",
           description: "Your AI-powered portfolio has been created successfully.",
         });
-
-        // Navigate to preview with generated portfolio
+  
         navigate('/preview', { 
           state: { 
             portfolioData,
@@ -478,13 +490,21 @@ const ProjectDetailsForm = () => {
       } else {
         throw new Error(result.error || 'Failed to generate portfolio');
       }
-
+  
     } catch (error) {
       console.error('Error generating portfolio:', error);
       
+      let errorMessage = 'Failed to generate portfolio. Please try again.';
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Cannot connect to server. Make sure backend is running on port 3001.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate portfolio. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -492,7 +512,6 @@ const ProjectDetailsForm = () => {
       setGenerationProgress(0);
     }
   };
-
   const currentProjectData = portfolioData.projects[currentProject];
 
   return (
@@ -510,6 +529,8 @@ const ProjectDetailsForm = () => {
           </div>
 
           <div className="space-y-8">
+            {/* Temporary Connection Test - Remove after testing */}
+            <ConnectionTest />
             {/* Personal Information Section */}
             <Card className="shadow-large border-0">
               <CardHeader className="bg-gradient-primary text-primary-foreground rounded-t-lg">
