@@ -121,8 +121,6 @@ const ProjectDetailsForm = () => {
   const [newSkill, setNewSkill] = useState('');
   const [newTag, setNewTag] = useState('');
   const [currentProject, setCurrentProject] = useState(0);
-  
-  // Add new state for API integration
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
 
@@ -243,22 +241,11 @@ const ProjectDetailsForm = () => {
     }));
   };
 
-  // Helper function to get file size in MB
-  const getFileSizeMB = (file: File) => {
-    return (file.size / 1024 / 1024).toFixed(2);
-  };
-
-  // Helper function to validate file types
-  const isValidImageType = (file: File) => {
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    return validTypes.includes(file.type);
-  };
-
-  // Updated image upload handlers with validation
+  // Image upload handlers
   const handleProcessImageUpload = (files: FileList | null) => {
     if (files) {
       const validFiles = Array.from(files).filter(file => {
-        if (!isValidImageType(file)) {
+        if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
           toast({
             title: "Invalid File Type",
             description: `${file.name} is not a valid image format`,
@@ -266,7 +253,7 @@ const ProjectDetailsForm = () => {
           });
           return false;
         }
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        if (file.size > 5 * 1024 * 1024) {
           toast({
             title: "File Too Large",
             description: `${file.name} is larger than 5MB`,
@@ -291,7 +278,7 @@ const ProjectDetailsForm = () => {
   const handleFinalImageUpload = (files: FileList | null) => {
     if (files && files[0]) {
       const file = files[0];
-      if (!isValidImageType(file)) {
+      if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
         toast({
           title: "Invalid File Type",
           description: "Please upload a valid image format",
@@ -334,7 +321,7 @@ const ProjectDetailsForm = () => {
   const handleMoodboardUpload = (files: FileList | null) => {
     if (files) {
       const validFiles = Array.from(files).filter(file => {
-        if (!isValidImageType(file)) {
+        if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
           toast({
             title: "Invalid File Type",
             description: `${file.name} is not a valid image format`,
@@ -378,7 +365,7 @@ const ProjectDetailsForm = () => {
     }));
   };
 
-  // Updated handleBuild function with API integration
+  // FIXED: Backend API Integration
   const handleBuild = async () => {
     // Validation
     if (!portfolioData.personalInfo.name.trim()) {
@@ -412,7 +399,7 @@ const ProjectDetailsForm = () => {
     setGenerationProgress(0);
   
     try {
-      // Simulate progress updates
+      // Progress simulation
       const progressInterval = setInterval(() => {
         setGenerationProgress(prev => {
           if (prev >= 90) {
@@ -423,13 +410,33 @@ const ProjectDetailsForm = () => {
         });
       }, 500);
   
-      // Prepare form data for API
+      // Prepare form data for API - FIXED FORMAT
       const formData = new FormData();
       
-      // Add portfolio data as JSON
-      formData.append('portfolioData', JSON.stringify(portfolioData));
+      // Convert portfolio data to the exact format expected by backend
+      const backendData = {
+        personalInfo: portfolioData.personalInfo,
+        projects: portfolioData.projects.map(project => ({
+          title: project.title,
+          subtitle: project.subtitle,
+          overview: project.overview,
+          category: project.category || project.customCategory,
+          customCategory: project.customCategory,
+          tags: project.tags,
+          problem: project.problem,
+          solution: project.solution,
+          reflection: project.reflection,
+          processImages: [], // Files handled separately
+          finalProductImage: null // Files handled separately
+        })),
+        moodboardImages: [], // Files handled separately
+        stylePreferences: portfolioData.stylePreferences
+      };
+      
+      // Add portfolio data as JSON string
+      formData.append('portfolioData', JSON.stringify(backendData));
   
-      // Add images with descriptive field names
+      // Add images with proper field names that match backend expectations
       portfolioData.projects.forEach((project, projectIndex) => {
         project.processImages.forEach((image, imageIndex) => {
           formData.append(`process_${projectIndex}_${imageIndex}`, image);
@@ -445,11 +452,20 @@ const ProjectDetailsForm = () => {
       });
   
       console.log('Sending to API:', import.meta.env.VITE_API_URL || 'http://localhost:3001');
+      console.log('FormData entries:');
+      for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`${key}: File(${value.name}, ${value.size} bytes)`);
+        } else {
+          console.log(`${key}: ${typeof value === 'string' ? value.substring(0, 100) + '...' : value}`);
+        }
+      }
   
       // Call backend API
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
         method: 'POST',
         body: formData,
+        // Don't set Content-Type header - browser will set it with boundary for FormData
       });
   
       clearInterval(progressInterval);
@@ -459,7 +475,7 @@ const ProjectDetailsForm = () => {
   
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API Error:', errorText);
+        console.error('API Error Response:', errorText);
         
         let errorData;
         try {
@@ -472,14 +488,15 @@ const ProjectDetailsForm = () => {
       }
   
       const result = await response.json();
-      console.log('Success:', result);
+      console.log('Success Response:', result);
   
-      if (result.success) {
+      if (result.success && result.portfolio) {
         toast({
           title: "Portfolio Generated!",
           description: "Your AI-powered portfolio has been created successfully.",
         });
   
+        // Navigate to preview with the generated portfolio
         navigate('/preview', { 
           state: { 
             portfolioData,
@@ -512,6 +529,7 @@ const ProjectDetailsForm = () => {
       setGenerationProgress(0);
     }
   };
+
   const currentProjectData = portfolioData.projects[currentProject];
 
   return (
@@ -529,8 +547,9 @@ const ProjectDetailsForm = () => {
           </div>
 
           <div className="space-y-8">
-            {/* Temporary Connection Test - Remove after testing */}
+            {/* Connection Test - Remove after backend is confirmed working */}
             <ConnectionTest />
+            
             {/* Personal Information Section */}
             <Card className="shadow-large border-0">
               <CardHeader className="bg-gradient-primary text-primary-foreground rounded-t-lg">
@@ -792,7 +811,7 @@ const ProjectDetailsForm = () => {
                     </select>
                   </div>
 
-                  {/* Custom Category Input - Show when "Other" is selected */}
+                  {/* Custom Category Input */}
                   {currentProjectData.category === 'Other' && (
                     <div className="space-y-2">
                       <Label htmlFor="customCategory">Custom Category *</Label>
@@ -1124,7 +1143,7 @@ const ProjectDetailsForm = () => {
               </CardContent>
             </Card>
 
-            {/* Updated Build Button Section */}
+            {/* Build Button Section */}
             <div className="pt-8 border-t border-border">
               <div className="flex flex-col items-center space-y-4">
                 {isGenerating && (
