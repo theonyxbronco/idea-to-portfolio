@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Eye, Code, Smartphone, Monitor, Tablet, ExternalLink, Rocket } from 'lucide-react';
+import { ArrowLeft, Eye, Code, Smartphone, Monitor, Tablet, ExternalLink, Rocket, Download } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 type ViewportSize = 'mobile' | 'tablet' | 'desktop';
@@ -13,11 +13,16 @@ const Preview = () => {
   const [viewportSize, setViewportSize] = useState<ViewportSize>('desktop');
   const [isLoading, setIsLoading] = useState(false);
   
-  // In a real app, this would come from the previous page's state or API
-  const projectData = location.state?.projectData || {
-    title: 'Sample Project',
-    subtitle: 'A beautiful portfolio showcase'
-  };
+  // Get data from previous page
+  const { portfolioData, generatedPortfolio, metadata } = location.state || {};
+  
+  if (!portfolioData || !generatedPortfolio) {
+    // Redirect back to form if no data
+    React.useEffect(() => {
+      navigate('/');
+    }, [navigate]);
+    return null;
+  }
 
   const getViewportClasses = () => {
     switch (viewportSize) {
@@ -38,7 +43,8 @@ const Preview = () => {
     setTimeout(() => {
       navigate('/deployment', { 
         state: { 
-          projectData,
+          portfolioData,
+          generatedPortfolio,
           deploymentUrl: 'https://amazing-portfolio-xyz.netlify.app',
           platform: 'Netlify',
           deployedAt: new Date().toISOString()
@@ -48,7 +54,35 @@ const Preview = () => {
   };
 
   const handleBackToEdit = () => {
-    navigate('/', { state: { projectData } });
+    navigate('/', { state: { portfolioData } });
+  };
+
+  const handleDownloadCode = () => {
+    const htmlContent = typeof generatedPortfolio === 'string' 
+      ? generatedPortfolio 
+      : generatedPortfolio.html || JSON.stringify(generatedPortfolio, null, 2);
+    
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${portfolioData.personalInfo.name.replace(/\s+/g, '_')}_portfolio.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleOpenInNewTab = () => {
+    const htmlContent = typeof generatedPortfolio === 'string' 
+      ? generatedPortfolio 
+      : generatedPortfolio.html || '';
+    
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.write(htmlContent);
+      newWindow.document.close();
+    }
   };
 
   return (
@@ -68,17 +102,24 @@ const Preview = () => {
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-foreground">
-                  Portfolio Preview
+                  AI-Generated Portfolio Preview
                 </h1>
                 <p className="text-muted-foreground">
-                  Review your generated portfolio before deployment
+                  Review your AI-generated portfolio before deployment
                 </p>
               </div>
             </div>
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Eye className="h-4 w-4 mr-2" />
-              Preview Mode
-            </Badge>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary" className="px-4 py-2 text-sm">
+                <Eye className="h-4 w-4 mr-2" />
+                AI Generated
+              </Badge>
+              {metadata && (
+                <Badge variant="outline" className="px-3 py-1 text-xs">
+                  Generated: {new Date(metadata.generatedAt).toLocaleTimeString()}
+                </Badge>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -128,16 +169,20 @@ const Preview = () => {
                   {/* Project Info */}
                   <div className="space-y-3 pt-6 border-t border-border">
                     <label className="text-sm font-medium text-foreground">
-                      Project Details
+                      Portfolio Details
                     </label>
                     <div className="space-y-2">
                       <div>
-                        <p className="text-xs text-muted-foreground">Title</p>
-                        <p className="text-sm font-medium">{projectData.title}</p>
+                        <p className="text-xs text-muted-foreground">Name</p>
+                        <p className="text-sm font-medium">{portfolioData.personalInfo.name}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Subtitle</p>
-                        <p className="text-sm">{projectData.subtitle}</p>
+                        <p className="text-xs text-muted-foreground">Title</p>
+                        <p className="text-sm">{portfolioData.personalInfo.title}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Projects</p>
+                        <p className="text-sm">{portfolioData.projects.length} project(s)</p>
                       </div>
                     </div>
                   </div>
@@ -148,14 +193,16 @@ const Preview = () => {
                       variant="outline"
                       size="sm"
                       className="w-full justify-start"
+                      onClick={handleDownloadCode}
                     >
-                      <Code className="h-4 w-4 mr-2" />
-                      View Code
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Code
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       className="w-full justify-start"
+                      onClick={handleOpenInNewTab}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Open in New Tab
@@ -169,57 +216,19 @@ const Preview = () => {
             <div className="lg:col-span-3">
               <Card className="shadow-large border-0">
                 <CardHeader className="bg-gradient-primary text-primary-foreground">
-                  <CardTitle className="text-xl">Generated Portfolio</CardTitle>
+                  <CardTitle className="text-xl">AI-Generated Portfolio</CardTitle>
                 </CardHeader>
                 <CardContent className="p-8">
                   {/* Preview Container */}
                   <div className="flex justify-center">
                     <div className={`${getViewportClasses()} transition-all duration-300 bg-white rounded-lg shadow-medium overflow-hidden border border-border`}>
-                      {/* Simulated Portfolio Content */}
-                      <div className="h-full bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
-                        {/* Mock Navigation */}
-                        <div className="bg-white border-b border-gray-200 px-6 py-4">
-                          <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-900">
-                              {projectData.title}
-                            </h2>
-                            <div className="flex space-x-4 text-sm text-gray-600">
-                              <span>Home</span>
-                              <span>About</span>
-                              <span>Projects</span>
-                              <span>Contact</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Mock Hero Section */}
-                        <div className="flex-1 flex items-center justify-center p-8">
-                          <div className="text-center space-y-4">
-                            <div className="w-32 h-32 bg-gradient-primary rounded-full mx-auto flex items-center justify-center">
-                              <div className="w-16 h-16 bg-white/20 rounded-full"></div>
-                            </div>
-                            <h1 className="text-4xl font-bold text-gray-900">
-                              {projectData.title}
-                            </h1>
-                            <p className="text-xl text-gray-600 max-w-md">
-                              {projectData.subtitle}
-                            </p>
-                            <div className="flex justify-center space-x-4 pt-4">
-                              <div className="bg-blue-600 text-white px-6 py-2 rounded-lg">
-                                View Project
-                              </div>
-                              <div className="border border-gray-300 px-6 py-2 rounded-lg">
-                                Contact Me
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Mock Footer */}
-                        <div className="bg-gray-900 text-white text-center py-6 text-sm">
-                          © 2024 {projectData.title}. Built with Portfolio Builder.
-                        </div>
-                      </div>
+                      {/* Render the actual generated portfolio */}
+                      <iframe
+                        srcDoc={typeof generatedPortfolio === 'string' ? generatedPortfolio : generatedPortfolio.html}
+                        className="w-full h-full border-0"
+                        title="Generated Portfolio Preview"
+                        sandbox="allow-scripts allow-same-origin allow-forms"
+                      />
                     </div>
                   </div>
 
@@ -247,6 +256,36 @@ const Preview = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* AI Generation Info */}
+              {metadata && (
+                <Card className="shadow-medium border-0 mt-6">
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold text-foreground mb-4 flex items-center">
+                      <Code className="h-4 w-4 mr-2" />
+                      AI Generation Details
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Generated At:</p>
+                        <p className="font-medium">{new Date(metadata.generatedAt).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">AI Model:</p>
+                        <p className="font-medium">Claude 3 Sonnet</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Style Applied:</p>
+                        <p className="font-medium">{portfolioData.stylePreferences.mood || 'Professional'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Layout:</p>
+                        <p className="font-medium">{portfolioData.stylePreferences.layoutStyle || 'Modern'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

@@ -5,8 +5,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Image as ImageIcon, Plus, X, User, Palette, FolderOpen } from 'lucide-react';
+import { Upload, Image as ImageIcon, Plus, X, User, Palette, FolderOpen, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 interface PersonalInfo {
   name: string;
@@ -76,6 +77,7 @@ const COMMON_TAGS = [
 
 const ProjectDetailsForm = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   const [portfolioData, setPortfolioData] = useState<PortfolioData>({
     personalInfo: {
@@ -118,6 +120,10 @@ const ProjectDetailsForm = () => {
   const [newSkill, setNewSkill] = useState('');
   const [newTag, setNewTag] = useState('');
   const [currentProject, setCurrentProject] = useState(0);
+  
+  // Add new state for API integration
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
 
   // Personal Info Handlers
   const handlePersonalInfoChange = (field: keyof PersonalInfo, value: string) => {
@@ -236,15 +242,45 @@ const ProjectDetailsForm = () => {
     }));
   };
 
-  // Image Handlers
+  // Helper function to get file size in MB
+  const getFileSizeMB = (file: File) => {
+    return (file.size / 1024 / 1024).toFixed(2);
+  };
+
+  // Helper function to validate file types
+  const isValidImageType = (file: File) => {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    return validTypes.includes(file.type);
+  };
+
+  // Updated image upload handlers with validation
   const handleProcessImageUpload = (files: FileList | null) => {
     if (files) {
-      const newImages = Array.from(files);
+      const validFiles = Array.from(files).filter(file => {
+        if (!isValidImageType(file)) {
+          toast({
+            title: "Invalid File Type",
+            description: `${file.name} is not a valid image format`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          toast({
+            title: "File Too Large",
+            description: `${file.name} is larger than 5MB`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      });
+
       setPortfolioData(prev => ({
         ...prev,
         projects: prev.projects.map((project, index) => 
           index === currentProject 
-            ? { ...project, processImages: [...project.processImages, ...newImages] }
+            ? { ...project, processImages: [...project.processImages, ...validFiles] }
             : project
         )
       }));
@@ -253,11 +289,29 @@ const ProjectDetailsForm = () => {
 
   const handleFinalImageUpload = (files: FileList | null) => {
     if (files && files[0]) {
+      const file = files[0];
+      if (!isValidImageType(file)) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload a valid image format",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "Image must be smaller than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setPortfolioData(prev => ({
         ...prev,
         projects: prev.projects.map((project, index) => 
           index === currentProject 
-            ? { ...project, finalProductImage: files[0] }
+            ? { ...project, finalProductImage: file }
             : project
         )
       }));
@@ -278,10 +332,29 @@ const ProjectDetailsForm = () => {
   // Moodboard Handlers
   const handleMoodboardUpload = (files: FileList | null) => {
     if (files) {
-      const newImages = Array.from(files);
+      const validFiles = Array.from(files).filter(file => {
+        if (!isValidImageType(file)) {
+          toast({
+            title: "Invalid File Type",
+            description: `${file.name} is not a valid image format`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} is larger than 5MB`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      });
+
       setPortfolioData(prev => ({
         ...prev,
-        moodboardImages: [...prev.moodboardImages, ...newImages]
+        moodboardImages: [...prev.moodboardImages, ...validFiles]
       }));
     }
   };
@@ -304,9 +377,120 @@ const ProjectDetailsForm = () => {
     }));
   };
 
-  const handleBuild = () => {
-    console.log('Building portfolio with:', portfolioData);
-    navigate('/preview', { state: { portfolioData } });
+  // Updated handleBuild function with API integration
+  const handleBuild = async () => {
+    // Validation
+    if (!portfolioData.personalInfo.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter your full name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!portfolioData.personalInfo.title.trim()) {
+      toast({
+        title: "Validation Error", 
+        description: "Please enter your professional title",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (portfolioData.projects.some(project => !project.title.trim())) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide titles for all projects",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationProgress(0);
+
+    try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + Math.random() * 15;
+        });
+      }, 500);
+
+      // Prepare form data for API
+      const formData = new FormData();
+      
+      // Add portfolio data as JSON
+      formData.append('portfolioData', JSON.stringify(portfolioData));
+
+      // Add process images
+      portfolioData.projects.forEach((project, projectIndex) => {
+        project.processImages.forEach((image, imageIndex) => {
+          formData.append('processImages', image, `project_${projectIndex}_process_${imageIndex}`);
+        });
+        
+        if (project.finalProductImage) {
+          formData.append('finalProductImages', project.finalProductImage, `project_${projectIndex}_final`);
+        }
+      });
+
+      // Add moodboard images
+      portfolioData.moodboardImages.forEach((image, index) => {
+        formData.append('moodboardImages', image, `moodboard_${index}`);
+      });
+
+      console.log('Sending portfolio data to API...');
+
+      // Call backend API
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setGenerationProgress(100);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Portfolio Generated!",
+          description: "Your AI-powered portfolio has been created successfully.",
+        });
+
+        // Navigate to preview with generated portfolio
+        navigate('/preview', { 
+          state: { 
+            portfolioData,
+            generatedPortfolio: result.portfolio,
+            metadata: result.metadata
+          }
+        });
+      } else {
+        throw new Error(result.error || 'Failed to generate portfolio');
+      }
+
+    } catch (error) {
+      console.error('Error generating portfolio:', error);
+      
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate portfolio. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+      setGenerationProgress(0);
+    }
   };
 
   const currentProjectData = portfolioData.projects[currentProject];
@@ -919,18 +1103,55 @@ const ProjectDetailsForm = () => {
               </CardContent>
             </Card>
 
-            {/* Build Button */}
+            {/* Updated Build Button Section */}
             <div className="pt-8 border-t border-border">
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center space-y-4">
+                {isGenerating && (
+                  <div className="w-full max-w-md">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+                      <span>Generating your portfolio...</span>
+                      <span>{Math.round(generationProgress)}%</span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div 
+                        className="bg-gradient-primary h-2 rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${generationProgress}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-2 text-center">
+                      {generationProgress < 30 && "Analyzing your information..."}
+                      {generationProgress >= 30 && generationProgress < 60 && "Designing your layout..."}
+                      {generationProgress >= 60 && generationProgress < 90 && "Generating content with AI..."}
+                      {generationProgress >= 90 && "Finalizing your portfolio..."}
+                    </div>
+                  </div>
+                )}
+                
                 <Button
                   onClick={handleBuild}
                   variant="build"
                   size="lg"
                   className="px-12 py-4 text-lg"
+                  disabled={isGenerating}
                 >
-                  <Upload className="h-5 w-5 mr-2" />
-                  Generate Portfolio with AI
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Generating with AI...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-5 w-5 mr-2" />
+                      Generate Portfolio with AI
+                    </>
+                  )}
                 </Button>
+
+                {!isGenerating && (
+                  <p className="text-sm text-muted-foreground text-center max-w-md">
+                    Our AI will analyze your information and create a stunning, personalized portfolio website in minutes.
+                  </p>
+                )}
               </div>
             </div>
           </div>
