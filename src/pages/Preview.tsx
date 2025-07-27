@@ -2,14 +2,19 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Eye, Code, Smartphone, Monitor, Tablet, ExternalLink, Rocket, Download } from 'lucide-react';
+import { ArrowLeft, Eye, Code, Smartphone, Monitor, Tablet, ExternalLink, Rocket, AlertCircle, Download } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { deployToNetlify } from '@/lib/netlifyDeploy';
+
+const NETLIFY_TOKEN = "nfp_ubQ5p2gRqsLfiTf1vj1d1ghjXbPhsXSRea18";
 
 type ViewportSize = 'mobile' | 'tablet' | 'desktop';
 
 const Preview = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const [viewportSize, setViewportSize] = useState<ViewportSize>('desktop');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -37,20 +42,105 @@ const Preview = () => {
     }
   };
 
-  const handleDeploy = () => {
+  const handleDeploy = async () => {
     setIsLoading(true);
-    // Simulate deployment process
-    setTimeout(() => {
+    
+    try {
+      toast({
+        title: "Deploying to Netlify...",
+        description: "Creating your live portfolio",
+      });
+
+      // Create a simple demo portfolio HTML for now
+      const demoPortfolio = {
+        html: `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>${portfolioData.personalInfo.name} - Portfolio</title>
+              <style>
+                  body {
+                      font-family: 'Arial', sans-serif;
+                      margin: 0;
+                      padding: 0;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      color: white;
+                  }
+                  .container {
+                      text-align: center;
+                      max-width: 800px;
+                      padding: 2rem;
+                  }
+                  h1 {
+                      font-size: 3rem;
+                      margin-bottom: 1rem;
+                      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                  }
+                  p {
+                      font-size: 1.2rem;
+                      opacity: 0.9;
+                      margin-bottom: 2rem;
+                  }
+                  .badge {
+                      background: rgba(255,255,255,0.2);
+                      padding: 0.5rem 1rem;
+                      border-radius: 25px;
+                      backdrop-filter: blur(10px);
+                      display: inline-block;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>${portfolioData.personalInfo.name}</h1>
+                  <p>${portfolioData.personalInfo.title}</p>
+                  <div class="badge">Built with Portfolio Builder</div>
+              </div>
+          </body>
+          </html>
+        `,
+        css: '',
+        js: ''
+      };
+
+      // Deploy to Netlify
+      const deployment = await deployToNetlify(demoPortfolio, NETLIFY_TOKEN);
+      
+      toast({
+        title: "🎉 Deployment Successful!",
+        description: "Your portfolio is now live on the web",
+      });
+
+      // Navigate to success page with real deployment data
       navigate('/deployment', { 
         state: { 
           portfolioData,
           generatedPortfolio,
-          deploymentUrl: 'https://amazing-portfolio-xyz.netlify.app',
-          platform: 'Netlify',
-          deployedAt: new Date().toISOString()
+          deploymentUrl: deployment?.url || 'https://amazing-portfolio-xyz.netlify.app',
+          platform: deployment?.platform || 'Netlify',
+          deployedAt: deployment?.deployedAt || new Date().toISOString(),
+          siteId: deployment?.siteId
         }
       });
-    }, 2000);
+      
+    } catch (error) {
+      console.error('Deployment failed:', error);
+      
+      toast({
+        variant: "destructive",
+        title: "Deployment Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBackToEdit = () => {
@@ -249,10 +339,21 @@ const Preview = () => {
                       ) : (
                         <>
                           <Rocket className="h-5 w-5 mr-2" />
-                          Deploy Portfolio
+                          Deploy to Web
                         </>
                       )}
                     </Button>
+                  </div>
+
+                  {/* Info Note */}
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium">Real Deployment</p>
+                        <p>This will create an actual live website using Netlify's free hosting service. The deployed site will be a simple demo for now.</p>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
