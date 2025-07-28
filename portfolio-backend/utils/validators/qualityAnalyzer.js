@@ -156,7 +156,7 @@ class QualityAnalyzer {
       let fixesApplied = [];
       let htmlModified = false;
 
-      // Apply accessibility fixes
+      // Apply accessibility fixes first (highest impact)
       if (validationResults.accessibility.score < 80) {
         const accessibilityFixes = await this.applyAccessibilityFixes(document, validationResults.accessibility);
         fixesApplied.push(...accessibilityFixes);
@@ -165,7 +165,7 @@ class QualityAnalyzer {
 
       // Apply technical fixes
       if (validationResults.technical.score < 80) {
-        const technicalFixes = await this.applyTechnicalFixes(document, validationResults.technical);
+        const technicalFixes = await this.applyTechnicalFixes(document, validationResults.technical, portfolioData);
         fixesApplied.push(...technicalFixes);
         if (technicalFixes.length > 0) htmlModified = true;
       }
@@ -177,8 +177,8 @@ class QualityAnalyzer {
         if (contentFixes.length > 0) htmlModified = true;
       }
 
-      // Apply design fixes
-      if (validationResults.design.score < 80) {
+      // Apply design fixes (more complex, limited auto-fixes)
+      if (validationResults.design.score < 70) {
         const designFixes = await this.applyDesignFixes(document, validationResults.design, processedImages);
         fixesApplied.push(...designFixes);
         if (designFixes.length > 0) htmlModified = true;
@@ -229,10 +229,13 @@ class QualityAnalyzer {
             const body = document.querySelector('body');
             if (body && !document.querySelector('main')) {
               const main = document.createElement('main');
-              // Move body content to main
-              while (body.firstChild) {
-                main.appendChild(body.firstChild);
-              }
+              // Move body content to main (preserve structure)
+              const bodyChildren = Array.from(body.children);
+              bodyChildren.forEach(child => {
+                if (child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE') {
+                  main.appendChild(child);
+                }
+              });
               body.appendChild(main);
               fixes.push('Added main landmark');
             }
@@ -244,9 +247,20 @@ class QualityAnalyzer {
             interactiveDivs.forEach(div => {
               if (!div.getAttribute('tabindex')) {
                 div.setAttribute('tabindex', '0');
-                fixes.push('Added keyboard accessibility');
+                fixes.push('Added keyboard accessibility to interactive element');
               }
             });
+            break;
+
+          case 'missing_h1':
+            // Add H1 if missing
+            if (!document.querySelector('h1')) {
+              const firstHeading = document.querySelector('h2, h3, h4, h5, h6');
+              if (firstHeading) {
+                firstHeading.tagName = 'h1';
+                fixes.push('Fixed heading hierarchy - added H1');
+              }
+            }
             break;
         }
       } catch (fixError) {
@@ -260,7 +274,7 @@ class QualityAnalyzer {
   /**
    * Apply technical fixes
    */
-  async applyTechnicalFixes(document, technicalResults) {
+  async applyTechnicalFixes(document, technicalResults, portfolioData) {
     const fixes = [];
 
     technicalResults.issues.forEach(issue => {
@@ -269,18 +283,41 @@ class QualityAnalyzer {
           case 'missing_viewport':
             // Add viewport meta tag
             if (!document.querySelector('meta[name="viewport"]')) {
-              const head = document.querySelector('head');
-              if (head) {
-                const viewport = document.createElement('meta');
-                viewport.setAttribute('name', 'viewport');
-                viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
-                head.appendChild(viewport);
-                fixes.push('Added viewport meta tag');
+              const head = document.querySelector('head') || document.createElement('head');
+              const viewport = document.createElement('meta');
+              viewport.setAttribute('name', 'viewport');
+              viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+              head.appendChild(viewport);
+              if (!document.querySelector('head')) {
+                document.documentElement.insertBefore(head, document.body);
               }
+              fixes.push('Added viewport meta tag');
             }
             break;
 
-          case 'missing_lang':
+          case 'missing_charset':
+            // Add charset meta tag
+            if (!document.querySelector('meta[charset]')) {
+              const head = document.querySelector('head') || document.createElement('head');
+              const charset = document.createElement('meta');
+              charset.setAttribute('charset', 'UTF-8');
+              head.insertBefore(charset, head.firstChild);
+              fixes.push('Added charset meta tag');
+            }
+            break;
+
+          case 'missing_title':
+            // Add title if missing
+            if (!document.querySelector('title')) {
+              const head = document.querySelector('head') || document.createElement('head');
+              const title = document.createElement('title');
+              title.textContent = `${portfolioData.personalInfo.name} - Portfolio`;
+              head.appendChild(title);
+              fixes.push('Added page title');
+            }
+            break;
+
+          case 'missing_lang_attribute':
             // Add lang attribute to html
             const html = document.querySelector('html');
             if (html && !html.getAttribute('lang')) {
@@ -289,12 +326,12 @@ class QualityAnalyzer {
             }
             break;
 
-          case 'broken_link':
-            // Fix broken internal links (basic fix)
-            const brokenLinks = document.querySelectorAll('a[href=""]');
-            brokenLinks.forEach(link => {
-              link.setAttribute('href', '#');
-              fixes.push('Fixed empty link');
+          case 'broken_image_src':
+            // Fix empty image src attributes
+            const brokenImages = document.querySelectorAll('img[src=""], img:not([src])');
+            brokenImages.forEach((img, index) => {
+              img.setAttribute('src', `https://via.placeholder.com/400x300?text=Portfolio+Image+${index + 1}`);
+              fixes.push(`Fixed broken image ${index + 1}`);
             });
             break;
         }
@@ -315,31 +352,44 @@ class QualityAnalyzer {
     contentResults.issues.forEach(issue => {
       try {
         switch (issue.type) {
-          case 'missing_title':
-            // Add title if missing
-            if (!document.querySelector('title')) {
-              const head = document.querySelector('head');
-              if (head) {
-                const title = document.createElement('title');
-                title.textContent = `${portfolioData.personalInfo.name} - Portfolio`;
-                head.appendChild(title);
-                fixes.push('Added page title');
+          case 'missing_name':
+            // Add name to first heading or create one
+            const firstHeading = document.querySelector('h1, h2, h3');
+            if (firstHeading && !firstHeading.textContent.includes(portfolioData.personalInfo.name)) {
+              firstHeading.textContent = portfolioData.personalInfo.name;
+              fixes.push('Added name to heading');
+            } else if (!firstHeading) {
+              const body = document.querySelector('body');
+              if (body) {
+                const nameHeading = document.createElement('h1');
+                nameHeading.textContent = portfolioData.personalInfo.name;
+                body.insertBefore(nameHeading, body.firstChild);
+                fixes.push('Created name heading');
               }
             }
             break;
 
-          case 'missing_meta_description':
-            // Add meta description
-            if (!document.querySelector('meta[name="description"]')) {
-              const head = document.querySelector('head');
-              if (head) {
-                const metaDesc = document.createElement('meta');
-                metaDesc.setAttribute('name', 'description');
-                metaDesc.setAttribute('content', portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}`);
-                head.appendChild(metaDesc);
-                fixes.push('Added meta description');
-              }
+          case 'missing_title':
+            // Add professional title near name
+            const nameElement = document.querySelector('h1');
+            if (nameElement && portfolioData.personalInfo.title) {
+              const titleElement = document.createElement('h2');
+              titleElement.textContent = portfolioData.personalInfo.title;
+              nameElement.parentNode.insertBefore(titleElement, nameElement.nextSibling);
+              fixes.push('Added professional title');
             }
+            break;
+
+          case 'placeholder_content':
+            // Replace common placeholder text
+            const textElements = document.querySelectorAll('p, div, span');
+            textElements.forEach(element => {
+              let text = element.textContent;
+              if (text.toLowerCase().includes('lorem ipsum')) {
+                element.textContent = portfolioData.personalInfo.bio || 'Professional portfolio content.';
+                fixes.push('Replaced placeholder text');
+              }
+            });
             break;
         }
       } catch (fixError) {
@@ -351,7 +401,7 @@ class QualityAnalyzer {
   }
 
   /**
-   * Apply design fixes
+   * Apply design fixes (limited auto-fixes possible)
    */
   async applyDesignFixes(document, designResults, processedImages) {
     const fixes = [];
@@ -359,28 +409,50 @@ class QualityAnalyzer {
     designResults.issues.forEach(issue => {
       try {
         switch (issue.type) {
-          case 'missing_responsive_styles':
+          case 'not_responsive':
             // Add basic responsive styles if missing
-            if (!document.querySelector('style, link[rel="stylesheet"]')) {
-              const head = document.querySelector('head');
-              if (head) {
-                const style = document.createElement('style');
-                style.textContent = `
-                  * { box-sizing: border-box; }
-                  body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-                  img { max-width: 100%; height: auto; }
-                  @media (max-width: 768px) { body { padding: 10px; } }
-                `;
-                head.appendChild(style);
-                fixes.push('Added responsive styles');
-              }
+            if (!document.querySelector('style') || !document.querySelector('style').textContent.includes('@media')) {
+              const head = document.querySelector('head') || document.createElement('head');
+              const style = document.createElement('style');
+              style.textContent = `
+                /* Basic responsive styles */
+                * { box-sizing: border-box; }
+                img { max-width: 100%; height: auto; }
+                @media (max-width: 768px) {
+                  body { padding: 10px; }
+                  .container { width: 100%; }
+                }
+              `;
+              head.appendChild(style);
+              fixes.push('Added basic responsive styles');
             }
             break;
 
-          case 'placeholder_images':
-            // This would be more complex - replace placeholders with actual images
-            // For now, just note that it needs manual intervention
-            fixes.push('Noted placeholder images for manual replacement');
+          case 'no_client_images_used':
+            // Replace first few placeholder images with client images
+            if (processedImages && processedImages.final && processedImages.final.length > 0) {
+              const placeholderImages = document.querySelectorAll('img[src*="placeholder"], img[src*="picsum"], img[src*="via.placeholder"]');
+              const clientImages = processedImages.final.slice(0, Math.min(placeholderImages.length, 3));
+              
+              placeholderImages.forEach((img, index) => {
+                if (clientImages[index]) {
+                  img.setAttribute('src', clientImages[index].url);
+                  fixes.push(`Replaced placeholder with client image ${index + 1}`);
+                }
+              });
+            }
+            break;
+
+          case 'poor_contrast':
+            // Add basic contrast improvements
+            const style = document.querySelector('style') || document.createElement('style');
+            style.textContent += `
+              /* Improved contrast */
+              body { color: #333; background-color: #fff; }
+              .dark-text { color: #222; }
+              .light-bg { background-color: #f9f9f9; }
+            `;
+            fixes.push('Added contrast improvements');
             break;
         }
       } catch (fixError) {
