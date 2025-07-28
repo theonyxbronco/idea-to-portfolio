@@ -136,79 +136,138 @@ PERSONAL INFORMATION:
   
     return projectsText;
   }
-  
+
   generateStyleSection(stylePreferences, processedImages) {
     let styleText = `
-  STYLE PREFERENCES:
-  - Color Scheme: ${stylePreferences?.colorScheme || 'Professional and modern'}
-  - Layout Style: ${stylePreferences?.layoutStyle || 'Clean and minimal'}
-  - Typography: ${stylePreferences?.typography || 'Modern and readable'}
-  - Overall Mood: ${stylePreferences?.mood || 'Professional and creative'}`;
-  
-    // ENHANCED: Add detailed moodboard analysis
+STYLE PREFERENCES:
+- Color Scheme: ${stylePreferences?.colorScheme || 'Professional and modern'}
+- Layout Style: ${stylePreferences?.layoutStyle || 'Clean and minimal'}
+- Typography: ${stylePreferences?.typography || 'Modern and readable'}
+- Overall Mood: ${stylePreferences?.mood || 'Professional and creative'}`;
+
+    // ENHANCED: Add detailed moodboard analysis with specific instructions
     if (processedImages && processedImages.moodboard && processedImages.moodboard.length > 0) {
       styleText += `
-  
-  🎨 CRITICAL MOODBOARD INSPIRATION (${processedImages.moodboard.length} images provided):
-  THE CLIENT REALLY WANTS THE PORTFOLIO TO LOOK SIMILAR TO THESE MOODBOARD IMAGES!
-  
-  MOODBOARD ANALYSIS & REQUIREMENTS:
-  - ${processedImages.moodboard.length} inspiration images have been provided by the client
-  - These images represent the EXACT aesthetic and style the client wants
-  - You must analyze the visual style, color palette, layout patterns, and mood from these moodboard images
-  - The final portfolio design should strongly reflect the aesthetic shown in the moodboard
-  - Pay special attention to: colors, typography style, layout approach, visual elements, and overall mood
-  - The moodboard is the PRIMARY reference for the visual direction - use it as the foundation for all design decisions
-  
-  MOODBOARD IMAGES DETAILS:
-  ${processedImages.moodboard.map((img, index) => `
-  - Moodboard Image ${index + 1}: ${img.url} (${img.dimensions.width}x${img.dimensions.height})
-    Use this image as inspiration for color palette, layout style, and overall aesthetic
-  `).join('')}
-  
-  IMPORTANT: The client specifically mentioned they want the portfolio to look similar to the moodboard images. This is a HIGH PRIORITY requirement.`;
+
+🎨 CRITICAL MOODBOARD INSPIRATION (${processedImages.moodboard.length} images provided):
+⚠️  HIGHEST PRIORITY: THE CLIENT REALLY WANTS THE PORTFOLIO TO LOOK SIMILAR TO THESE MOODBOARD IMAGES!
+
+MANDATORY MOODBOARD ADHERENCE REQUIREMENTS:
+
+1. VISUAL ANALYSIS INSTRUCTIONS:
+   - Study each moodboard image carefully for design patterns, color schemes, typography choices
+   - Extract the dominant colors, accent colors, and color relationships
+   - Identify layout patterns: grid systems, spacing, alignment, visual hierarchy
+   - Note typography characteristics: font weights, sizes, letter spacing, line heights
+   - Observe visual elements: shadows, borders, gradients, textures, shapes
+   - Capture the overall mood and energy: minimalist, bold, playful, professional, artistic
+
+2. IMPLEMENTATION PRIORITY ORDER:
+   a) Color Palette (HIGHEST) - Match the exact color schemes from moodboard
+   b) Layout Structure (HIGH) - Replicate spacing, grid patterns, and visual rhythm
+   c) Typography Style (HIGH) - Match font weights, sizes, and text treatment
+   d) Visual Elements (MEDIUM) - Include similar design elements and effects
+   e) Overall Aesthetic (HIGH) - Ensure the final result captures the same feeling
+
+3. SPECIFIC MOODBOARD IMAGES TO ANALYZE:
+${processedImages.moodboard.map((img, index) => `
+📸 MOODBOARD IMAGE ${index + 1}: ${img.url}
+   - Dimensions: ${img.dimensions.width}x${img.dimensions.height}
+   - INSTRUCTION: Extract and apply the color palette, layout grid, typography style, and visual elements from this image
+   - FOCUS AREAS: Look for color combinations, spacing patterns, font treatments, and design motifs
+   - IMPLEMENTATION: Use this as PRIMARY reference for section ${index + 1} of the portfolio
+`).join('')}
+
+4. MOODBOARD-DRIVEN DESIGN DECISIONS:
+   - If moodboard shows dark themes → Create dark/moody portfolio sections
+   - If moodboard shows bright colors → Use vibrant, energetic color schemes  
+   - If moodboard shows minimal layouts → Apply clean, spacious design with lots of whitespace
+   - If moodboard shows bold typography → Use strong, impactful font treatments
+   - If moodboard shows geometric patterns → Incorporate geometric elements and shapes
+   - If moodboard shows organic/flowing shapes → Use curved elements and fluid layouts
+   - If moodboard shows specific color combinations → Extract and use those exact color palettes
+
+5. TECHNICAL IMPLEMENTATION NOTES:
+   - Use CSS custom properties to define colors extracted from moodboard
+   - Create responsive layouts that maintain moodboard aesthetic across devices
+   - Implement hover effects and animations inspired by moodboard energy
+   - Use box-shadows, gradients, and borders that reflect moodboard style
+   - Apply typography scales and spacing that match moodboard proportions
+
+❗ CRITICAL REMINDER: The client chose these moodboard images specifically because they represent their desired aesthetic. Failing to incorporate the moodboard inspiration will result in client dissatisfaction. This is not optional - it's a core requirement that should influence every design decision.`;
     }
-  
+
     // Enhanced project images integration
     if (processedImages && (processedImages.process.length > 0 || processedImages.final.length > 0)) {
       styleText += `
-  
-  📸 CLIENT PROJECT IMAGES (MUST BE INCLUDED):
-  The client has provided actual project images that MUST be prominently featured in the portfolio:
-  
-  PROCESS IMAGES (${processedImages.process.length} images):
-  - These show the client's creative process and behind-the-scenes work
-  - MUST be included in project card expandable galleries
-  - Use these instead of placeholder images wherever possible
-  ${processedImages.process.map((img, index) => `
-  - Process Image ${index + 1}: ${img.url} (${img.originalName})
-    Dimensions: ${img.dimensions.width}x${img.dimensions.height}
-  `).join('')}
-  
-  FINAL PRODUCT IMAGES (${processedImages.final.length} images):
-  - These are the finished project results
-  - MUST be used as the main project card thumbnails and featured images
-  - These should be the hero images for each project
-  ${processedImages.final.map((img, index) => `
-  - Final Image ${index + 1}: ${img.url} (${img.originalName})
-    Dimensions: ${img.dimensions.width}x${img.dimensions.height}
-  `).join('')}
-  
-  CRITICAL IMAGE REQUIREMENTS:
-  1. Replace ALL placeholder images with the actual client images provided
-  2. Use final product images as project card thumbnails and main project images
-  3. Include process images in expandable project galleries
-  4. Create an image-heavy portfolio that showcases the client's actual work
-  5. Ensure images are prominently displayed and properly sized
-  6. Add hover effects and image galleries for the uploaded images`;
+
+📸 CLIENT PROJECT IMAGES (MUST BE INCLUDED):
+The client has provided actual project images that MUST be prominently featured in the portfolio:
+
+PROCESS IMAGES (${processedImages.process.length} images):
+- These show the client's creative process and behind-the-scenes work
+- MUST be included in project card expandable galleries
+- Use these instead of placeholder images wherever possible
+${processedImages.process.map((img, index) => `
+- Process Image ${index + 1}: ${img.url} (${img.originalName})
+  Dimensions: ${img.dimensions.width}x${img.dimensions.height}
+`).join('')}
+
+FINAL PRODUCT IMAGES (${processedImages.final.length} images):
+- These are the finished project results
+- MUST be used as the main project card thumbnails and featured images
+- These should be the hero images for each project
+${processedImages.final.map((img, index) => `
+- Final Image ${index + 1}: ${img.url} (${img.originalName})
+  Dimensions: ${img.dimensions.width}x${img.dimensions.height}
+`).join('')}
+
+CRITICAL IMAGE REQUIREMENTS:
+1. Replace ALL placeholder images with the actual client images provided
+2. Use final product images as project card thumbnails and main project images
+3. Include process images in expandable project galleries
+4. Create an image-heavy portfolio that showcases the client's actual work
+5. Ensure images are prominently displayed and properly sized
+6. Add hover effects and image galleries for the uploaded images`;
     }
-  
+
     return styleText;
   }
 
-  generateImagePlaceholders(projects) {
+  generateImagePlaceholders(projects, processedImages) {
     let imageText = `
-IMAGE PLACEHOLDERS:
+IMAGE INTEGRATION STRATEGY:`;
+
+    if (processedImages && (processedImages.moodboard?.length > 0 || processedImages.process?.length > 0 || processedImages.final?.length > 0)) {
+      imageText += `
+
+🖼️ CLIENT HAS PROVIDED REAL IMAGES - USE THESE INSTEAD OF PLACEHOLDERS!
+
+MOODBOARD IMAGES (${processedImages.moodboard?.length || 0} provided):
+${processedImages.moodboard?.map((img, index) => `
+- Moodboard ${index + 1}: ${img.url}
+  Use this for design inspiration - colors, layout, aesthetic`).join('') || 'None provided'}
+
+CLIENT'S ACTUAL PROJECT IMAGES:
+${processedImages.final?.map((img, index) => `
+- Final Product ${index + 1}: ${img.url} 
+  USE THIS as project card thumbnail and main project image`).join('') || 'No final images provided'}
+
+${processedImages.process?.map((img, index) => `
+- Process Image ${index + 1}: ${img.url}
+  INCLUDE THIS in project galleries and process sections`).join('') || 'No process images provided'}
+
+INTEGRATION REQUIREMENTS:
+1. Replace placeholders with actual client images wherever possible
+2. Use final product images as main project visuals
+3. Create galleries with process images
+4. Add proper image optimization and responsive sizing
+5. Include hover effects and lightbox functionality
+6. Ensure images load properly with fallbacks`;
+    } else {
+      imageText += `
+
+PLACEHOLDER IMAGES (No client images provided):
 Use these high-quality placeholder images that match the project aesthetics:
 - Hero/Banner images: Use https://picsum.photos/1200/600 with appropriate IDs
 - Project card thumbnails: Use https://picsum.photos/400/300 with different IDs
@@ -217,6 +276,7 @@ Use these high-quality placeholder images that match the project aesthetics:
 - Portrait/About image: Use https://picsum.photos/400/400 for profile
 
 IMPORTANT: Use different image IDs (e.g., /800/600?random=1, /800/600?random=2) to ensure variety.`;
+    }
 
     return imageText;
   }
@@ -289,24 +349,24 @@ CRITICAL OUTPUT REQUIREMENTS:
     
     // Enhanced prompt with image emphasis
     const enhancedBasePrompt = this.basePrompt + `
-  
-  🎨 MOODBOARD & IMAGE INTEGRATION PRIORITY:
-  This client has provided specific visual inspiration and their actual project work.
-  The generated portfolio MUST reflect their aesthetic preferences and showcase their real work.
-  
-  MOODBOARD REQUIREMENTS (if provided):
-  - Analyze any moodboard images for color palette, typography, layout style, and overall aesthetic
-  - The final design should strongly reflect the moodboard aesthetic
-  - Extract design patterns, color schemes, and visual elements from moodboard images
-  - This is a HIGH PRIORITY client requirement
-  
-  REAL PROJECT IMAGES REQUIREMENTS (if provided):
-  - Use the client's actual project images instead of placeholders
-  - Feature final product images prominently as project thumbnails
-  - Include process images in expandable project galleries
-  - Create image-heavy portfolio showcasing real work
-  - Add professional image presentation with hover effects and galleries`;
-  
+
+🎨 MOODBOARD & IMAGE INTEGRATION PRIORITY:
+This client has provided specific visual inspiration and their actual project work.
+The generated portfolio MUST reflect their aesthetic preferences and showcase their real work.
+
+MOODBOARD REQUIREMENTS (if provided):
+- Analyze any moodboard images for color palette, typography, layout style, and overall aesthetic
+- The final design should strongly reflect the moodboard aesthetic
+- Extract design patterns, color schemes, and visual elements from moodboard images
+- This is a HIGH PRIORITY client requirement
+
+REAL PROJECT IMAGES REQUIREMENTS (if provided):
+- Use the client's actual project images instead of placeholders
+- Feature final product images prominently as project thumbnails
+- Include process images in expandable project galleries
+- Create image-heavy portfolio showcasing real work
+- Add professional image presentation with hover effects and galleries`;
+
     const prompt = [
       enhancedBasePrompt,
       this.generatePersonalInfoSection(personalInfo),
@@ -316,55 +376,8 @@ CRITICAL OUTPUT REQUIREMENTS:
       this.generateStructureRequirements(),
       this.generateQualityRequirements()
     ].join('\n');
-  
-    return prompt;
-  }
 
-  generateImagePlaceholders(projects, processedImages) {
-    let imageText = `
-  IMAGE INTEGRATION STRATEGY:`;
-  
-    if (processedImages && (processedImages.moodboard?.length > 0 || processedImages.process?.length > 0 || processedImages.final?.length > 0)) {
-      imageText += `
-  
-  🖼️ CLIENT HAS PROVIDED REAL IMAGES - USE THESE INSTEAD OF PLACEHOLDERS!
-  
-  MOODBOARD IMAGES (${processedImages.moodboard?.length || 0} provided):
-  ${processedImages.moodboard?.map((img, index) => `
-  - Moodboard ${index + 1}: ${img.url}
-    Use this for design inspiration - colors, layout, aesthetic`).join('') || 'None provided'}
-  
-  CLIENT'S ACTUAL PROJECT IMAGES:
-  ${processedImages.final?.map((img, index) => `
-  - Final Product ${index + 1}: ${img.url} 
-    USE THIS as project card thumbnail and main project image`).join('') || 'No final images provided'}
-  
-  ${processedImages.process?.map((img, index) => `
-  - Process Image ${index + 1}: ${img.url}
-    INCLUDE THIS in project galleries and process sections`).join('') || 'No process images provided'}
-  
-  INTEGRATION REQUIREMENTS:
-  1. Replace placeholders with actual client images wherever possible
-  2. Use final product images as main project visuals
-  3. Create galleries with process images
-  4. Add proper image optimization and responsive sizing
-  5. Include hover effects and lightbox functionality
-  6. Ensure images load properly with fallbacks`;
-    } else {
-      imageText += `
-  
-  PLACEHOLDER IMAGES (No client images provided):
-  Use these high-quality placeholder images that match the project aesthetics:
-  - Hero/Banner images: Use https://picsum.photos/1200/600 with appropriate IDs
-  - Project card thumbnails: Use https://picsum.photos/400/300 with different IDs
-  - Project detail images: Use https://picsum.photos/800/600 for expanded views
-  - Process images: Use https://picsum.photos/400/300 for smaller images in galleries
-  - Portrait/About image: Use https://picsum.photos/400/400 for profile
-  
-  IMPORTANT: Use different image IDs (e.g., /800/600?random=1, /800/600?random=2) to ensure variety.`;
-    }
-  
-    return imageText;
+    return prompt;
   }
 
   generateStyledPrompt(portfolioData, processedImages = {}, designStyle = 'modern') {

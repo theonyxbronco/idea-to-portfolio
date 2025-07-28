@@ -10,6 +10,7 @@ require('dotenv').config();
 const fileProcessor = require('./utils/fileProcessor');
 const promptGenerator = require('./utils/promptGenerator');
 const htmlValidator = require('./utils/htmlValidator');
+const qualityAnalyzer = require('./utils/validators/qualityAnalyzer');
 
 // Import middleware
 const {
@@ -286,14 +287,11 @@ app.post('/api/generate-portfolio',
       // Handle continuation vs new generation
       let cleanedHTML;
       if (isContinuation && partialHtml) {
-        // For continuation, merge the partial with the new content
         cleanedHTML = htmlValidator.mergeHtmlParts(partialHtml, generatedContent.trim());
         console.log('Merged continuation with partial HTML');
       } else {
-        // Clean and validate the generated HTML for new generation
         cleanedHTML = generatedContent.trim();
         
-        // Remove any markdown code blocks if present
         if (cleanedHTML.startsWith('```html')) {
           cleanedHTML = cleanedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
         } else if (cleanedHTML.startsWith('```')) {
@@ -301,7 +299,7 @@ app.post('/api/generate-portfolio',
         }
       }
 
-      // Validate HTML completeness
+      // Validate HTML completeness (existing code)
       const validation = htmlValidator.validateCompleteness(cleanedHTML);
       console.log('HTML Validation Result:', {
         isComplete: validation.isComplete,
@@ -309,7 +307,7 @@ app.post('/api/generate-portfolio',
         issuesCount: validation.issues.length
       });
 
-      // If HTML is incomplete and this isn't already a continuation attempt
+      // If HTML is incomplete, handle it (existing code)
       if (!validation.isComplete && !isContinuation && validation.canContinue) {
         console.log('HTML appears incomplete, sending to incomplete handler');
         
@@ -328,15 +326,86 @@ app.post('/api/generate-portfolio',
           }
         });
       }
+
+      // ===== NEW VALIDATION INTEGRATION STARTS HERE =====
       
-      // Validate that we have valid HTML (for completed generation)
-      if (!cleanedHTML.includes('<html') && !cleanedHTML.includes('<!DOCTYPE')) {
+      console.log('🔍 Starting quality validation and auto-fix...');
+      
+      // Run comprehensive validation
+      let validatedHTML = cleanedHTML;
+      let validationResults = null;
+      let autoFixApplied = false;
+      
+      try {
+        // Run quality validation
+        validationResults = await qualityAnalyzer.validatePortfolio(
+          cleanedHTML,
+          portfolioData,
+          processedImages
+        );
+        
+        console.log('📊 Validation Results:', {
+          overall: validationResults.overall.score,
+          content: validationResults.content.score,
+          design: validationResults.design.score,
+          technical: validationResults.technical.score,
+          accessibility: validationResults.accessibility.score
+        });
+
+        // Apply auto-fixes if validation score is below threshold
+        const overallScore = validationResults.overall.score;
+        if (overallScore < 85) {
+          console.log(`⚡ Auto-fixing issues (score: ${overallScore})`);
+          
+          const autoFixResult = await qualityAnalyzer.applyAutoFixes(
+            cleanedHTML,
+            validationResults,
+            portfolioData,
+            processedImages
+          );
+          
+          if (autoFixResult.success && autoFixResult.improvedHtml) {
+            validatedHTML = autoFixResult.improvedHtml;
+            autoFixApplied = true;
+            
+            console.log('✅ Auto-fixes applied:', autoFixResult.appliedFixes.length);
+            
+            // Re-validate after auto-fixes
+            validationResults = await qualityAnalyzer.validatePortfolio(
+              validatedHTML,
+              portfolioData,
+              processedImages
+            );
+            
+            console.log('📈 Post-fix validation score:', validationResults.overall.score);
+          }
+        } else {
+          console.log('✅ Portfolio passed validation without auto-fixes needed');
+        }
+        
+      } catch (validationError) {
+        console.warn('⚠️ Validation failed, proceeding without validation:', validationError.message);
+        // Don't fail the entire generation if validation fails
+        validationResults = {
+          overall: { score: 75, status: 'unknown' },
+          content: { score: 75, issues: [], suggestions: [] },
+          design: { score: 75, issues: [], suggestions: [] },
+          technical: { score: 75, issues: [], suggestions: [] },
+          accessibility: { score: 75, issues: [], suggestions: [] },
+          error: 'Validation failed but generation completed'
+        };
+      }
+      
+      // ===== VALIDATION INTEGRATION ENDS HERE =====
+      
+      // Validate that we have valid HTML (keep existing check)
+      if (!validatedHTML.includes('<html') && !validatedHTML.includes('<!DOCTYPE')) {
         throw new Error('Generated content does not appear to be valid HTML');
       }
       
-      // Create portfolio response
+      // Create portfolio response with validation results
       const portfolioResponse = {
-        html: cleanedHTML,
+        html: validatedHTML, // Use the validated/fixed HTML
         metadata: {
           title: `${portfolioData.personalInfo.name} - Portfolio`,
           description: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
@@ -350,11 +419,22 @@ app.post('/api/generate-portfolio',
           },
           isContinuation: isContinuation,
           validationResult: validation,
-          processedImageDetails: processedImages // Include processed image URLs
+          processedImageDetails: processedImages,
+          
+          // NEW: Add quality validation results
+          qualityValidation: validationResults,
+          autoFixApplied: autoFixApplied,
+          qualityScore: validationResults?.overall?.score || 'unknown'
         }
       };
       
       console.log(`Portfolio generation completed in ${Date.now() - processingStartTime}ms`);
+      if (validationResults) {
+        console.log(`Quality score: ${validationResults.overall.score}/100`);
+        if (autoFixApplied) {
+          console.log('Auto-fixes were applied to improve quality');
+        }
+      }
       
       // Schedule cleanup of processed images (after 1 hour)
       setTimeout(() => {
@@ -373,7 +453,19 @@ app.post('/api/generate-portfolio',
           processingTime: Date.now() - processingStartTime,
           designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'modern'),
           isContinuation: isContinuation,
-          imagesProcessed: processedImages
+          imagesProcessed: processedImages,
+          
+          // NEW: Include validation summary in response
+          validation: {
+            overallScore: validationResults?.overall?.score || 'unknown',
+            autoFixApplied: autoFixApplied,
+            issueCount: validationResults ? 
+              validationResults.content.issues.length + 
+              validationResults.design.issues.length + 
+              validationResults.technical.issues.length + 
+              validationResults.accessibility.issues.length : 0,
+            status: validationResults?.overall?.status || 'unknown'
+          }
         }
       });
       
