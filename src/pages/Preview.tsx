@@ -29,7 +29,7 @@ const Preview = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   // Get data from previous page
-  const { portfolioData, generatedPortfolio, metadata } = location.state || {};
+  const { portfolioData, generatedPortfolio, metadata, isIncomplete } = location.state || {};
   
   // Initialize HTML parser
   const htmlString = typeof generatedPortfolio === 'string' 
@@ -68,6 +68,15 @@ const Preview = () => {
   };
 
   const handleDeploy = async () => {
+    if (isIncomplete) {
+      toast({
+        title: "Cannot Deploy Incomplete Portfolio",
+        description: "Please complete the generation first or fix incomplete sections",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -197,6 +206,12 @@ const Preview = () => {
                   Modified
                 </Badge>
               )}
+              {isIncomplete && (
+                <Badge variant="destructive" className="px-3 py-1 text-xs">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Incomplete
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -276,8 +291,46 @@ const Preview = () => {
             </div>
           </div>
 
+          {/* Warning for incomplete content */}
+          {isIncomplete && (
+            <Card className="shadow-medium border-0 mb-8 border-yellow-200 bg-yellow-50">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2 text-yellow-800">
+                  <AlertCircle className="h-5 w-5" />
+                  <div>
+                    <p className="font-medium">Incomplete Portfolio Warning</p>
+                    <p className="text-sm">This portfolio was generated from incomplete content and may have broken sections or missing elements.</p>
+                    <div className="mt-3 flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => navigate('/incomplete', { 
+                          state: { 
+                            portfolioData, 
+                            partialHtml: htmlString,
+                            completionStatus: metadata?.validationResult,
+                            metadata: metadata,
+                            error: 'Portfolio incomplete'
+                          }
+                        })}
+                      >
+                        Continue Generation
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => navigate('/')}
+                      >
+                        Start Over
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Preview Area */}
-          <div>
           <Card className="shadow-large border-0 mb-8">
             <CardHeader className="bg-gradient-primary text-primary-foreground">
               <CardTitle className="text-xl">Portfolio Preview</CardTitle>
@@ -298,12 +351,17 @@ const Preview = () => {
                   variant="build"
                   size="lg"
                   className="px-12 py-4 text-lg"
-                  disabled={isLoading}
+                  disabled={isLoading || isIncomplete}
                 >
                   {isLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                       Deploying...
+                    </>
+                  ) : isIncomplete ? (
+                    <>
+                      <AlertCircle className="h-5 w-5 mr-2" />
+                      Complete Generation First
                     </>
                   ) : (
                     <>
@@ -328,6 +386,7 @@ const Preview = () => {
                     onClick={() => selectElement(null)}
                     className="text-accent-foreground hover:bg-accent-foreground/20"
                   >
+                    <Code className="h-4 w-4" />
                   </Button>
                 </CardTitle>
               </CardHeader>
@@ -342,7 +401,7 @@ const Preview = () => {
           )}
         </div>
       </div>
-      </div>    </div>
+    </div>
   );
 };
 

@@ -488,14 +488,35 @@ const ProjectDetailsForm = () => {
       }
   
       const result = await response.json();
-      console.log('Success Response:', result);
-  
+      console.log('API Response:', result);
+
+      // Check if the generation was incomplete
+      if (result.incomplete) {
+        console.log('Generation incomplete, redirecting to incomplete page');
+        toast({
+          title: "Generation Incomplete",
+          description: "The AI response was cut off. Continue or start over.",
+          variant: "destructive",
+        });
+        
+        navigate('/incomplete', {
+          state: {
+            portfolioData,
+            partialHtml: result.partialHtml,
+            completionStatus: result.completionStatus,
+            metadata: result.metadata,
+            error: result.error
+          }
+        });
+        return;
+      }
+
       if (result.success && result.portfolio) {
         toast({
           title: "Portfolio Generated!",
           description: "Your AI-powered portfolio has been created successfully.",
         });
-  
+
         // Navigate to preview with the generated portfolio
         navigate('/preview', { 
           state: { 

@@ -1,3 +1,4 @@
+// src/components/ui/progress.tsx (if not already exists or needs updating)
 import * as React from "react"
 import * as ProgressPrimitive from "@radix-ui/react-progress"
 

@@ -9,6 +9,7 @@ require('dotenv').config();
 // Import utilities
 const fileProcessor = require('./utils/fileProcessor');
 const promptGenerator = require('./utils/promptGenerator');
+const htmlValidator = require('./utils/htmlValidator');
 
 // Import middleware
 const {
@@ -53,8 +54,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Add pre-flight OPTIONS handling
-app.options('*', cors());
 // Add pre-flight OPTIONS handling
 app.options('*', cors());
 
@@ -129,7 +128,16 @@ app.post('/api/generate-portfolio',
       const portfolioData = req.portfolioData;
       const files = req.files || [];
       
-      // Process uploaded images
+      // Check if this is a continuation request
+      const isContinuation = req.body.continueGeneration === 'true';
+      const partialHtml = req.body.partialHtml;
+
+      if (isContinuation) {
+        console.log('This is a continuation request');
+        console.log('Partial HTML length:', partialHtml?.length || 0);
+      }
+
+      // Process uploaded images (skip for continuation if no new files)
       console.log('Processing uploaded images...');
       const processedImages = {
         process: [],
@@ -137,81 +145,89 @@ app.post('/api/generate-portfolio',
         moodboard: []
       };
       
-      // Categorize files based on field names or original names
-      const categorizeFile = (file) => {
-        const fieldName = file.fieldname || '';
-        const originalName = file.originalname || '';
+      if (files.length > 0) {
+        // Categorize files based on field names or original names
+        const categorizeFile = (file) => {
+          const fieldName = file.fieldname || '';
+          const originalName = file.originalname || '';
+          
+          if (fieldName.includes('moodboard') || originalName.includes('moodboard')) {
+            return 'moodboard';
+          } else if (fieldName.includes('final') || originalName.includes('final')) {
+            return 'final';
+          } else if (fieldName.includes('process') || originalName.includes('process')) {
+            return 'process';
+          } else {
+            // Default categorization based on field name patterns
+            if (fieldName.includes('mood')) return 'moodboard';
+            if (fieldName.includes('final')) return 'final';
+            return 'process'; // Default to process images
+          }
+        };
         
-        if (fieldName.includes('moodboard') || originalName.includes('moodboard')) {
-          return 'moodboard';
-        } else if (fieldName.includes('final') || originalName.includes('final')) {
-          return 'final';
-        } else if (fieldName.includes('process') || originalName.includes('process')) {
-          return 'process';
-        } else {
-          // Default categorization based on field name patterns
-          if (fieldName.includes('mood')) return 'moodboard';
-          if (fieldName.includes('final')) return 'final';
-          return 'process'; // Default to process images
-        }
-      };
-      
-      // Group files by category
-      const filesByCategory = { process: [], final: [], moodboard: [] };
-      files.forEach(file => {
-        const category = categorizeFile(file);
-        filesByCategory[category].push(file);
-      });
-      
-      // Process each category
-      for (const [category, categoryFiles] of Object.entries(filesByCategory)) {
-        if (categoryFiles.length > 0) {
-          console.log(`Processing ${categoryFiles.length} ${category} images...`);
-          try {
-            const options = {
-              moodboard: { width: 800, height: 600, quality: 85 },
-              process: { width: 1200, height: 800, quality: 90 },
-              final: { width: 1200, height: 800, quality: 95 }
-            };
-            
-            const result = await fileProcessor.processMultipleImages(categoryFiles, options[category]);
-            processedImages[category] = result.results;
-            processedImageIds.push(...result.results.map(img => img.id));
-            
-            if (result.errors.length > 0) {
-              console.warn(`${category} image errors:`, result.errors);
+        // Group files by category
+        const filesByCategory = { process: [], final: [], moodboard: [] };
+        files.forEach(file => {
+          const category = categorizeFile(file);
+          filesByCategory[category].push(file);
+        });
+        
+        // Process each category
+        for (const [category, categoryFiles] of Object.entries(filesByCategory)) {
+          if (categoryFiles.length > 0) {
+            console.log(`Processing ${categoryFiles.length} ${category} images...`);
+            try {
+              const options = {
+                moodboard: { width: 800, height: 600, quality: 85 },
+                process: { width: 1200, height: 800, quality: 90 },
+                final: { width: 1200, height: 800, quality: 95 }
+              };
+              
+              const result = await fileProcessor.processMultipleImages(categoryFiles, options[category]);
+              processedImages[category] = result.results;
+              processedImageIds.push(...result.results.map(img => img.id));
+              
+              if (result.errors.length > 0) {
+                console.warn(`${category} image errors:`, result.errors);
+              }
+            } catch (error) {
+              console.warn(`Could not process some ${category} images:`, error.message);
             }
-          } catch (error) {
-            console.warn(`Could not process some ${category} images:`, error.message);
           }
         }
       }
-      
+
       console.log('Image processing completed. Generating AI prompt...');
-      
-      // Determine design style based on user preferences - UPDATED WITH FUNKY MAPPING
-      const designStyle = portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern';
-      const styleMapping = {
-        'creative': 'creative',
-        'artistic': 'creative', 
-        'playful': 'funky',        // Map playful to funky
-        'funky': 'funky',          // Direct funky mapping
-        'experimental': 'funky',   // Experimental to funky
-        'wild': 'funky',           // Wild to funky
-        'bold': 'funky',           // Bold to funky
-        'professional': 'professional',
-        'corporate': 'professional',
-        'minimal': 'minimal',
-        'clean': 'minimal',
-        'elegant': 'professional',
-        'sophisticated': 'professional'
-      };
-      
-      const mappedStyle = styleMapping[designStyle] || 'modern';
-      console.log(`Using design style: ${mappedStyle} (from mood: ${designStyle})`);
-      
-      // Generate the prompt
-      const prompt = promptGenerator.generateStyledPrompt(portfolioData, processedImages, mappedStyle);
+
+      let prompt;
+      if (isContinuation && partialHtml) {
+        console.log('Generating continuation prompt...');
+        prompt = htmlValidator.generateContinuationPrompt(partialHtml, portfolioData);
+      } else {
+        // Determine design style based on user preferences - UPDATED WITH FUNKY MAPPING
+        const designStyle = portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern';
+        const styleMapping = {
+          'creative': 'creative',
+          'artistic': 'creative', 
+          'playful': 'funky',        // Map playful to funky
+          'funky': 'funky',          // Direct funky mapping
+          'experimental': 'funky',   // Experimental to funky
+          'wild': 'funky',           // Wild to funky
+          'bold': 'funky',           // Bold to funky
+          'professional': 'professional',
+          'corporate': 'professional',
+          'minimal': 'minimal',
+          'clean': 'minimal',
+          'elegant': 'professional',
+          'sophisticated': 'professional'
+        };
+        
+        const mappedStyle = styleMapping[designStyle] || 'modern';
+        console.log(`Using design style: ${mappedStyle} (from mood: ${designStyle})`);
+        
+        // Generate the prompt
+        prompt = promptGenerator.generateStyledPrompt(portfolioData, processedImages, mappedStyle);
+      }
       
       console.log('Calling Anthropic API...');
       console.log('Prompt length:', prompt.length, 'characters');
@@ -223,7 +239,7 @@ app.post('/api/generate-portfolio',
       
       // Call Anthropic API
       const response = await anthropic.messages.create({
-        model: 'claude-opus-4-20250514',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 8000,
         temperature: 0.7,
         messages: [
@@ -238,17 +254,52 @@ app.post('/api/generate-portfolio',
       
       const generatedContent = response.content[0].text;
       
-      // Clean and validate the generated HTML
-      let cleanedHTML = generatedContent.trim();
-      
-      // Remove any markdown code blocks if present
-      if (cleanedHTML.startsWith('```html')) {
-        cleanedHTML = cleanedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
-      } else if (cleanedHTML.startsWith('```')) {
-        cleanedHTML = cleanedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
+      // Handle continuation vs new generation
+      let cleanedHTML;
+      if (isContinuation && partialHtml) {
+        // For continuation, merge the partial with the new content
+        cleanedHTML = htmlValidator.mergeHtmlParts(partialHtml, generatedContent.trim());
+        console.log('Merged continuation with partial HTML');
+      } else {
+        // Clean and validate the generated HTML for new generation
+        cleanedHTML = generatedContent.trim();
+        
+        // Remove any markdown code blocks if present
+        if (cleanedHTML.startsWith('```html')) {
+          cleanedHTML = cleanedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
+        } else if (cleanedHTML.startsWith('```')) {
+          cleanedHTML = cleanedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
+        }
+      }
+
+      // Validate HTML completeness
+      const validation = htmlValidator.validateCompleteness(cleanedHTML);
+      console.log('HTML Validation Result:', {
+        isComplete: validation.isComplete,
+        estimatedCompletion: validation.estimatedCompletion,
+        issuesCount: validation.issues.length
+      });
+
+      // If HTML is incomplete and this isn't already a continuation attempt
+      if (!validation.isComplete && !isContinuation && validation.canContinue) {
+        console.log('HTML appears incomplete, sending to incomplete handler');
+        
+        return res.json({
+          success: false,
+          incomplete: true,
+          partialHtml: cleanedHTML,
+          completionStatus: validation,
+          error: 'Generation incomplete',
+          details: 'The AI response was cut off before completion. You can continue generation or start over.',
+          metadata: {
+            estimatedCompletion: validation.estimatedCompletion,
+            issues: validation.issues,
+            canContinue: validation.canContinue
+          }
+        });
       }
       
-      // Validate that we have valid HTML
+      // Validate that we have valid HTML (for completed generation)
       if (!cleanedHTML.includes('<html') && !cleanedHTML.includes('<!DOCTYPE')) {
         throw new Error('Generated content does not appear to be valid HTML');
       }
@@ -261,17 +312,18 @@ app.post('/api/generate-portfolio',
           description: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
           generatedAt: new Date().toISOString(),
           processingTime: Date.now() - processingStartTime,
-          designStyle: mappedStyle,
+          designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'modern'),
           imagesProcessed: {
             process: processedImages.process.length,
             final: processedImages.final.length,
             moodboard: processedImages.moodboard.length
-          }
+          },
+          isContinuation: isContinuation,
+          validationResult: validation
         }
       };
       
       console.log(`Portfolio generation completed in ${Date.now() - processingStartTime}ms`);
-      console.log(`Design style used: ${mappedStyle}`);
       
       // Schedule cleanup of processed images (after 1 hour)
       setTimeout(() => {
@@ -288,7 +340,8 @@ app.post('/api/generate-portfolio',
             title: portfolioData.personalInfo.title
           },
           processingTime: Date.now() - processingStartTime,
-          designStyle: mappedStyle
+          designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'modern'),
+          isContinuation: isContinuation
         }
       });
       

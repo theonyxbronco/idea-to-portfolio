@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Preview from "./pages/Preview";
 import Deployment from "./pages/Deployment";
+import IncompleteGeneration from "./pages/IncompleteGeneration";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/preview" element={<Preview />} />
+          <Route path="/incomplete" element={<IncompleteGeneration />} />
           <Route path="/deployment" element={<Deployment />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
