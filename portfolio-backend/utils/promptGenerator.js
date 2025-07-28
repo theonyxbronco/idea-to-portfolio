@@ -52,64 +52,157 @@ PERSONAL INFORMATION:
 - Education: ${personalInfo.education || 'Formal training in design and creative arts'}`;
   }
 
-  generateProjectsSection(projects) {
+  generateProjectsSection(projects, processedImages) {
     if (!projects || projects.length === 0) {
       return '\nPROJECTS: No projects provided - create 2-3 sample projects based on the user\'s title and skills with interactive expandable cards.';
     }
-
-    let projectsText = '\nPROJECTS - INTERACTIVE CARD SYSTEM:';
+  
+    let projectsText = '\nPROJECTS - INTERACTIVE CARD SYSTEM WITH REAL CLIENT IMAGES:';
     projectsText += `
-
-IMPORTANT: Create interactive project cards that work as follows:
-1. Show project cards in a grid layout (2-3 columns on desktop, 1-2 on tablet, 1 on mobile)
-2. Each card shows: Title, Subtitle, Category, and a preview image
-3. Cards should have hover effects and be clearly clickable
-4. When clicked, cards expand to show full project details in a modal or expanded view
-5. Include a "View Details" or "Learn More" button on each card
-6. The expanded view should show: Overview, Problem, Solution, Reflection, Tags, and all images
-7. Include JavaScript to handle the expand/collapse functionality
-8. Add smooth animations for the expand/collapse transitions
-9. Ensure the expanded view has a close button to return to the card grid
-10. Make sure all content fits on ONE PAGE - no separate project pages
-`;
-
+  
+  🖼️ CRITICAL: CLIENT HAS PROVIDED REAL PROJECT IMAGES!
+  The client has uploaded actual project images that MUST be used instead of placeholder images.
+  
+  INTERACTIVE PROJECT CARD REQUIREMENTS:
+  1. Show project cards in a grid layout (2-3 columns on desktop, 1-2 on tablet, 1 on mobile)
+  2. Each card MUST use the client's actual final product images as thumbnails (not placeholders)
+  3. Cards should have hover effects and be clearly clickable
+  4. When clicked, cards expand to show full project details in a modal or expanded view
+  5. Include a "View Details" or "Learn More" button on each card
+  6. The expanded view MUST include the client's actual process images in a gallery
+  7. Include JavaScript to handle the expand/collapse functionality
+  8. Add smooth animations for the expand/collapse transitions
+  9. Ensure the expanded view has a close button to return to the card grid
+  10. Make sure all content fits on ONE PAGE - no separate project pages
+  
+  📸 CLIENT'S ACTUAL IMAGES TO USE:
+  ${processedImages ? `
+  Process Images Available: ${processedImages.process?.length || 0} images
+  Final Product Images Available: ${processedImages.final?.length || 0} images
+  
+  ACTUAL IMAGE URLS TO USE (replace all placeholders with these):
+  ${processedImages.process?.map((img, index) => `- Process Image ${index + 1}: ${img.url}`).join('\n') || ''}
+  ${processedImages.final?.map((img, index) => `- Final Product Image ${index + 1}: ${img.url}`).join('\n') || ''}
+  ` : 'No images provided - use high-quality placeholders'}
+  `;
+  
     projects.forEach((project, index) => {
-      projectsText += `
+      // Find corresponding images for this project
+      const projectProcessImages = processedImages?.process?.filter(img => 
+        img.originalName.includes(`project_${index}`) || 
+        img.originalName.includes(project.title.toLowerCase().replace(/\s+/g, '_'))
+      ) || [];
       
-Project ${index + 1} (Card Content):
-CARD PREVIEW (Always Visible):
-- Title: ${project.title}
-- Subtitle: ${project.subtitle || ''}
-- Category: ${project.category || project.customCategory || 'Creative Work'}
-- Preview Image: Use placeholder image for card thumbnail
-
-EXPANDED DETAILS (Show when card is clicked):
-- Full Overview: ${project.overview || 'Compelling creative project showcasing skills and innovation'}
-- Challenge/Problem: ${project.problem || 'Creative challenge requiring innovative solution'}
-- Solution/Approach: ${project.solution || 'Strategic approach resulting in successful outcome'}
-- Results/Reflection: ${project.reflection || 'Successful project demonstrating expertise and creativity'}
-- Tags: ${Array.isArray(project.tags) ? project.tags.join(', ') : 'Creative, Design, Professional'}
-- Process Images: ${project.processImages?.length || 0} images available (show in gallery)
-- Final Product Image: ${project.finalProductImage ? 'Available' : 'Use placeholder'} (featured image)`;
+      const projectFinalImage = processedImages?.final?.find(img => 
+        img.originalName.includes(`project_${index}`) || 
+        img.originalName.includes(project.title.toLowerCase().replace(/\s+/g, '_'))
+      );
+  
+      projectsText += `
+        
+  Project ${index + 1} - ${project.title} (REAL IMAGES PROVIDED):
+  CARD PREVIEW (Always Visible):
+  - Title: ${project.title}
+  - Subtitle: ${project.subtitle || ''}
+  - Category: ${project.category || project.customCategory || 'Creative Work'}
+  - Card Thumbnail: ${projectFinalImage ? `USE CLIENT'S ACTUAL IMAGE: ${projectFinalImage.url}` : 'Use high-quality placeholder matching project type'}
+  
+  EXPANDED DETAILS (Show when card is clicked):
+  - Full Overview: ${project.overview || 'Compelling creative project showcasing skills and innovation'}
+  - Challenge/Problem: ${project.problem || 'Creative challenge requiring innovative solution'}
+  - Solution/Approach: ${project.solution || 'Strategic approach resulting in successful outcome'}
+  - Results/Reflection: ${project.reflection || 'Successful project demonstrating expertise and creativity'}
+  - Tags: ${Array.isArray(project.tags) ? project.tags.join(', ') : 'Creative, Design, Professional'}
+  
+  🖼️ REAL CLIENT IMAGES FOR THIS PROJECT:
+  ${projectProcessImages.length > 0 ? `
+  - Process Images Gallery: Include ALL of these client images in an expandable gallery:
+  ${projectProcessImages.map((img, imgIndex) => `  * ${img.url} (${img.originalName})`).join('\n')}
+  - Create an image gallery/carousel with these actual images
+  - Add lightbox functionality for full-size viewing` : '- No process images provided for this project - use relevant placeholders'}
+  
+  ${projectFinalImage ? `
+  - Featured Result Image: ${projectFinalImage.url} (${projectFinalImage.originalName})
+  - This should be the main hero image for the project
+  - Use this as the card thumbnail AND the main project image` : '- No final image provided - use high-quality placeholder'}
+  
+  IMAGE INTEGRATION REQUIREMENTS:
+  - Prioritize showing the client's actual images over placeholders
+  - Create hover effects and zoom functionality for the real images
+  - Ensure images are properly sized and responsive
+  - Add loading states for images
+  - Include alt text based on project titles and descriptions`;
     });
-
+  
     return projectsText;
   }
-
-  generateStyleSection(stylePreferences, moodboardImages) {
+  
+  generateStyleSection(stylePreferences, processedImages) {
     let styleText = `
-STYLE PREFERENCES:
-- Color Scheme: ${stylePreferences?.colorScheme || 'Professional and modern'}
-- Layout Style: ${stylePreferences?.layoutStyle || 'Clean and minimal'}
-- Typography: ${stylePreferences?.typography || 'Modern and readable'}
-- Overall Mood: ${stylePreferences?.mood || 'Professional and creative'}`;
-
-    if (moodboardImages && moodboardImages.length > 0) {
+  STYLE PREFERENCES:
+  - Color Scheme: ${stylePreferences?.colorScheme || 'Professional and modern'}
+  - Layout Style: ${stylePreferences?.layoutStyle || 'Clean and minimal'}
+  - Typography: ${stylePreferences?.typography || 'Modern and readable'}
+  - Overall Mood: ${stylePreferences?.mood || 'Professional and creative'}`;
+  
+    // ENHANCED: Add detailed moodboard analysis
+    if (processedImages && processedImages.moodboard && processedImages.moodboard.length > 0) {
       styleText += `
-- Moodboard Images: ${moodboardImages.length} inspiration images provided
-- Visual Style Notes: Use the moodboard as inspiration for color palette, layout style, and overall aesthetic`;
+  
+  🎨 CRITICAL MOODBOARD INSPIRATION (${processedImages.moodboard.length} images provided):
+  THE CLIENT REALLY WANTS THE PORTFOLIO TO LOOK SIMILAR TO THESE MOODBOARD IMAGES!
+  
+  MOODBOARD ANALYSIS & REQUIREMENTS:
+  - ${processedImages.moodboard.length} inspiration images have been provided by the client
+  - These images represent the EXACT aesthetic and style the client wants
+  - You must analyze the visual style, color palette, layout patterns, and mood from these moodboard images
+  - The final portfolio design should strongly reflect the aesthetic shown in the moodboard
+  - Pay special attention to: colors, typography style, layout approach, visual elements, and overall mood
+  - The moodboard is the PRIMARY reference for the visual direction - use it as the foundation for all design decisions
+  
+  MOODBOARD IMAGES DETAILS:
+  ${processedImages.moodboard.map((img, index) => `
+  - Moodboard Image ${index + 1}: ${img.url} (${img.dimensions.width}x${img.dimensions.height})
+    Use this image as inspiration for color palette, layout style, and overall aesthetic
+  `).join('')}
+  
+  IMPORTANT: The client specifically mentioned they want the portfolio to look similar to the moodboard images. This is a HIGH PRIORITY requirement.`;
     }
-
+  
+    // Enhanced project images integration
+    if (processedImages && (processedImages.process.length > 0 || processedImages.final.length > 0)) {
+      styleText += `
+  
+  📸 CLIENT PROJECT IMAGES (MUST BE INCLUDED):
+  The client has provided actual project images that MUST be prominently featured in the portfolio:
+  
+  PROCESS IMAGES (${processedImages.process.length} images):
+  - These show the client's creative process and behind-the-scenes work
+  - MUST be included in project card expandable galleries
+  - Use these instead of placeholder images wherever possible
+  ${processedImages.process.map((img, index) => `
+  - Process Image ${index + 1}: ${img.url} (${img.originalName})
+    Dimensions: ${img.dimensions.width}x${img.dimensions.height}
+  `).join('')}
+  
+  FINAL PRODUCT IMAGES (${processedImages.final.length} images):
+  - These are the finished project results
+  - MUST be used as the main project card thumbnails and featured images
+  - These should be the hero images for each project
+  ${processedImages.final.map((img, index) => `
+  - Final Image ${index + 1}: ${img.url} (${img.originalName})
+    Dimensions: ${img.dimensions.width}x${img.dimensions.height}
+  `).join('')}
+  
+  CRITICAL IMAGE REQUIREMENTS:
+  1. Replace ALL placeholder images with the actual client images provided
+  2. Use final product images as project card thumbnails and main project images
+  3. Include process images in expandable project galleries
+  4. Create an image-heavy portfolio that showcases the client's actual work
+  5. Ensure images are prominently displayed and properly sized
+  6. Add hover effects and image galleries for the uploaded images`;
+    }
+  
     return styleText;
   }
 
@@ -194,20 +287,86 @@ CRITICAL OUTPUT REQUIREMENTS:
   generateCompletePrompt(portfolioData, processedImages = {}) {
     const { personalInfo, projects, stylePreferences, moodboardImages } = portfolioData;
     
+    // Enhanced prompt with image emphasis
+    const enhancedBasePrompt = this.basePrompt + `
+  
+  🎨 MOODBOARD & IMAGE INTEGRATION PRIORITY:
+  This client has provided specific visual inspiration and their actual project work.
+  The generated portfolio MUST reflect their aesthetic preferences and showcase their real work.
+  
+  MOODBOARD REQUIREMENTS (if provided):
+  - Analyze any moodboard images for color palette, typography, layout style, and overall aesthetic
+  - The final design should strongly reflect the moodboard aesthetic
+  - Extract design patterns, color schemes, and visual elements from moodboard images
+  - This is a HIGH PRIORITY client requirement
+  
+  REAL PROJECT IMAGES REQUIREMENTS (if provided):
+  - Use the client's actual project images instead of placeholders
+  - Feature final product images prominently as project thumbnails
+  - Include process images in expandable project galleries
+  - Create image-heavy portfolio showcasing real work
+  - Add professional image presentation with hover effects and galleries`;
+  
     const prompt = [
-      this.basePrompt,
+      enhancedBasePrompt,
       this.generatePersonalInfoSection(personalInfo),
-      this.generateProjectsSection(projects),
-      this.generateStyleSection(stylePreferences, processedImages.moodboard),
-      this.generateImagePlaceholders(projects),
+      this.generateProjectsSection(projects, processedImages),
+      this.generateStyleSection(stylePreferences, processedImages),
+      this.generateImagePlaceholders(projects, processedImages),
       this.generateStructureRequirements(),
       this.generateQualityRequirements()
     ].join('\n');
-
+  
     return prompt;
   }
 
-  // Generate a more specific prompt for certain design styles
+  generateImagePlaceholders(projects, processedImages) {
+    let imageText = `
+  IMAGE INTEGRATION STRATEGY:`;
+  
+    if (processedImages && (processedImages.moodboard?.length > 0 || processedImages.process?.length > 0 || processedImages.final?.length > 0)) {
+      imageText += `
+  
+  🖼️ CLIENT HAS PROVIDED REAL IMAGES - USE THESE INSTEAD OF PLACEHOLDERS!
+  
+  MOODBOARD IMAGES (${processedImages.moodboard?.length || 0} provided):
+  ${processedImages.moodboard?.map((img, index) => `
+  - Moodboard ${index + 1}: ${img.url}
+    Use this for design inspiration - colors, layout, aesthetic`).join('') || 'None provided'}
+  
+  CLIENT'S ACTUAL PROJECT IMAGES:
+  ${processedImages.final?.map((img, index) => `
+  - Final Product ${index + 1}: ${img.url} 
+    USE THIS as project card thumbnail and main project image`).join('') || 'No final images provided'}
+  
+  ${processedImages.process?.map((img, index) => `
+  - Process Image ${index + 1}: ${img.url}
+    INCLUDE THIS in project galleries and process sections`).join('') || 'No process images provided'}
+  
+  INTEGRATION REQUIREMENTS:
+  1. Replace placeholders with actual client images wherever possible
+  2. Use final product images as main project visuals
+  3. Create galleries with process images
+  4. Add proper image optimization and responsive sizing
+  5. Include hover effects and lightbox functionality
+  6. Ensure images load properly with fallbacks`;
+    } else {
+      imageText += `
+  
+  PLACEHOLDER IMAGES (No client images provided):
+  Use these high-quality placeholder images that match the project aesthetics:
+  - Hero/Banner images: Use https://picsum.photos/1200/600 with appropriate IDs
+  - Project card thumbnails: Use https://picsum.photos/400/300 with different IDs
+  - Project detail images: Use https://picsum.photos/800/600 for expanded views
+  - Process images: Use https://picsum.photos/400/300 for smaller images in galleries
+  - Portrait/About image: Use https://picsum.photos/400/400 for profile
+  
+  IMPORTANT: Use different image IDs (e.g., /800/600?random=1, /800/600?random=2) to ensure variety.`;
+    }
+  
+    return imageText;
+  }
+
   generateStyledPrompt(portfolioData, processedImages = {}, designStyle = 'modern') {
     const basePrompt = this.generateCompletePrompt(portfolioData, processedImages);
     

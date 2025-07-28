@@ -112,7 +112,6 @@ const handleMulterError = (error, req, res, next) => {
   next(error);
 };
 
-// Main portfolio generation endpoint
 app.post('/api/generate-portfolio', 
   upload.any(),
   handleMulterError,
@@ -124,6 +123,14 @@ app.post('/api/generate-portfolio',
     try {
       console.log('Starting portfolio generation for:', req.portfolioData.personalInfo.name);
       console.log('Files received:', req.files?.length || 0);
+      
+      // Log all received files for debugging
+      if (req.files && req.files.length > 0) {
+        console.log('Received files:');
+        req.files.forEach(file => {
+          console.log(`- ${file.fieldname}: ${file.originalname} (${file.size} bytes)`);
+        });
+      }
       
       const portfolioData = req.portfolioData;
       const files = req.files || [];
@@ -137,7 +144,7 @@ app.post('/api/generate-portfolio',
         console.log('Partial HTML length:', partialHtml?.length || 0);
       }
 
-      // Process uploaded images (skip for continuation if no new files)
+      // Process uploaded images with IMPROVED categorization
       console.log('Processing uploaded images...');
       const processedImages = {
         process: [],
@@ -146,21 +153,31 @@ app.post('/api/generate-portfolio',
       };
       
       if (files.length > 0) {
-        // Categorize files based on field names or original names
+        // IMPROVED: Categorize files based on field names
         const categorizeFile = (file) => {
           const fieldName = file.fieldname || '';
           const originalName = file.originalname || '';
           
+          console.log(`Categorizing file: ${fieldName} -> ${originalName}`);
+          
+          // Check for moodboard images
           if (fieldName.includes('moodboard') || originalName.includes('moodboard')) {
+            console.log('  -> Categorized as MOODBOARD');
             return 'moodboard';
-          } else if (fieldName.includes('final') || originalName.includes('final')) {
+          } 
+          // Check for final product images
+          else if (fieldName.includes('final') || originalName.includes('final')) {
+            console.log('  -> Categorized as FINAL');
             return 'final';
-          } else if (fieldName.includes('process') || originalName.includes('process')) {
+          } 
+          // Check for process images
+          else if (fieldName.includes('process') || originalName.includes('process')) {
+            console.log('  -> Categorized as PROCESS');
             return 'process';
-          } else {
-            // Default categorization based on field name patterns
-            if (fieldName.includes('mood')) return 'moodboard';
-            if (fieldName.includes('final')) return 'final';
+          } 
+          // Default fallback
+          else {
+            console.log('  -> Categorized as PROCESS (default)');
             return 'process'; // Default to process images
           }
         };
@@ -171,6 +188,11 @@ app.post('/api/generate-portfolio',
           const category = categorizeFile(file);
           filesByCategory[category].push(file);
         });
+        
+        console.log('Files by category:');
+        console.log(`- Moodboard: ${filesByCategory.moodboard.length} files`);
+        console.log(`- Process: ${filesByCategory.process.length} files`);
+        console.log(`- Final: ${filesByCategory.final.length} files`);
         
         // Process each category
         for (const [category, categoryFiles] of Object.entries(filesByCategory)) {
@@ -187,6 +209,8 @@ app.post('/api/generate-portfolio',
               processedImages[category] = result.results;
               processedImageIds.push(...result.results.map(img => img.id));
               
+              console.log(`Successfully processed ${result.results.length} ${category} images`);
+              
               if (result.errors.length > 0) {
                 console.warn(`${category} image errors:`, result.errors);
               }
@@ -198,22 +222,27 @@ app.post('/api/generate-portfolio',
       }
 
       console.log('Image processing completed. Generating AI prompt...');
+      console.log('Processed images summary:', {
+        moodboard: processedImages.moodboard.length,
+        process: processedImages.process.length,
+        final: processedImages.final.length
+      });
 
       let prompt;
       if (isContinuation && partialHtml) {
         console.log('Generating continuation prompt...');
         prompt = htmlValidator.generateContinuationPrompt(partialHtml, portfolioData);
       } else {
-        // Determine design style based on user preferences - UPDATED WITH FUNKY MAPPING
+        // Determine design style based on user preferences
         const designStyle = portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern';
         const styleMapping = {
           'creative': 'creative',
           'artistic': 'creative', 
-          'playful': 'funky',        // Map playful to funky
-          'funky': 'funky',          // Direct funky mapping
-          'experimental': 'funky',   // Experimental to funky
-          'wild': 'funky',           // Wild to funky
-          'bold': 'funky',           // Bold to funky
+          'playful': 'funky',
+          'funky': 'funky',
+          'experimental': 'funky',
+          'wild': 'funky',
+          'bold': 'funky',
           'professional': 'professional',
           'corporate': 'professional',
           'minimal': 'minimal',
@@ -225,7 +254,7 @@ app.post('/api/generate-portfolio',
         const mappedStyle = styleMapping[designStyle] || 'modern';
         console.log(`Using design style: ${mappedStyle} (from mood: ${designStyle})`);
         
-        // Generate the prompt
+        // Generate the prompt with processed images
         prompt = promptGenerator.generateStyledPrompt(portfolioData, processedImages, mappedStyle);
       }
       
@@ -294,7 +323,8 @@ app.post('/api/generate-portfolio',
           metadata: {
             estimatedCompletion: validation.estimatedCompletion,
             issues: validation.issues,
-            canContinue: validation.canContinue
+            canContinue: validation.canContinue,
+            imagesProcessed: processedImages
           }
         });
       }
@@ -319,7 +349,8 @@ app.post('/api/generate-portfolio',
             moodboard: processedImages.moodboard.length
           },
           isContinuation: isContinuation,
-          validationResult: validation
+          validationResult: validation,
+          processedImageDetails: processedImages // Include processed image URLs
         }
       };
       
@@ -341,7 +372,8 @@ app.post('/api/generate-portfolio',
           },
           processingTime: Date.now() - processingStartTime,
           designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'modern'),
-          isContinuation: isContinuation
+          isContinuation: isContinuation,
+          imagesProcessed: processedImages
         }
       });
       

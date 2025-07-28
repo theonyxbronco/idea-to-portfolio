@@ -5,10 +5,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Image as ImageIcon, Plus, X, User, Palette, FolderOpen, Loader2 } from 'lucide-react';
+import { Upload, Image as ImageIcon, Plus, X, User, Palette, FolderOpen, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import ConnectionTest from './ConnectionTest';
 
 interface PersonalInfo {
   name: string;
@@ -123,6 +122,8 @@ const ProjectDetailsForm = () => {
   const [currentProject, setCurrentProject] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [isAutoCompleting, setIsAutoCompleting] = useState(false);
+  const [autoCompleteAttempt, setAutoCompleteAttempt] = useState(0);
 
   // Personal Info Handlers
   const handlePersonalInfoChange = (field: keyof PersonalInfo, value: string) => {
@@ -365,7 +366,156 @@ const ProjectDetailsForm = () => {
     }));
   };
 
-  // FIXED: Backend API Integration
+  // AUTO-CONTINUE generation function
+  const autoContinueGeneration = async (partialHtml: string, attempt: number = 1) => {
+    const maxAttempts = 2; // Limit auto-continue attempts
+    
+    if (attempt > maxAttempts) {
+      toast({
+        title: "Generation Failed",
+        description: "Unable to complete generation after multiple attempts. Please try again.",
+        variant: "destructive",
+      });
+      setIsGenerating(false);
+      setIsAutoCompleting(false);
+      return;
+    }
+
+    console.log(`Auto-continuing generation (attempt ${attempt}/${maxAttempts})`);
+    setIsAutoCompleting(true);
+    setAutoCompleteAttempt(attempt);
+
+    try {
+      // Show different progress messages for auto-completion
+      setGenerationProgress(70); // Start at 70% for continuation
+      
+      const formData = new FormData();
+      formData.append('portfolioData', JSON.stringify({
+        ...portfolioData,
+        personalInfo: portfolioData.personalInfo,
+        projects: portfolioData.projects.map(project => ({
+          title: project.title,
+          subtitle: project.subtitle,
+          overview: project.overview,
+          category: project.category || project.customCategory,
+          customCategory: project.customCategory,
+          tags: project.tags,
+          problem: project.problem,
+          solution: project.solution,
+          reflection: project.reflection,
+          processImages: [],
+          finalProductImage: null
+        })),
+        moodboardImages: [],
+        stylePreferences: portfolioData.stylePreferences
+      }));
+
+      // Add the partial HTML for continuation
+      formData.append('partialHtml', partialHtml);
+      formData.append('continueGeneration', 'true');
+
+      // Add images
+      portfolioData.projects.forEach((project, projectIndex) => {
+        project.processImages.forEach((image, imageIndex) => {
+          formData.append(`process_${projectIndex}_${imageIndex}`, image);
+        });
+        
+        if (project.finalProductImage) {
+          formData.append(`final_${projectIndex}`, project.finalProductImage);
+        }
+      });
+
+      portfolioData.moodboardImages.forEach((image, index) => {
+        formData.append(`moodboard_${index}`, image);
+      });
+
+      setGenerationProgress(85);
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      setGenerationProgress(95);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setGenerationProgress(100);
+
+      // Check if it's STILL incomplete after continuation
+      if (result.incomplete) {
+        console.log(`Generation still incomplete after attempt ${attempt}, trying again...`);
+        
+        toast({
+          title: `Auto-completing (${attempt}/${maxAttempts})...`,
+          description: "AI needs more time to finish your portfolio",
+        });
+
+        // Recursive call with incremented attempt
+        setTimeout(() => {
+          autoContinueGeneration(result.partialHtml, attempt + 1);
+        }, 1000);
+        return;
+      }
+
+      if (result.success && result.portfolio) {
+        toast({
+          title: "Portfolio Generated Successfully!",
+          description: "Your AI-powered portfolio has been created and completed automatically.",
+        });
+
+        navigate('/preview', { 
+          state: { 
+            portfolioData,
+            generatedPortfolio: result.portfolio,
+            metadata: { ...result.metadata, autoCompleted: true, attempts: attempt }
+          }
+        });
+      } else {
+        throw new Error(result.error || 'Failed to complete portfolio generation');
+      }
+
+    } catch (error) {
+      console.error('Auto-continuation failed:', error);
+      
+      // If this was the last attempt, show the incomplete page
+      if (attempt >= maxAttempts) {
+        toast({
+          title: "Generation Partially Complete",
+          description: "Some sections may be incomplete. You can review and continue manually.",
+          variant: "destructive",
+        });
+
+        navigate('/incomplete', {
+          state: {
+            portfolioData,
+            partialHtml: partialHtml,
+            completionStatus: { estimatedCompletion: 75, issues: ['Auto-completion failed'], canContinue: true },
+            metadata: { autoAttempts: attempt },
+            error: 'Auto-completion failed after multiple attempts'
+          }
+        });
+      } else {
+        // Try again with next attempt
+        setTimeout(() => {
+          autoContinueGeneration(partialHtml, attempt + 1);
+        }, 2000);
+      }
+    } finally {
+      if (attempt >= maxAttempts) {
+        setIsGenerating(false);
+        setIsAutoCompleting(false);
+        setAutoCompleteAttempt(0);
+        setGenerationProgress(0);
+      }
+    }
+  };
+
+  // MAIN generation function with auto-continue logic
   const handleBuild = async () => {
     // Validation
     if (!portfolioData.personalInfo.name.trim()) {
@@ -397,23 +547,24 @@ const ProjectDetailsForm = () => {
   
     setIsGenerating(true);
     setGenerationProgress(0);
+    setIsAutoCompleting(false);
+    setAutoCompleteAttempt(0);
   
     try {
-      // Progress simulation
+      // Progress simulation for initial generation
       const progressInterval = setInterval(() => {
         setGenerationProgress(prev => {
-          if (prev >= 90) {
+          if (prev >= 60) { // Cap initial generation at 60%
             clearInterval(progressInterval);
-            return 90;
+            return 60;
           }
           return prev + Math.random() * 15;
         });
       }, 500);
   
-      // Prepare form data for API - FIXED FORMAT
+      // Prepare form data for initial generation
       const formData = new FormData();
       
-      // Convert portfolio data to the exact format expected by backend
       const backendData = {
         personalInfo: portfolioData.personalInfo,
         projects: portfolioData.projects.map(project => ({
@@ -426,17 +577,16 @@ const ProjectDetailsForm = () => {
           problem: project.problem,
           solution: project.solution,
           reflection: project.reflection,
-          processImages: [], // Files handled separately
-          finalProductImage: null // Files handled separately
+          processImages: [],
+          finalProductImage: null
         })),
-        moodboardImages: [], // Files handled separately
+        moodboardImages: [],
         stylePreferences: portfolioData.stylePreferences
       };
       
-      // Add portfolio data as JSON string
       formData.append('portfolioData', JSON.stringify(backendData));
   
-      // Add images with proper field names that match backend expectations
+      // Add images
       portfolioData.projects.forEach((project, projectIndex) => {
         project.processImages.forEach((image, imageIndex) => {
           formData.append(`process_${projectIndex}_${imageIndex}`, image);
@@ -451,65 +601,38 @@ const ProjectDetailsForm = () => {
         formData.append(`moodboard_${index}`, image);
       });
   
-      console.log('Sending to API:', import.meta.env.VITE_API_URL || 'http://localhost:3001');
-      console.log('FormData entries:');
-      for (let [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`${key}: File(${value.name}, ${value.size} bytes)`);
-        } else {
-          console.log(`${key}: ${typeof value === 'string' ? value.substring(0, 100) + '...' : value}`);
-        }
-      }
-  
-      // Call backend API
+      console.log('Starting initial generation...');
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
         method: 'POST',
         body: formData,
-        // Don't set Content-Type header - browser will set it with boundary for FormData
       });
   
       clearInterval(progressInterval);
-      setGenerationProgress(100);
-  
-      console.log('Response status:', response.status);
+      setGenerationProgress(65);
   
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: 'Server Error', details: errorText };
-        }
-        
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.details || errorData.error || `HTTP error! status: ${response.status}`);
       }
   
       const result = await response.json();
-      console.log('API Response:', result);
 
-      // Check if the generation was incomplete
+      // AUTO-CONTINUE logic: If incomplete, automatically try to continue
       if (result.incomplete) {
-        console.log('Generation incomplete, redirecting to incomplete page');
-        toast({
-          title: "Generation Incomplete",
-          description: "The AI response was cut off. Continue or start over.",
-          variant: "destructive",
-        });
+        console.log('Initial generation incomplete, starting auto-completion...');
         
-        navigate('/incomplete', {
-          state: {
-            portfolioData,
-            partialHtml: result.partialHtml,
-            completionStatus: result.completionStatus,
-            metadata: result.metadata,
-            error: result.error
-          }
+        toast({
+          title: "Auto-completing Generation...",
+          description: "Portfolio needs finishing touches. Continuing automatically...",
         });
-        return;
+
+        // Start auto-completion process
+        await autoContinueGeneration(result.partialHtml, 1);
+        return; // Exit here, auto-continue will handle the rest
       }
+
+      // If generation was complete on first try
+      setGenerationProgress(100);
 
       if (result.success && result.portfolio) {
         toast({
@@ -517,7 +640,6 @@ const ProjectDetailsForm = () => {
           description: "Your AI-powered portfolio has been created successfully.",
         });
 
-        // Navigate to preview with the generated portfolio
         navigate('/preview', { 
           state: { 
             portfolioData,
@@ -546,8 +668,10 @@ const ProjectDetailsForm = () => {
         variant: "destructive",
       });
     } finally {
-      setIsGenerating(false);
-      setGenerationProgress(0);
+      if (!isAutoCompleting) {
+        setIsGenerating(false);
+        setGenerationProgress(0);
+      }
     }
   };
 
@@ -567,10 +691,7 @@ const ProjectDetailsForm = () => {
             </p>
           </div>
 
-          <div className="space-y-8">
-            {/* Connection Test - Remove after backend is confirmed working */}
-            <ConnectionTest />
-            
+          <div className="space-y-8">            
             {/* Personal Information Section */}
             <Card className="shadow-large border-0">
               <CardHeader className="bg-gradient-primary text-primary-foreground rounded-t-lg">
@@ -1092,7 +1213,7 @@ const ProjectDetailsForm = () => {
                         id="colorScheme"
                         value={portfolioData.stylePreferences.colorScheme}
                         onChange={(e) => handleStylePreferenceChange('colorScheme', e.target.value)}
-                        className="w-full h-10 px-3 rounded-md border border-input bg-background shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
                       >
                         <option value="">Select color preference</option>
                         <option value="monochrome">Monochrome (Black & White)</option>
@@ -1111,7 +1232,7 @@ const ProjectDetailsForm = () => {
                         id="layoutStyle"
                         value={portfolioData.stylePreferences.layoutStyle}
                         onChange={(e) => handleStylePreferenceChange('layoutStyle', e.target.value)}
-                        className="w-full h-10 px-3 rounded-md border border-input bg-background shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
                       >
                         <option value="">Select layout preference</option>
                         <option value="minimal">Minimal & Clean</option>
@@ -1129,7 +1250,7 @@ const ProjectDetailsForm = () => {
                         id="typography"
                         value={portfolioData.stylePreferences.typography}
                         onChange={(e) => handleStylePreferenceChange('typography', e.target.value)}
-                        className="w-full h-10 px-3 rounded-md border border-input bg-background shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
                       >
                         <option value="">Select typography preference</option>
                         <option value="modern">Modern Sans-serif</option>
@@ -1147,7 +1268,7 @@ const ProjectDetailsForm = () => {
                         id="mood"
                         value={portfolioData.stylePreferences.mood}
                         onChange={(e) => handleStylePreferenceChange('mood', e.target.value)}
-                        className="w-full h-10 px-3 rounded-md border border-input bg-background shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
                       >
                         <option value="">Select mood preference</option>
                         <option value="professional">Professional & Corporate</option>
@@ -1167,10 +1288,13 @@ const ProjectDetailsForm = () => {
             {/* Build Button Section */}
             <div className="pt-8 border-t border-border">
               <div className="flex flex-col items-center space-y-4">
-                {isGenerating && (
+                {(isGenerating || isAutoCompleting) && (
                   <div className="w-full max-w-md">
                     <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-                      <span>Generating your portfolio...</span>
+                      <span>
+                        {!isAutoCompleting ? "Generating your portfolio..." : 
+                         `Auto-completing (attempt ${autoCompleteAttempt}/2)...`}
+                      </span>
                       <span>{Math.round(generationProgress)}%</span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2">
@@ -1180,11 +1304,27 @@ const ProjectDetailsForm = () => {
                       />
                     </div>
                     <div className="text-xs text-muted-foreground mt-2 text-center">
-                      {generationProgress < 30 && "Analyzing your information..."}
-                      {generationProgress >= 30 && generationProgress < 60 && "Designing your layout..."}
-                      {generationProgress >= 60 && generationProgress < 90 && "Generating content with AI..."}
-                      {generationProgress >= 90 && "Finalizing your portfolio..."}
+                      {!isAutoCompleting ? (
+                        <>
+                          {generationProgress < 30 && "Analyzing your information..."}
+                          {generationProgress >= 30 && generationProgress < 60 && "Designing your layout..."}
+                          {generationProgress >= 60 && generationProgress < 90 && "Generating content with AI..."}
+                          {generationProgress >= 90 && "Finalizing your portfolio..."}
+                        </>
+                      ) : (
+                        <>
+                          {generationProgress < 80 && "Completing unfinished sections..."}
+                          {generationProgress >= 80 && generationProgress < 95 && "Adding final touches..."}
+                          {generationProgress >= 95 && "Almost done..."}
+                        </>
+                      )}
                     </div>
+                    {isAutoCompleting && (
+                      <div className="flex items-center justify-center mt-3 text-xs text-accent">
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Auto-completing generation automatically
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -1193,12 +1333,12 @@ const ProjectDetailsForm = () => {
                   variant="build"
                   size="lg"
                   className="px-12 py-4 text-lg"
-                  disabled={isGenerating}
+                  disabled={isGenerating || isAutoCompleting}
                 >
-                  {isGenerating ? (
+                  {(isGenerating || isAutoCompleting) ? (
                     <>
                       <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      Generating with AI...
+                      {!isAutoCompleting ? "Generating with AI..." : "Auto-completing..."}
                     </>
                   ) : (
                     <>
@@ -1208,9 +1348,13 @@ const ProjectDetailsForm = () => {
                   )}
                 </Button>
 
-                {!isGenerating && (
+                {!(isGenerating || isAutoCompleting) && (
                   <p className="text-sm text-muted-foreground text-center max-w-md">
-                    Our AI will analyze your information and create a stunning, personalized portfolio website in minutes.
+                    Our AI will analyze your information and create a stunning, personalized portfolio website. 
+                    {' '}
+                    <span className="text-accent font-medium">
+                      If generation is incomplete, it will automatically continue until finished.
+                    </span>
                   </p>
                 )}
               </div>

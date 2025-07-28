@@ -3,6 +3,7 @@ const { PortfolioValidator, ErrorFormatter } = require('../utils/validation');
 const validator = new PortfolioValidator();
 
 // Enhanced validation middleware
+
 const validatePortfolioData = async (req, res, next) => {
   try {
     // Parse portfolio data
@@ -23,19 +24,65 @@ const validatePortfolioData = async (req, res, next) => {
       ));
     }
 
+    // ENHANCED: Log file information for debugging
+    if (req.files && req.files.length > 0) {
+      console.log('\n=== FILE UPLOAD ANALYSIS ===');
+      console.log(`Total files received: ${req.files.length}`);
+      
+      const filesByType = {
+        moodboard: [],
+        process: [],
+        final: [],
+        other: []
+      };
+      
+      req.files.forEach((file, index) => {
+        const fieldName = file.fieldname || '';
+        const originalName = file.originalname || '';
+        
+        let type = 'other';
+        if (fieldName.includes('moodboard')) type = 'moodboard';
+        else if (fieldName.includes('process')) type = 'process';  
+        else if (fieldName.includes('final')) type = 'final';
+        
+        filesByType[type].push({
+          fieldName,
+          originalName,
+          size: file.size,
+          mimetype: file.mimetype
+        });
+        
+        console.log(`File ${index + 1}:`);
+        console.log(`  Field: ${fieldName}`);
+        console.log(`  Name: ${originalName}`);
+        console.log(`  Type: ${type}`);
+        console.log(`  Size: ${(file.size / 1024).toFixed(1)}KB`);
+        console.log(`  MIME: ${file.mimetype}`);
+      });
+      
+      console.log('\nFile Summary:');
+      console.log(`  Moodboard: ${filesByType.moodboard.length} files`);
+      console.log(`  Process: ${filesByType.process.length} files`);
+      console.log(`  Final: ${filesByType.final.length} files`);
+      console.log(`  Other: ${filesByType.other.length} files`);
+      console.log('=== END FILE ANALYSIS ===\n');
+      
+      // Validate files if present
+      const fileValidation = validator.validateFiles(req.files);
+      if (!fileValidation.isValid) {
+        console.log('File validation failed:', fileValidation.errors);
+        return res.status(400).json(ErrorFormatter.formatValidationErrors(fileValidation.errors));
+      }
+    } else {
+      console.log('No files received in request');
+    }
+
     // Validate portfolio data
     const validation = validator.validateComplete(portfolioData);
     
     if (!validation.isValid) {
+      console.log('Portfolio data validation failed:', validation.errors);
       return res.status(400).json(ErrorFormatter.formatValidationErrors(validation.errors));
-    }
-
-    // Validate files if present
-    if (req.files) {
-      const fileValidation = validator.validateFiles(req.files);
-      if (!fileValidation.isValid) {
-        return res.status(400).json(ErrorFormatter.formatValidationErrors(fileValidation.errors));
-      }
     }
 
     // Attach validated and corrected data to request

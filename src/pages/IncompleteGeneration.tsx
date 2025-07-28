@@ -79,102 +79,118 @@ const IncompleteGeneration = () => {
 
   const { estimatedCompletion, issues } = getCompletionAnalysis();
 
-  const handleContinueGeneration = async () => {
-    setIsContinuing(true);
-    setContinuationProgress(0);
+const handleContinueGeneration = async () => {
+  setIsContinuing(true);
+  setContinuationProgress(0);
 
-    try {
-      // Progress simulation
-      const progressInterval = setInterval(() => {
-        setContinuationProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + Math.random() * 15;
-        });
-      }, 500);
-
-      toast({
-        title: "Continuing generation...",
-        description: "AI is completing your portfolio",
+  try {
+    // Progress simulation
+    const progressInterval = setInterval(() => {
+      setContinuationProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + Math.random() * 15;
       });
+    }, 500);
 
-      // Call API to continue generation
-      const formData = new FormData();
-      
-      // Add the original portfolio data
-      formData.append('portfolioData', JSON.stringify(portfolioData));
-      
-      // Add the partial HTML for context
-      formData.append('partialHtml', partialHtml);
-      formData.append('continueGeneration', 'true');
+    toast({
+      title: "Continuing generation...",
+      description: "AI is completing your portfolio",
+    });
 
-      // Add files if they exist in portfolioData
-      if (portfolioData.projects) {
-        portfolioData.projects.forEach((project: any, projectIndex: number) => {
-          project.processImages?.forEach((image: File, imageIndex: number) => {
-            formData.append(`process_${projectIndex}_${imageIndex}`, image);
-          });
-          
-          if (project.finalProductImage) {
-            formData.append(`final_${projectIndex}`, project.finalProductImage);
-          }
-        });
-      }
+    // Call API to continue generation
+    const formData = new FormData();
+    
+    // Add the original portfolio data
+    formData.append('portfolioData', JSON.stringify(portfolioData));
+    
+    // Add the partial HTML for context
+    formData.append('partialHtml', partialHtml);
+    formData.append('continueGeneration', 'true');
 
-      if (portfolioData.moodboardImages) {
-        portfolioData.moodboardImages.forEach((image: File, index: number) => {
-          formData.append(`moodboard_${index}`, image);
-        });
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
-        method: 'POST',
-        body: formData,
+    // FIXED: Re-add all the original images with correct field names
+    // Add moodboard images
+    if (portfolioData.moodboardImages && portfolioData.moodboardImages.length > 0) {
+      portfolioData.moodboardImages.forEach((image: File, index: number) => {
+        formData.append(`moodboard_image_${index}`, image, image.name);
       });
-
-      clearInterval(progressInterval);
-      setContinuationProgress(100);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.portfolio) {
-        toast({
-          title: "Generation completed!",
-          description: "Your portfolio has been successfully completed.",
-        });
-
-        // Navigate to preview with the completed portfolio
-        navigate('/preview', { 
-          state: { 
-            portfolioData,
-            generatedPortfolio: result.portfolio,
-            metadata: result.metadata
-          }
-        });
-      } else {
-        throw new Error(result.error || 'Failed to complete portfolio generation');
-      }
-
-    } catch (error) {
-      console.error('Continuation failed:', error);
-      
-      toast({
-        title: "Continuation Failed",
-        description: error instanceof Error ? error.message : "Failed to complete generation",
-        variant: "destructive",
-      });
-    } finally {
-      setIsContinuing(false);
-      setContinuationProgress(0);
     }
-  };
+
+    // Add project images
+    if (portfolioData.projects) {
+      portfolioData.projects.forEach((project: any, projectIndex: number) => {
+        // Process images
+        if (project.processImages && project.processImages.length > 0) {
+          project.processImages.forEach((image: File, imageIndex: number) => {
+            formData.append(`process_project_${projectIndex}_${imageIndex}`, image, image.name);
+          });
+        }
+        
+        // Final product image
+        if (project.finalProductImage) {
+          formData.append(`final_project_${projectIndex}`, project.finalProductImage, project.finalProductImage.name);
+        }
+      });
+    }
+
+    console.log('Continuing generation with images:');
+    let imageCount = 0;
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes)`);
+        imageCount++;
+      }
+    }
+    console.log(`Total images being sent: ${imageCount}`);
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    clearInterval(progressInterval);
+    setContinuationProgress(100);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.details || errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.portfolio) {
+      toast({
+        title: "Generation completed!",
+        description: "Your portfolio has been successfully completed.",
+      });
+
+      // Navigate to preview with the completed portfolio
+      navigate('/preview', { 
+        state: { 
+          portfolioData,
+          generatedPortfolio: result.portfolio,
+          metadata: result.metadata
+        }
+      });
+    } else {
+      throw new Error(result.error || 'Failed to complete portfolio generation');
+    }
+
+  } catch (error) {
+    console.error('Continuation failed:', error);
+    
+    toast({
+      title: "Continuation Failed",
+      description: error instanceof Error ? error.message : "Failed to complete generation",
+      variant: "destructive",
+    });
+  } finally {
+    setIsContinuing(false);
+    setContinuationProgress(0);
+  }
+};
 
   const handleAbandonProject = () => {
     toast({
