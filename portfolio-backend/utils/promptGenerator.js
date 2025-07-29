@@ -236,48 +236,53 @@ CRITICAL IMAGE REQUIREMENTS:
 
   generateImagePlaceholders(projects, processedImages) {
     let imageText = `
-IMAGE INTEGRATION STRATEGY:`;
-
+  IMAGE INTEGRATION STRATEGY:`;
+  
     if (processedImages && (processedImages.moodboard?.length > 0 || processedImages.process?.length > 0 || processedImages.final?.length > 0)) {
       imageText += `
-
-🖼️ CLIENT HAS PROVIDED REAL IMAGES - USE THESE INSTEAD OF PLACEHOLDERS!
-
-MOODBOARD IMAGES (${processedImages.moodboard?.length || 0} provided):
-${processedImages.moodboard?.map((img, index) => `
-- Moodboard ${index + 1}: ${img.url}
-  Use this for design inspiration - colors, layout, aesthetic`).join('') || 'None provided'}
-
-CLIENT'S ACTUAL PROJECT IMAGES:
-${processedImages.final?.map((img, index) => `
-- Final Product ${index + 1}: ${img.url} 
-  USE THIS as project card thumbnail and main project image`).join('') || 'No final images provided'}
-
-${processedImages.process?.map((img, index) => `
-- Process Image ${index + 1}: ${img.url}
-  INCLUDE THIS in project galleries and process sections`).join('') || 'No process images provided'}
-
-INTEGRATION REQUIREMENTS:
-1. Replace placeholders with actual client images wherever possible
-2. Use final product images as main project visuals
-3. Create galleries with process images
-4. Add proper image optimization and responsive sizing
-5. Include hover effects and lightbox functionality
-6. Ensure images load properly with fallbacks`;
+  
+  🖼️ CLIENT HAS PROVIDED REAL IMAGES - USE THESE INSTEAD OF PLACEHOLDERS!
+  
+  MOODBOARD IMAGES (${processedImages.moodboard?.length || 0} provided):
+  ${processedImages.moodboard?.map((img, index) => `
+  - Moodboard ${index + 1}: ${img.url || img.absoluteUrl}
+    Use this for design inspiration - colors, layout, aesthetic`).join('') || 'None provided'}
+  
+  CLIENT'S ACTUAL PROJECT IMAGES:
+  ${processedImages.final?.map((img, index) => `
+  - Final Product ${index + 1}: ${img.url || img.absoluteUrl} 
+    USE THIS as project card thumbnail and main project image`).join('') || 'No final images provided'}
+  
+  ${processedImages.process?.map((img, index) => `
+  - Process Image ${index + 1}: ${img.url || img.absoluteUrl}
+    INCLUDE THIS in project galleries and process sections`).join('') || 'No process images provided'}
+  
+  CRITICAL IMAGE INTEGRATION REQUIREMENTS:
+  1. Replace ALL placeholder images with these actual client images
+  2. Use final product images as project card thumbnails and main project images
+  3. Create galleries with process images in expandable project details
+  4. Add proper alt text based on image context
+  5. Ensure images are responsive and properly sized
+  6. Include hover effects and lightbox functionality
+  7. Make sure images load with fallbacks
+  
+  IMPORTANT: These image URLs are already accessible from the web server.
+  Use them directly in <img src="..."> tags without modification.
+  The URLs are relative paths that will work in the generated HTML.`;
     } else {
       imageText += `
-
-PLACEHOLDER IMAGES (No client images provided):
-Use these high-quality placeholder images that match the project aesthetics:
-- Hero/Banner images: Use https://picsum.photos/1200/600 with appropriate IDs
-- Project card thumbnails: Use https://picsum.photos/400/300 with different IDs
-- Project detail images: Use https://picsum.photos/800/600 for expanded views
-- Process images: Use https://picsum.photos/400/300 for smaller images in galleries
-- Portrait/About image: Use https://picsum.photos/400/400 for profile
-
-IMPORTANT: Use different image IDs (e.g., /800/600?random=1, /800/600?random=2) to ensure variety.`;
+  
+  PLACEHOLDER IMAGES (No client images provided):
+  Use these high-quality placeholder images that match the project aesthetics:
+  - Hero/Banner images: Use https://picsum.photos/1200/600 with appropriate IDs
+  - Project card thumbnails: Use https://picsum.photos/400/300 with different IDs
+  - Project detail images: Use https://picsum.photos/800/600 for expanded views
+  - Process images: Use https://picsum.photos/400/300 for smaller images in galleries
+  - Portrait/About image: Use https://picsum.photos/400/400 for profile
+  
+  IMPORTANT: Use different image IDs (e.g., /800/600?random=1, /800/600?random=2) to ensure variety.`;
     }
-
+  
     return imageText;
   }
 

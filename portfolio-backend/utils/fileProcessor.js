@@ -8,7 +8,9 @@ class FileProcessor {
     this.uploadDir = process.env.UPLOAD_DIR || './uploads';
     this.maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024; // 10MB
     this.allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    
+    // Get the server base URL for generating accessible URLs
+    this.serverBaseUrl = process.env.SERVER_BASE_URL || 'http://localhost:3001';
+
     // Ensure upload directory exists
     this.initializeUploadDir();
   }
@@ -78,19 +80,24 @@ class FileProcessor {
       // Get image metadata
       const metadata = await sharp(file.buffer).metadata();
 
-      return {
-        id: fileId,
-        filename,
-        path: outputPath,
-        url: `/uploads/processed/${filename}`,
-        originalName: file.originalname,
-        size: (await fs.stat(outputPath)).size,
-        dimensions: {
-          width: metadata.width,
-          height: metadata.height
-        },
-        processed: true
-      };
+    // Generate both relative and absolute URLs
+    const relativeUrl = `/uploads/processed/${filename}`;
+    const absoluteUrl = `${this.serverBaseUrl}/uploads/processed/${filename}`;
+
+    return {
+      id: fileId,
+      filename,
+      path: outputPath,
+      url: relativeUrl,
+      absoluteUrl: absoluteUrl,
+      originalName: file.originalname,
+      size: (await fs.stat(outputPath)).size,
+      dimensions: {
+        width: metadata.width,
+        height: metadata.height
+      },
+      processed: true
+    };
     } catch (error) {
       console.error('Image processing error:', error);
       throw new Error(`Failed to process image: ${error.message}`);

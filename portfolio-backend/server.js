@@ -62,8 +62,13 @@ app.options('*', cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Enhanced static file serving with logging and CORS
+app.use('/uploads', (req, res, next) => {
+  console.log(`📸 Image request: ${req.path}`);
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -535,6 +540,48 @@ app.get('/api/info', (req, res) => {
   });
 });
 
+// Test endpoint to list available images
+app.get('/api/test-images', (req, res) => {
+  const uploadsPath = path.join(__dirname, 'uploads', 'processed');
+  
+  try {
+    if (!fs.existsSync(uploadsPath)) {
+      return res.json({
+        success: false,
+        message: 'Uploads directory does not exist',
+        path: uploadsPath
+      });
+    }
+
+    const files = fs.readdirSync(uploadsPath);
+    const imageFiles = files.filter(file => 
+      /\.(jpg|jpeg|png|gif|webp)$/i.test(file)
+    );
+
+    const imageUrls = imageFiles.map(file => ({
+      filename: file,
+      url: `/uploads/processed/${file}`,
+      fullUrl: `${req.protocol}://${req.get('host')}/uploads/processed/${file}`,
+      exists: fs.existsSync(path.join(uploadsPath, file))
+    }));
+
+    res.json({
+      success: true,
+      uploadsPath,
+      totalImages: imageFiles.length,
+      images: imageUrls,
+      testUrl: imageUrls.length > 0 ? imageUrls[0].fullUrl : null
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      uploadsPath
+    });
+  }
+});
+
 // Reset rate limit endpoint (for testing)
 app.post('/api/reset-rate-limit', (req, res) => {
   if (process.env.NODE_ENV === 'development') {
@@ -584,6 +631,25 @@ const server = app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
   console.log(`API info: http://localhost:${PORT}/api/info`);
+  
+  // Verify upload directories exist
+  const uploadDirs = [
+    path.join(__dirname, 'uploads'),
+    path.join(__dirname, 'uploads', 'processed'),
+    path.join(__dirname, 'uploads', 'temp')
+  ];
+
+  uploadDirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`✅ Created directory: ${dir}`);
+    } else {
+      console.log(`📁 Directory exists: ${dir}`);
+    }
+  });
+
+  console.log(`📸 Static files served at: http://localhost:${PORT}/uploads/`);
+  console.log(`🖼️  Test images endpoint: http://localhost:${PORT}/api/test-images`);
   
   // Verify required environment variables
   if (!process.env.ANTHROPIC_API_KEY) {
