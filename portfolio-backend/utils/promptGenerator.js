@@ -1,319 +1,312 @@
 class PromptGenerator {
   constructor() {
-    this.basePrompt = `You are an expert web designer creating visually-driven portfolio websites. Generate a SINGLE HTML file with embedded CSS/JS that perfectly matches the client's aesthetic preferences and showcases their work.
+    this.basePrompt = `CRITICAL INSTRUCTION: RETURN ONLY VALID HTML - NO EXPLANATORY TEXT, NO ANALYSIS, NO MARKDOWN CODE BLOCKS.
 
-CRITICAL REQUIREMENTS:
-1. Single HTML file with embedded styles/scripts - NO separate files
-2. Moodboard-driven design is TOP priority
-3. Fully responsive (mobile, tablet, desktop)
-4. Modern CSS features (Grid, Flexbox, CSS Variables)
-5. Smooth animations/interactions
-6. High performance and accessibility
-7. Use client's actual images when provided
-8. Polished, custom feel that matches the moodboard
-9. Projects MUST be implemented as expandable interactive cards
+Your response must start with <!DOCTYPE html> and end with </html>. Nothing else.
 
-PROJECT CARD REQUIREMENTS:
-- Each project must start as a compact card showing only title, category and thumbnail
-- Cards should expand smoothly when clicked/tapped to reveal full details
-- Expanded state should show: full description, images, tags, and project details
-- Only one project card should be expanded at a time (accordion behavior)
-- Include subtle animation on expand/collapse (scale and fade preferred)
-- Mobile: cards should expand to full viewport width
-- Desktop: cards can expand within grid or to larger modal-like view
-- Must include clear visual indicator of expandable nature (chevron, plus icon, etc.)
+You are an expert web designer creating visually-driven portfolio websites. Generate a SINGLE HTML file with embedded CSS/JS that EXACTLY REPLICATES the moodboard's visual structure and aesthetic.
 
-DESIGN PRINCIPLES:
-- Layout MUST derive from moodboard images
-- Color scheme MUST match moodboard palette
-- Typography should reflect moodboard style
-- Visual hierarchy should mirror inspiration
-- Projects should showcase real work prominently
+MOODBOARD REPLICATION PHILOSOPHY:
+- The moodboard shows the EXACT layout structure you should recreate
+- If moodboard shows masonry/Pinterest layout → CREATE masonry layout, NOT traditional sections
+- If moodboard shows no navigation menu → DON'T add Portfolio/About/Contact nav
+- If moodboard shows varied image sizes → CREATE varied image containers, NOT uniform cards
+- If moodboard shows minimal text → USE minimal text, NOT lengthy descriptions
+- If moodboard shows specific color palette → EXTRACT and use those exact colors
+- If moodboard shows organic/scattered layout → CREATE organic positioning, NOT rigid grids
 
-TECHNICAL OUTPUT:
-- Single self-contained HTML file
-- Semantic HTML5 structure
-- Mobile-first responsive design
-- CSS variables for theming
-- Efficient, commented code
-- Accessible markup (ARIA, alt text)
-- Vanilla JavaScript for interactivity (no frameworks)`;
+LAYOUT ANALYSIS PRIORITY:
+1. IDENTIFY the primary layout pattern (masonry, grid, scattered, editorial, etc.)
+2. COUNT the number of content blocks and their relative sizes
+3. NOTICE the spacing, gaps, and alignment patterns
+4. OBSERVE text placement and hierarchy
+5. EXTRACT the exact color palette from the moodboard images
+6. REPLICATE the visual rhythm and flow
+
+FORBIDDEN TEMPLATE PATTERNS:
+- DO NOT create traditional hero sections unless moodboard shows them
+- DO NOT add standard navigation menus unless moodboard has them  
+- DO NOT use uniform project cards if moodboard shows varied layouts
+- DO NOT add lengthy text content if moodboard is image-focused
+- DO NOT impose traditional portfolio structure over moodboard patterns`;
   }
 
-  generatePersonalInfoSection(personalInfo) {
-    return `
-PERSONAL INFORMATION:
-- Name: ${personalInfo.name}
-- Title: ${personalInfo.title}
-- Bio: ${personalInfo.bio || 'Creative professional'}
-- Contact: ${personalInfo.email || ''} | ${personalInfo.phone || ''}
-- Links: ${[
-      personalInfo.website,
-      personalInfo.linkedin,
-      personalInfo.instagram,
-      personalInfo.behance
-    ].filter(Boolean).join(' | ')}
-- Skills: ${personalInfo.skills?.join(', ') || 'Design, Visual Arts'}
-- Background: ${personalInfo.experience || 'Experienced'} | ${personalInfo.education || 'Design education'}`;
-  }
-
-  generateProjectsSection(projects, processedImages) {
-    if (!projects?.length) {
-      return '\nPROJECTS: Create 2-3 sample projects based on the user\'s title and skills.';
+  generateMoodboardReplicationSection(processedImages) {
+    if (!processedImages?.moodboard?.length) {
+      return `
+NO MOODBOARD PROVIDED - CREATE EXPERIMENTAL PORTFOLIO:
+- Use unconventional layouts (masonry, scattered, collage)
+- Vary content block sizes and shapes
+- Create organic, non-grid arrangements
+- Use creative navigation (minimal, hidden, or integrated)
+- Focus on visual impact over traditional structure`;
     }
-  
-    let projectsText = '\nPROJECTS:';
-    projects.forEach((project, index) => {
-      const projectImages = processedImages?.process?.filter(img => 
-        img.originalName.includes(`project_${index}`) || 
-        img.originalName.includes(project.title.toLowerCase().replace(/\s+/g, '_'))
-      ) || [];
-      
-      const mainImage = processedImages?.final?.find(img => 
-        img.originalName.includes(`project_${index}`) || 
-        img.originalName.includes(project.title.toLowerCase().replace(/\s+/g, '_'))
-      );
-  
-      projectsText += `
-        
-PROJECT ${index + 1}: ${project.title}
-- Category: ${project.category || project.customCategory || 'Creative Work'}
-- Tags: ${Array.isArray(project.tags) ? project.tags.join(', ') : ''}
-- Overview: ${project.overview || 'Innovative creative project'}
-- Challenge: ${project.problem || 'Creative challenge'}
-- Solution: ${project.solution || 'Strategic approach'}
-- Results: ${project.reflection || 'Successful outcome'}
-  
-IMAGES:
-- Main Image: ${mainImage?.url || 'Use placeholder matching project'}
-${projectImages.length > 0 ? `
-- Process Images: Include these in gallery:
-${projectImages.map(img => `  * ${img.url}`).join('\n')}` : ''}`;
-    });
-  
-    return projectsText;
-  }
 
-  generateStyleSection(stylePreferences, processedImages) {
-    let styleText = `
-STYLE PREFERENCES:
-- Colors: ${stylePreferences?.colorScheme || 'Professional'}
-- Layout: ${stylePreferences?.layoutStyle || 'Clean'}
-- Fonts: ${stylePreferences?.typography || 'Modern'}
-- Mood: ${stylePreferences?.mood || 'Creative'}`;
+    return `
+🎨 MOODBOARD REPLICATION INSTRUCTIONS (${processedImages.moodboard.length} images):
 
-    if (processedImages?.moodboard?.length) {
-      styleText += `
-
-MOODBOARD ANALYSIS (${processedImages.moodboard.length} images):
-Extract and apply:
-1. Color palette
-2. Layout patterns
-3. Typography style
-4. Visual elements
-5. Overall aesthetic
-
-IMPLEMENTATION ORDER:
-1. Match color scheme exactly
-2. Replicate layout structure
-3. Mirror typography treatment
-4. Include similar design elements
-5. Capture same mood/energy`;
-
-      styleText += processedImages.moodboard.map((img, i) => `
-MOODBOARD IMAGE ${i + 1}:
-- URL: ${img.url}
+VISUAL STRUCTURE ANALYSIS:
+${processedImages.moodboard.map((img, i) => `
+Moodboard Image ${i + 1}: ${img.url}
 - Dimensions: ${img.dimensions.width}x${img.dimensions.height}
-- Key Features: Analyze for dominant colors, spacing, font treatments`);
-    }
+- Role: Study this image's layout contribution to overall composition`).join('')}
 
-    if (processedImages?.process?.length || processedImages?.final?.length) {
-      styleText += `
+REPLICATION CHECKLIST:
+□ Identify if moodboard shows: Masonry layout, Grid system, Scattered/organic, Editorial columns, or Collage style
+□ Count content blocks and note their size relationships (large, medium, small)
+□ Extract exact colors from moodboard images (use color picker mentality)
+□ Notice navigation style: None, Minimal header, Sidebar, or Integrated
+□ Observe text treatment: Overlays, Minimal labels, Typography focus, or Image-dominant
+□ Study spacing patterns: Tight gaps, Generous whitespace, or Overlapping elements
 
-CLIENT IMAGES (MUST USE):
-${processedImages.final?.map(img => `- Final: ${img.url}`).join('\n')}
-${processedImages.process?.map(img => `- Process: ${img.url}`).join('\n')}
+LAYOUT REPLICATION RULES:
+- PINTEREST/MASONRY STYLE: Create CSS masonry with varied heights, uniform width columns
+- GRID STYLE: Create uniform grid with consistent sizing and gaps
+- SCATTERED/ORGANIC: Use absolute positioning with creative placement
+- EDITORIAL: Create magazine-style columns with mixed content types
+- COLLAGE: Layer and overlap elements with varied sizes and angles
 
-IMAGE REQUIREMENTS:
-1. Replace all placeholders with client images
-2. Feature final images prominently
-3. Include process images in galleries
-4. Add hover/lightbox effects
-5. Ensure responsive sizing`;
-    }
+COLOR EXTRACTION REQUIREMENT:
+- Sample primary colors directly from moodboard images
+- Use color picker approach: identify dominant hues, accent colors, neutral tones
+- Apply extracted palette throughout design, not generic color schemes
 
-    return styleText;
+CONTENT DENSITY MATCHING:
+- If moodboard is image-heavy with minimal text → Make portfolio image-focused
+- If moodboard shows lots of typography → Include typography as design element
+- If moodboard has mixed content → Balance images, text, and white space proportionally
+
+SPATIAL RELATIONSHIP REPLICATION:
+- Study gaps between elements in moodboard → Replicate same spacing ratios
+- Notice alignment patterns → Use same alignment approach (centered, left-aligned, scattered)
+- Observe visual weight distribution → Balance content density similarly`;
   }
 
-  generateStructureRequirements() {
+  generateLayoutSpecificInstructions() {
     return `
-STRUCTURE GUIDELINES:
-1. Hero: Name, title, visual hook
-2. About: Bio, personality, profile
-3. Projects: Showcase work in expandable card layout
-   - Default: Compact grid of project cards
-   - Expanded: Detailed view with images and text
-4. Contact: Simple, effective CTA
+🏗️ SPECIFIC LAYOUT IMPLEMENTATIONS:
 
-PROJECT CARD IMPLEMENTATION EXAMPLE:
-<!-- HTML Structure -->
-<div class="projects-grid">
-  <article class="project-card" aria-expanded="false">
-    <button class="card-toggle" aria-controls="project1-content">
-      <div class="card-preview">
-        <img src="project-thumb.jpg" alt="Project thumbnail">
-        <h3>Project Title</h3>
-        <span class="category">Category</span>
-        <span class="toggle-icon">+</span>
-      </div>
-    </button>
-    
-    <div id="project1-content" class="card-content">
-      <div class="project-details">
-        <!-- Full project details here -->
-      </div>
-    </div>
-  </article>
-  <!-- More project cards -->
-</div>
+FOR PINTEREST/MASONRY LAYOUTS:
+- Use CSS columns or masonry-style flexbox
+- Create varied content heights (some tall, some short)
+- Maintain consistent gaps between items
+- Allow natural content flow without forcing uniform sizing
+- Example structure: .masonry-container { columns: 3; gap: 20px; }
 
-<!-- CSS Example -->
-.project-card {
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-.card-content {
-  max-height: 0;
-  opacity: 0;
-  transition: max-height 0.3s ease, opacity 0.2s ease;
-}
-.project-card[aria-expanded="true"] .card-content {
-  max-height: 1000px; /* Adjust as needed */
-  opacity: 1;
-}
+FOR SCATTERED/ORGANIC LAYOUTS:
+- Use absolute positioning for creative placement
+- Vary rotation angles slightly (transform: rotate())
+- Create overlapping elements with z-index layering
+- Break from grid constraints completely
+- Implement random but purposeful positioning
 
-<!-- JavaScript Example -->
-document.querySelectorAll('.card-toggle').forEach(button => {
-  button.addEventListener('click', () => {
-    const card = button.closest('.project-card');
-    const isExpanded = card.getAttribute('aria-expanded') === 'true';
-    
-    // Close all cards first
-    document.querySelectorAll('.project-card').forEach(c => {
-      c.setAttribute('aria-expanded', 'false');
-    });
-    
-    // Open current if wasn't already expanded
-    if (!isExpanded) {
-      card.setAttribute('aria-expanded', 'true');
-    }
-  });
-});`;
+FOR EDITORIAL/MAGAZINE LAYOUTS:
+- Create asymmetrical column layouts
+- Mix content types (large images, text blocks, small images)
+- Use typography as major design element
+- Implement sidebar or floating navigation
+- Create reading flow with clear visual hierarchy
+
+FOR COLLAGE LAYOUTS:
+- Layer multiple elements with different sizes
+- Use mix-blend-modes for element interaction
+- Implement varied opacity levels
+- Create depth with shadows and positioning
+- Allow elements to break container boundaries
+
+FOR MINIMAL/CLEAN LAYOUTS:
+- Use generous whitespace as primary design element
+- Limit color palette to 2-3 colors maximum
+- Focus on typography and spacing
+- Create breathing room around all elements
+- Implement subtle interactions and animations`;
   }
 
-  generateFooterRequirements(personalInfo) {
-    // Generate a random appropriate emoji for creative portfolios
-    const creativeEmojis = ['🎨', '✨', '🚀', '💫', '🎯', '💡', '🌟', '🎪', '🎭', '🎨', '🖌️', '📐', '🎬', '📸'];
-    const randomEmoji = creativeEmojis[Math.floor(Math.random() * creativeEmojis.length)];
-    
+  generateColorExtractionInstructions() {
     return `
-FOOTER REQUIREMENTS (MANDATORY):
-- Add this EXACT footer at the bottom of the page:
-  "2025 ${personalInfo.name || '[Name]'} (copyright logo)— product of Interract Agency. All rights reserved. ${randomEmoji}"
-- Footer styling requirements:
-  * Small font size (12px-14px)
-  * Light gray color (#888 or similar)
-  * Centered text alignment
-  * Add margin-top: 40px or padding-top: 40px to separate from main content
-  * Footer must always be visible on the page
-  * Use semantic <footer> HTML element
-- Example CSS for footer:
-  footer {
-    text-align: center;
-    font-size: 12px;
-    color: #888;
-    margin-top: 40px;
-    padding: 20px 0;
-    border-top: 1px solid #eee;
-  }`;
+🎨 COLOR PALETTE EXTRACTION:
+
+MOODBOARD COLOR SAMPLING:
+- Identify 3-5 dominant colors from moodboard images
+- Note warm vs cool temperature bias
+- Extract both saturated and muted variations
+- Include neutral tones (grays, beiges, whites)
+- Consider seasonal color associations (earthy, bright, pastel, dark)
+
+COLOR APPLICATION STRATEGY:
+- Primary color: Most dominant moodboard color for main elements
+- Secondary color: Supporting color for accents and highlights  
+- Neutral colors: For backgrounds, text, and spacing elements
+- Accent color: Brightest or most contrasting color for CTAs and important elements
+
+AVOID GENERIC PALETTES:
+- Don't default to black/white/gray if moodboard shows color
+- Don't use primary blue/red unless specifically in moodboard
+- Don't apply corporate color schemes to artistic moodboards
+- Don't ignore color temperature (warm/cool) shown in moodboard`;
+  }
+
+  generateContentDensityInstructions() {
+    return `
+📏 CONTENT DENSITY MATCHING:
+
+IMAGE-TO-TEXT RATIO ANALYSIS:
+- If moodboard is 80%+ images → Make portfolio image-dominant with minimal text
+- If moodboard has 50/50 mix → Balance images and typography equally
+- If moodboard is text-heavy → Feature typography as main design element
+
+CONTENT ORGANIZATION PATTERNS:
+- Large hero images → Feature one dominant image prominently
+- Mixed size gallery → Create varied-size image grid or masonry
+- Text overlays → Implement text over images, not separate sections
+- Minimal labels → Use short, concise project titles and descriptions
+- Photography focus → Let images tell the story, minimize descriptive text
+
+INFORMATION HIERARCHY:
+- Primary: Most prominent element in moodboard (usually largest image/text)
+- Secondary: Supporting elements that create visual balance
+- Tertiary: Small details, captions, navigation elements
+- Interactive: Elements that suggest hover states or clickable areas`;
+  }
+
+  generateResponsiveAdaptation() {
+    return `
+📱 RESPONSIVE MOODBOARD ADAPTATION:
+
+MOBILE ADAPTATION STRATEGY:
+- Maintain moodboard aesthetic at smaller sizes
+- Convert masonry to single/double column on mobile
+- Preserve color palette and visual mood
+- Adapt spacing proportionally (larger gaps become smaller)
+- Keep key visual elements prominent
+
+BREAKPOINT CONSIDERATIONS:
+- Desktop: Full moodboard layout replication
+- Tablet: Moderate compression while maintaining aesthetic
+- Mobile: Simplified version that captures essential mood
+- Focus: Keep visual impact strong across all sizes
+
+LAYOUT FLEXIBILITY:
+- Masonry → Stack vertically on mobile while keeping varied heights
+- Scattered → Convert to organized vertical flow
+- Grid → Reduce columns but maintain proportions
+- Editorial → Convert multi-column to single column with preserved typography`;
   }
 
   generateCompletePrompt(portfolioData, processedImages = {}) {
     const { personalInfo, projects, stylePreferences } = portfolioData;
     
+    const personalInfoSection = `
+PERSONAL INFORMATION TO INTEGRATE:
+- Name: ${personalInfo.name}
+- Title: ${personalInfo.title}  
+- Bio: ${personalInfo.bio || 'Creative professional'}
+- Contact: ${personalInfo.email || ''} | ${personalInfo.phone || ''}
+- Skills: ${personalInfo.skills?.join(', ') || 'Design, Visual Arts'}
+
+INTEGRATION APPROACH:
+- Place information according to moodboard layout patterns
+- Use moodboard typography style for text treatment
+- Don't force traditional About/Contact sections if moodboard doesn't suggest them`;
+
+    const projectsSection = `
+PROJECTS TO SHOWCASE (${projects?.length || 0} projects):
+${projects?.map((project, index) => `
+Project ${index + 1}: ${project.title}
+- Category: ${project.category || 'Creative Work'}
+- Overview: ${project.overview || 'Creative project'}
+- Images: Use client images if provided, otherwise create placeholders matching moodboard aesthetic`).join('') || 'Create sample projects matching moodboard style'}
+
+PROJECT INTEGRATION:
+- Present projects according to moodboard layout (masonry, grid, scattered, etc.)
+- Use image-focused approach if moodboard is image-heavy
+- Implement expandable details only if moodboard suggests interactive elements`;
+
+    const footerSection = `
+FOOTER REQUIREMENT:
+- Include: "2025 ${personalInfo.name} — product of Interract Agency. All rights reserved. 🎨"
+- Style to match moodboard aesthetic (could be overlay, minimal footer, or integrated into design)`;
+
+    const outputInstructions = `
+🎯 FINAL EXECUTION REQUIREMENTS:
+
+OUTPUT FORMAT:
+- Return only HTML starting with <!DOCTYPE html> and ending with </html>
+- No explanatory text, analysis, or markdown code blocks
+- No "Looking at the moodboard..." commentary
+
+DESIGN FIDELITY:
+- The final portfolio should look like it belongs in the same visual family as the moodboard
+- Someone who loves the moodboard should immediately connect with the portfolio design
+- Every layout decision should feel intentional and moodboard-inspired
+- Break completely free from traditional portfolio templates
+
+QUALITY BENCHMARKS:
+- Layout structure directly mirrors moodboard composition
+- Color palette extracted from moodboard images
+- Content density matches moodboard image-to-text ratio
+- Spacing and proportions feel consistent with moodboard aesthetic
+- Navigation style (or lack thereof) matches moodboard approach`;
+
     return [
       this.basePrompt,
-      this.generatePersonalInfoSection(personalInfo),
-      this.generateProjectsSection(projects, processedImages),
-      this.generateStyleSection(stylePreferences, processedImages),
-      this.generateStructureRequirements(),
-      this.generateFooterRequirements(personalInfo) // Added footer requirements
-    ].join('\n');
+      this.generateMoodboardReplicationSection(processedImages),
+      this.generateLayoutSpecificInstructions(),
+      this.generateColorExtractionInstructions(),
+      this.generateContentDensityInstructions(),
+      this.generateResponsiveAdaptation(),
+      personalInfoSection,
+      projectsSection,
+      footerSection,
+      outputInstructions
+    ].join('\n\n');
   }
 
   generateStyledPrompt(portfolioData, processedImages, mappedStyle) {
+    // Always prioritize moodboard if available
+    if (processedImages?.moodboard?.length > 0) {
+      console.log('🎨 Moodboard detected - creating moodboard-driven design');
+      return this.generateCompletePrompt(portfolioData, processedImages);
+    }
+
+    // Fallback styles with creative approaches
     const basePrompt = this.generateCompletePrompt(portfolioData, processedImages);
     
-    // Add style-specific enhancements
-    const styleEnhancements = {
+    const creativeStyles = {
       'professional': `
-PROFESSIONAL STYLE ENHANCEMENTS:
-- Clean, corporate aesthetic
-- Neutral color palette (blues, grays, whites)
-- Sans-serif typography
-- Grid-based layouts
-- Subtle animations
-- Focus on readability and trust`,
+PROFESSIONAL CREATIVE APPROACH:
+- Clean masonry layout with generous whitespace
+- Sophisticated color palette (navy, charcoal, cream)
+- Elegant typography with proper hierarchy
+- Subtle hover animations and transitions
+- Grid-based project organization`,
       
       'creative': `
-CREATIVE STYLE ENHANCEMENTS:
-- Bold, artistic aesthetic
-- Vibrant color combinations
-- Mix of serif and sans-serif fonts
-- Asymmetric layouts
-- Dynamic animations
-- Focus on visual impact`,
+CREATIVE EXPERIMENTAL APPROACH:  
+- Mixed layout: combine masonry, scattered, and grid elements
+- Bold color combinations with artistic flair
+- Typography as design element with varied sizes
+- Creative navigation (floating, hidden, or artistic)
+- Overlapping elements and creative positioning`,
       
       'funky': `
-FUNKY STYLE ENHANCEMENTS:
-- Wild, experimental aesthetic
-- Neon and electric colors
-- Bold, playful typography
-- Unconventional layouts
-- Eye-catching animations
-- Focus on uniqueness and fun`,
-      
-      'elegant': `
-ELEGANT STYLE ENHANCEMENTS:
-- Sophisticated, refined aesthetic
-- Muted, premium colors
-- Elegant serif typography
-- Balanced, harmonious layouts
-- Smooth, subtle animations
-- Focus on luxury and sophistication`,
+FUNKY EXPERIMENTAL APPROACH:
+- Scattered/collage layout with rotation and overlaps
+- Neon and electric color palette with high contrast
+- Bold, experimental typography with varied fonts
+- Unexpected navigation patterns and interactions
+- Creative shapes, angles, and visual effects`,
       
       'minimal': `
-MINIMAL STYLE ENHANCEMENTS:
-- Clean, simple aesthetic
-- Monochrome or limited color palette
-- Clean sans-serif typography
-- Lots of whitespace
-- Minimal animations
-- Focus on content and clarity`,
-      
-      'warm': `
-WARM STYLE ENHANCEMENTS:
-- Inviting, friendly aesthetic
-- Warm colors (oranges, reds, yellows)
-- Readable, friendly typography
-- Comfortable layouts
-- Gentle animations
-- Focus on approachability`
+MINIMAL ARTISTIC APPROACH:
+- Clean masonry or single-column layout
+- Monochromatic or limited color palette (2-3 colors max)
+- Typography-focused with elegant, simple fonts
+- Generous whitespace as primary design element
+- Subtle, refined interactions and micro-animations`
     };
 
-    const enhancement = styleEnhancements[mappedStyle] || styleEnhancements['professional'];
-    
-    return basePrompt + '\n' + enhancement;
+    return basePrompt + '\n\n' + (creativeStyles[mappedStyle] || creativeStyles['creative']);
   }
 }
 
