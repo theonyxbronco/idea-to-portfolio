@@ -620,7 +620,7 @@ app.post('/api/generate-portfolio',
         
         // **KEY FIX: Add timeout and chunked approach**
         try {
-          const response = await callAnthropicWithTimeout(prompt, 60000); // 60 second timeout
+          const response = await callAnthropicWithTimeout(prompt, 180000); // 60 second timeout
           
           console.log('Anthropic API response received');
           

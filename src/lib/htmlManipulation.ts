@@ -1,3 +1,4 @@
+// src/lib/htmlManipulation.ts
 import { EditableElement } from '@/hooks/useHtmlParser';
 
 export class HTMLManipulator {

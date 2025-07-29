@@ -11,6 +11,17 @@ CRITICAL REQUIREMENTS:
 6. High performance and accessibility
 7. Use client's actual images when provided
 8. Polished, custom feel that matches the moodboard
+9. Projects MUST be implemented as expandable interactive cards
+
+PROJECT CARD REQUIREMENTS:
+- Each project must start as a compact card showing only title, category and thumbnail
+- Cards should expand smoothly when clicked/tapped to reveal full details
+- Expanded state should show: full description, images, tags, and project details
+- Only one project card should be expanded at a time (accordion behavior)
+- Include subtle animation on expand/collapse (scale and fade preferred)
+- Mobile: cards should expand to full viewport width
+- Desktop: cards can expand within grid or to larger modal-like view
+- Must include clear visual indicator of expandable nature (chevron, plus icon, etc.)
 
 DESIGN PRINCIPLES:
 - Layout MUST derive from moodboard images
@@ -25,7 +36,8 @@ TECHNICAL OUTPUT:
 - Mobile-first responsive design
 - CSS variables for theming
 - Efficient, commented code
-- Accessible markup (ARIA, alt text)`;
+- Accessible markup (ARIA, alt text)
+- Vanilla JavaScript for interactivity (no frameworks)`;
   }
 
   generatePersonalInfoSection(personalInfo) {
@@ -138,13 +150,65 @@ IMAGE REQUIREMENTS:
 STRUCTURE GUIDELINES:
 1. Hero: Name, title, visual hook
 2. About: Bio, personality, profile
-3. Projects: Showcase work (moodboard layout)
+3. Projects: Showcase work in expandable card layout
+   - Default: Compact grid of project cards
+   - Expanded: Detailed view with images and text
 4. Contact: Simple, effective CTA
 
-MOODBOARD PRIORITY:
-- Layout must derive from moodboard
-- Section order can vary to match aesthetic
-- Spacing/rhythm should mirror inspiration`;
+PROJECT CARD IMPLEMENTATION EXAMPLE:
+<!-- HTML Structure -->
+<div class="projects-grid">
+  <article class="project-card" aria-expanded="false">
+    <button class="card-toggle" aria-controls="project1-content">
+      <div class="card-preview">
+        <img src="project-thumb.jpg" alt="Project thumbnail">
+        <h3>Project Title</h3>
+        <span class="category">Category</span>
+        <span class="toggle-icon">+</span>
+      </div>
+    </button>
+    
+    <div id="project1-content" class="card-content">
+      <div class="project-details">
+        <!-- Full project details here -->
+      </div>
+    </div>
+  </article>
+  <!-- More project cards -->
+</div>
+
+<!-- CSS Example -->
+.project-card {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+.card-content {
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+.project-card[aria-expanded="true"] .card-content {
+  max-height: 1000px; /* Adjust as needed */
+  opacity: 1;
+}
+
+<!-- JavaScript Example -->
+document.querySelectorAll('.card-toggle').forEach(button => {
+  button.addEventListener('click', () => {
+    const card = button.closest('.project-card');
+    const isExpanded = card.getAttribute('aria-expanded') === 'true';
+    
+    // Close all cards first
+    document.querySelectorAll('.project-card').forEach(c => {
+      c.setAttribute('aria-expanded', 'false');
+    });
+    
+    // Open current if wasn't already expanded
+    if (!isExpanded) {
+      card.setAttribute('aria-expanded', 'true');
+    }
+  });
+});`;
   }
 
   generateFooterRequirements(personalInfo) {

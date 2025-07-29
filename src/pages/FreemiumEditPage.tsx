@@ -9,19 +9,19 @@ import {
   ArrowLeft, Rocket, Download, Eye, Edit3, Check, X, 
   Smartphone, Tablet, Monitor, Crown, Lock, Lightbulb,
   Type, Palette, Layout, Zap, AlertCircle, Save,
-  Sparkles, ChevronRight, ExternalLink
+  Sparkles, ChevronRight, ExternalLink, Undo2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deployToNetlify } from '@/lib/netlifyDeploy';
 import { cn } from '@/lib/utils';
 
-const NETLIFY_TOKEN = "nfp_ubQ5p2gRqsLfiTf1vj1d1ghjXbPhsXSRea18";
+const NETLIFY_TOKEN = "nfp_xLq21tc1XRGTE5dbtKL4qK4sdtRw85wjd15f";
 
 interface EditableRegion {
   id: string;
   type: 'heading' | 'paragraph' | 'list-item' | 'button';
   content: string;
-  selector: string; // CSS selector to find the element
+  selector: string;
   bounds: { top: number; left: number; width: number; height: number };
 }
 
@@ -71,6 +71,18 @@ const FreemiumEditPreview = () => {
     setHtmlContent(originalHtml);
   }, [originalHtml]);
 
+  // Reset all changes to original content
+  const handleResetChanges = useCallback(() => {
+    setHtmlContent(originalHtml);
+    setHasChanges(false);
+    setActiveEdit(null);
+    setEditingText('');
+    toast({
+      title: "Changes Reset",
+      description: "All edits have been reverted to original content",
+    });
+  }, [originalHtml, toast]);
+
   // Generate suggestions based on content
   const generateSuggestions = useCallback(() => {
     const newSuggestions: Suggestion[] = [
@@ -97,7 +109,6 @@ const FreemiumEditPreview = () => {
         type: 'text',
         confidence: 0.9,
         action: () => {
-          // Add a contact button if email exists
           if (portfolioData.personalInfo.email) {
             const contactButton = `<div style="text-align: center; margin: 2rem 0;"><a href="mailto:${portfolioData.personalInfo.email}" style="background: #3b82f6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Get In Touch</a></div>`;
             const updatedHtml = htmlContent.replace('</body>', contactButton + '</body>');
@@ -123,42 +134,6 @@ const FreemiumEditPreview = () => {
           setHasChanges(true);
           toast({ title: "Spacing Improved", description: "Better visual hierarchy added" });
         }
-      },
-      {
-        id: 'enhance-colors',
-        title: 'Enhance Color Contrast',
-        description: 'Improve accessibility with better color contrast',
-        type: 'style',
-        confidence: 0.6,
-        action: () => {
-          const updatedHtml = htmlContent.replace(
-            /<style>/,
-            '<style>\nbody { color: #1f2937; } h1, h2, h3 { color: #111827; }'
-          );
-          setHtmlContent(updatedHtml);
-          setHasChanges(true);
-          toast({ title: "Colors Enhanced", description: "Better contrast for accessibility" });
-        }
-      },
-      {
-        id: 'mobile-responsive',
-        title: 'Improve Mobile Experience',
-        description: 'Add responsive design improvements for mobile devices',
-        type: 'layout',
-        confidence: 0.8,
-        action: () => {
-          const mobileCSS = `
-@media (max-width: 768px) {
-  body { padding: 1rem; font-size: 14px; }
-  h1 { font-size: 1.8rem; }
-  h2 { font-size: 1.4rem; }
-  .container { max-width: 100%; }
-}`;
-          const updatedHtml = htmlContent.replace('</style>', mobileCSS + '</style>');
-          setHtmlContent(updatedHtml);
-          setHasChanges(true);
-          toast({ title: "Mobile Improved", description: "Better experience on small screens" });
-        }
       }
     ];
     
@@ -169,55 +144,10 @@ const FreemiumEditPreview = () => {
     generateSuggestions();
   }, [generateSuggestions]);
 
-  // Parse editable regions from HTML
-  const parseEditableRegions = useCallback(() => {
-    if (!iframeRef.current?.contentDocument) return;
-    
-    const doc = iframeRef.current.contentDocument;
-    const regions: EditableRegion[] = [];
-    
-    // Find text elements that can be edited
-    const selectors = [
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', // Headings
-      'p', // Paragraphs
-      '.bio', '.about', '.description', // Common bio sections
-      '.project-title', '.project-description', // Project content
-      'button', '.btn', '.button' // Buttons
-    ];
-    
-    selectors.forEach(selector => {
-      const elements = doc.querySelectorAll(selector);
-      elements.forEach((element, index) => {
-        const rect = element.getBoundingClientRect();
-        const text = element.textContent?.trim() || '';
-        
-        if (text.length > 3 && rect.width > 0 && rect.height > 0) {
-          regions.push({
-            id: `${selector.replace(/[^a-zA-Z0-9]/g, '_')}_${index}`,
-            type: selector.startsWith('h') ? 'heading' : 
-                  selector === 'p' || selector.includes('description') || selector.includes('bio') ? 'paragraph' :
-                  selector.includes('button') || selector.includes('btn') ? 'button' : 'paragraph',
-            content: text,
-            selector: `${selector}:nth-of-type(${index + 1})`,
-            bounds: {
-              top: rect.top,
-              left: rect.left,
-              width: rect.width,
-              height: rect.height
-            }
-          });
-        }
-      });
-    });
-    
-    setEditableRegions(regions);
-  }, []);
-
   // Handle iframe load
   const handleIframeLoad = useCallback(() => {
     if (!iframeRef.current?.contentDocument) return;
     
-    // Add hover styles for editable regions
     const style = iframeRef.current.contentDocument.createElement('style');
     style.textContent = `
       .freemium-editable {
@@ -253,44 +183,7 @@ const FreemiumEditPreview = () => {
       }
     `;
     iframeRef.current.contentDocument.head.appendChild(style);
-    
-    // Add click handlers to editable elements
-    const addEditableHandlers = () => {
-      const doc = iframeRef.current?.contentDocument;
-      if (!doc) return;
-      
-      const editableSelectors = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'button', '.btn'];
-      
-      editableSelectors.forEach(selector => {
-        const elements = doc.querySelectorAll(selector);
-        elements.forEach((element, index) => {
-          const textContent = element.textContent?.trim();
-          if (textContent && textContent.length > 3) {
-            element.classList.add('freemium-editable');
-            
-            // Add edit indicator
-            const indicator = doc.createElement('div');
-            indicator.className = 'freemium-edit-indicator';
-            indicator.innerHTML = '✎';
-            element.appendChild(indicator);
-            
-            // Add click handler
-            element.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              
-              const regionId = `${selector.replace(/[^a-zA-Z0-9]/g, '_')}_${index}`;
-              setActiveEdit(regionId);
-              setEditingText(textContent);
-            });
-          }
-        });
-      });
-    };
-    
-    setTimeout(addEditableHandlers, 100);
-    setTimeout(parseEditableRegions, 200);
-  }, [parseEditableRegions]);
+  }, []);
 
   // Apply text edit
   const applyTextEdit = useCallback((regionId: string, newText: string) => {
@@ -303,21 +196,13 @@ const FreemiumEditPreview = () => {
       const element = iframeRef.current.contentDocument.querySelector(region.selector);
       if (element) {
         element.textContent = newText;
-        
-        // Update HTML content
         const newHtml = iframeRef.current.contentDocument.documentElement.outerHTML;
         setHtmlContent(newHtml);
         setHasChanges(true);
-        
-        // Update the region in our state
         setEditableRegions(prev => 
           prev.map(r => r.id === regionId ? { ...r, content: newText } : r)
         );
-        
-        toast({
-          title: "Text Updated",
-          description: "Your changes have been applied",
-        });
+        toast({ title: "Text Updated", description: "Your changes have been applied" });
       }
     } catch (error) {
       console.error('Failed to apply text edit:', error);
@@ -344,72 +229,90 @@ const FreemiumEditPreview = () => {
 
   const getViewportClasses = () => {
     switch (viewportSize) {
-      case 'mobile':
-        return 'w-[375px] h-[667px]';
-      case 'tablet':
-        return 'w-[768px] h-[1024px]';
-      case 'desktop':
-        return 'w-full h-[700px]';
-      default:
-        return 'w-full h-[700px]';
+      case 'mobile': return 'w-[375px] h-[667px]';
+      case 'tablet': return 'w-[768px] h-[1024px]';
+      case 'desktop': return 'w-full h-[700px]';
+      default: return 'w-full h-[700px]';
     }
   };
 
-  const handleDeploy = async () => {
-    if (isIncomplete) {
-      toast({
-        title: "Cannot Deploy Incomplete Portfolio",
-        description: "Please complete the generation first",
-        variant: "destructive",
-      });
-      return;
-    }
+// Updated handleDeploy function for your component
 
-    setIsDeploying(true);
+const handleDeploy = async () => {
+  if (isIncomplete) {
+    toast({
+      title: "Cannot Deploy Incomplete Portfolio",
+      description: "Please complete the generation first",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  // Check if user has provided a Netlify token
+  const netlifyToken = process.env.REACT_APP_NETLIFY_TOKEN || prompt("Please enter your Netlify Personal Access Token:");
+  
+  if (!netlifyToken) {
+    toast({
+      title: "Netlify Token Required",
+      description: "You need a Netlify Personal Access Token to deploy",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setIsDeploying(true);
+  
+  try {
+    toast({
+      title: "Deploying to Netlify...",
+      description: "Creating your live portfolio",
+    });
+
+    // Use the simpler deployment method
+    const deployment = await deployToNetlify(htmlContent, netlifyToken);
     
-    try {
-      toast({
-        title: "Deploying to Netlify...",
-        description: "Creating your live portfolio",
-      });
+    toast({
+      title: "🎉 Deployment Successful!",
+      description: "Your portfolio is now live on the web",
+    });
 
-      const demoPortfolio = {
-        html: htmlContent,
-        css: '',
-        js: ''
-      };
-
-      const deployment = await deployToNetlify(demoPortfolio, NETLIFY_TOKEN);
-      
-      toast({
-        title: "🎉 Deployment Successful!",
-        description: "Your portfolio is now live on the web",
-      });
-
-      navigate('/deployment', { 
-        state: { 
-          portfolioData,
-          generatedPortfolio: { html: htmlContent },
-          deploymentUrl: deployment?.url || 'https://amazing-portfolio-xyz.netlify.app',
-          platform: deployment?.platform || 'Netlify',
-          deployedAt: deployment?.deployedAt || new Date().toISOString(),
-          siteId: deployment?.siteId,
-          metadata
-        }
-      });
-      
-    } catch (error) {
-      console.error('Deployment failed:', error);
-      toast({
-        variant: "destructive",
-        title: "Deployment Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-      });
-    } finally {
-      setIsDeploying(false);
+    navigate('/deployment', { 
+      state: { 
+        portfolioData,
+        generatedPortfolio: { html: htmlContent },
+        deploymentUrl: deployment.url,
+        platform: deployment.platform,
+        deployedAt: deployment.deployedAt,
+        siteId: deployment.siteId,
+        metadata
+      }
+    });
+    
+  } catch (error) {
+    console.error('Deployment failed:', error);
+    
+    // More helpful error messages
+    let errorMessage = "An unknown error occurred";
+    
+    if (error.message.includes("401")) {
+      errorMessage = "Invalid Netlify token. Please check your Personal Access Token.";
+    } else if (error.message.includes("403")) {
+      errorMessage = "Permission denied. Check your Netlify token permissions.";
+    } else if (error.message.includes("network")) {
+      errorMessage = "Network error. Please check your internet connection.";
+    } else {
+      errorMessage = error.message;
     }
-  };
-
+    
+    toast({
+      variant: "destructive",
+      title: "Deployment Failed",
+      description: errorMessage,
+    });
+  } finally {
+    setIsDeploying(false);
+  }
+};
   const handleDownload = () => {
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -420,11 +323,7 @@ const FreemiumEditPreview = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    toast({
-      title: "Portfolio Downloaded",
-      description: "Your HTML file has been downloaded successfully",
-    });
+    toast({ title: "Portfolio Downloaded", description: "Your HTML file has been downloaded successfully" });
   };
 
   const getSuggestionIcon = (type: string) => {
@@ -449,11 +348,7 @@ const FreemiumEditPreview = () => {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/preview', { state: location.state })}
-                className="shadow-soft"
-              >
+              <Button variant="outline" onClick={() => navigate('/preview', { state: location.state })} className="shadow-soft">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Preview
               </Button>
@@ -461,9 +356,7 @@ const FreemiumEditPreview = () => {
                 <h1 className="text-2xl font-bold text-foreground flex items-center">
                   <Edit3 className="h-5 w-5 mr-2" />
                   Quick Edit
-                  <Badge variant="secondary" className="ml-2 text-xs">
-                    Free tier
-                  </Badge>
+                  <Badge variant="secondary" className="ml-2 text-xs">Free tier</Badge>
                 </h1>
                 <p className="text-muted-foreground text-sm">
                   Click on any text to edit • {hasChanges ? 'Unsaved changes' : 'No changes'}
@@ -471,29 +364,20 @@ const FreemiumEditPreview = () => {
               </div>
             </div>
             
-            {/* Status and Actions */}
             <div className="flex items-center space-x-3">
               {hasChanges && (
-                <Badge variant="outline" className="text-orange-600 border-orange-200">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Unsaved
-                </Badge>
+                <Button variant="outline" onClick={handleResetChanges}>
+                  <Undo2 className="h-4 w-4 mr-2" />
+                  Reset Changes
+                </Button>
               )}
               
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownload}
-              >
+              <Button variant="outline" size="sm" onClick={handleDownload}>
                 <Download className="h-4 w-4 mr-2" />
                 Download
               </Button>
               
-              <Button
-                onClick={handleDeploy}
-                variant="build"
-                disabled={isDeploying || isIncomplete}
-              >
+              <Button onClick={handleDeploy} variant="build" disabled={isDeploying || isIncomplete}>
                 {isDeploying ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -509,34 +393,22 @@ const FreemiumEditPreview = () => {
             </div>
           </div>
 
+          {/* Main content */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Preview Area */}
             <div className="lg:col-span-3">
-              {/* Viewport Controls */}
               <div className="flex items-center justify-between mb-4 p-3 bg-card rounded-lg border shadow-soft">
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium">Device Preview:</span>
-                  <Button
-                    variant={viewportSize === 'desktop' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewportSize('desktop')}
-                  >
+                  <Button variant={viewportSize === 'desktop' ? 'default' : 'outline'} size="sm" onClick={() => setViewportSize('desktop')}>
                     <Monitor className="h-4 w-4 mr-1" />
                     Desktop
                   </Button>
-                  <Button
-                    variant={viewportSize === 'tablet' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewportSize('tablet')}
-                  >
+                  <Button variant={viewportSize === 'tablet' ? 'default' : 'outline'} size="sm" onClick={() => setViewportSize('tablet')}>
                     <Tablet className="h-4 w-4 mr-1" />
                     Tablet
                   </Button>
-                  <Button
-                    variant={viewportSize === 'mobile' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewportSize('mobile')}
-                  >
+                  <Button variant={viewportSize === 'mobile' ? 'default' : 'outline'} size="sm" onClick={() => setViewportSize('mobile')}>
                     <Smartphone className="h-4 w-4 mr-1" />
                     Mobile
                   </Button>
@@ -548,7 +420,6 @@ const FreemiumEditPreview = () => {
                 </div>
               </div>
 
-              {/* Preview Container */}
               <Card className="shadow-large border-0">
                 <CardContent className="p-6">
                   <div className="flex justify-center">
@@ -562,7 +433,6 @@ const FreemiumEditPreview = () => {
                         onLoad={handleIframeLoad}
                       />
                       
-                      {/* Edit Overlay */}
                       {activeEdit && (
                         <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50">
                           <Card className="w-96 max-w-[90%]">
@@ -600,19 +470,11 @@ const FreemiumEditPreview = () => {
                               </div>
                               
                               <div className="flex space-x-2">
-                                <Button
-                                  onClick={handleSaveEdit}
-                                  variant="default"
-                                  className="flex-1"
-                                >
+                                <Button onClick={handleSaveEdit} variant="default" className="flex-1">
                                   <Check className="h-4 w-4 mr-2" />
                                   Save
                                 </Button>
-                                <Button
-                                  onClick={handleCancelEdit}
-                                  variant="outline"
-                                  className="flex-1"
-                                >
+                                <Button onClick={handleCancelEdit} variant="outline" className="flex-1">
                                   <X className="h-4 w-4 mr-2" />
                                   Cancel
                                 </Button>
@@ -629,7 +491,6 @@ const FreemiumEditPreview = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Quick Suggestions */}
               <Card className="shadow-medium border-0">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center justify-between">
@@ -637,15 +498,8 @@ const FreemiumEditPreview = () => {
                       <Sparkles className="h-5 w-5 mr-2" />
                       Quick Improvements
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowSuggestions(!showSuggestions)}
-                    >
-                      <ChevronRight className={cn(
-                        "h-4 w-4 transition-transform",
-                        showSuggestions && "rotate-90"
-                      )} />
+                    <Button variant="ghost" size="sm" onClick={() => setShowSuggestions(!showSuggestions)}>
+                      <ChevronRight className={cn("h-4 w-4 transition-transform", showSuggestions && "rotate-90")} />
                     </Button>
                   </CardTitle>
                 </CardHeader>
@@ -667,13 +521,8 @@ const FreemiumEditPreview = () => {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
-                                  <h4 className="text-sm font-medium truncate">
-                                    {suggestion.title}
-                                  </h4>
-                                  <Badge 
-                                    variant="secondary" 
-                                    className={cn("text-xs", getConfidenceColor(suggestion.confidence))}
-                                  >
+                                  <h4 className="text-sm font-medium truncate">{suggestion.title}</h4>
+                                  <Badge variant="secondary" className={cn("text-xs", getConfidenceColor(suggestion.confidence))}>
                                     {Math.round(suggestion.confidence * 100)}%
                                   </Badge>
                                 </div>
@@ -697,12 +546,10 @@ const FreemiumEditPreview = () => {
                         variant="ghost"
                         size="sm"
                         className="w-full mt-3 text-xs"
-                        onClick={() => {
-                          toast({
-                            title: "More Suggestions Available",
-                            description: "Upgrade to Pro for advanced suggestions and editing",
-                          });
-                        }}
+                        onClick={() => toast({
+                          title: "More Suggestions Available",
+                          description: "Upgrade to Pro for advanced suggestions and editing",
+                        })}
                       >
                         View {suggestions.length - 3} More Suggestions
                         <Crown className="h-3 w-3 ml-1" />
@@ -712,7 +559,6 @@ const FreemiumEditPreview = () => {
                 )}
               </Card>
 
-              {/* Editing Instructions */}
               <Card className="shadow-medium border-0">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center">
@@ -761,7 +607,6 @@ const FreemiumEditPreview = () => {
                 </CardContent>
               </Card>
 
-              {/* Pro Upgrade */}
               <Card className="shadow-medium border-0 bg-gradient-to-br from-purple-50 to-blue-50">
                 <CardContent className="p-4">
                   <div className="text-center space-y-3">
@@ -772,20 +617,13 @@ const FreemiumEditPreview = () => {
                     <p className="text-xs text-gray-600">
                       Upgrade to Pro for advanced visual editing, custom styling, and unlimited suggestions
                     </p>
-                    <div className="flex flex-wrap justify-center gap-1 text-xs text-gray-500">
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Visual Editor</span>
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Custom CSS</span>
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Advanced Layouts</span>
-                    </div>
                     <Button 
                       size="sm"
                       className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-xs h-8"
-                      onClick={() => {
-                        toast({
-                          title: "Pro Features Coming Soon",
-                          description: "Advanced editing features will be available in our Pro plan",
-                        });
-                      }}
+                      onClick={() => toast({
+                        title: "Pro Features Coming Soon",
+                        description: "Advanced editing features will be available in our Pro plan",
+                      })}
                     >
                       <Crown className="h-3 w-3 mr-1" />
                       Upgrade to Pro
@@ -793,78 +631,23 @@ const FreemiumEditPreview = () => {
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Current Editable Elements */}
-              {editableRegions.length > 0 && (
-                <Card className="shadow-medium border-0">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">
-                      Editable Elements
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        {editableRegions.length}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {editableRegions.slice(0, 8).map((region) => (
-                        <div
-                          key={region.id}
-                          className="p-2 border border-border rounded text-xs hover:bg-accent/5 cursor-pointer transition-colors"
-                          onClick={() => {
-                            setActiveEdit(region.id);
-                            setEditingText(region.content);
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="capitalize text-muted-foreground">
-                              {region.type.replace('-', ' ')}
-                            </span>
-                            <Edit3 className="h-3 w-3 text-accent" />
-                          </div>
-                          <p className="font-medium line-clamp-1 text-foreground">
-                            {region.content}
-                          </p>
-                        </div>
-                      ))}
-                      
-                      {editableRegions.length > 8 && (
-                        <p className="text-xs text-muted-foreground text-center py-2">
-                          +{editableRegions.length - 8} more elements available
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </div>
 
           {/* Footer Actions */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8 mt-8 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/preview', { state: location.state })}
-            >
+            <Button variant="outline" onClick={() => navigate('/preview', { state: location.state })}>
               <Eye className="h-4 w-4 mr-2" />
               Back to Preview
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => window.open('https://example.com/pro-features', '_blank')}
-            >
+            <Button variant="outline" onClick={() => window.open('https://example.com/pro-features', '_blank')}>
               <Crown className="h-4 w-4 mr-2" />
               Learn About Pro
               <ExternalLink className="h-3 w-3 ml-1" />
             </Button>
 
-            <Button
-              onClick={handleDeploy}
-              variant="build"
-              disabled={isDeploying || isIncomplete}
-              className="px-8"
-            >
+            <Button onClick={handleDeploy} variant="build" disabled={isDeploying || isIncomplete} className="px-8">
               {isDeploying ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -878,49 +661,6 @@ const FreemiumEditPreview = () => {
               )}
             </Button>
           </div>
-
-          {/* Usage Tips */}
-          <Card className="shadow-medium border-0 mt-8 bg-gradient-subtle">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Edit3 className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Quick Text Edits</p>
-                    <p className="text-muted-foreground text-xs">
-                      Click any text to make instant changes to your content
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">AI Suggestions</p>
-                    <p className="text-muted-foreground text-xs">
-                      Apply intelligent improvements to enhance your portfolio
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Rocket className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">One-Click Deploy</p>
-                    <p className="text-muted-foreground text-xs">
-                      Make your portfolio live on the web instantly
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
