@@ -128,6 +128,8 @@ class HtmlValidator {
   3. Analyze the incomplete HTML and continue from where it left off
   4. Complete all missing sections and fix any structural issues
   5. Ensure the final result is a complete, valid HTML document
+  6. Maintain consistency with the existing style and structure
+  7. Pay special attention to these incomplete sections:
   
   INCOMPLETE HTML TO CONTINUE:
   ---START OF INCOMPLETE HTML---
@@ -137,9 +139,16 @@ class HtmlValidator {
   ANALYSIS OF WHAT'S MISSING:
   `;
   
-      validation.issues.forEach(issue => {
-        continuationPrompt += `- ${issue}\n`;
-      });
+      // Add detailed structural analysis
+      if (!validation.structure.hasBodyClose) {
+        continuationPrompt += "- Missing closing </body> tag\n";
+      }
+      if (!validation.structure.hasHtmlClose) {
+        continuationPrompt += "- Missing closing </html> tag\n";
+      }
+      if (validation.structure.tagBalance < 0.8) {
+        continuationPrompt += `- Approximately ${Math.round((1-validation.structure.tagBalance)*100)}% of tags are unclosed\n`;
+      }
   
       continuationPrompt += `
   COMPLETION STATUS: ${validation.estimatedCompletion}% complete
@@ -157,6 +166,9 @@ class HtmlValidator {
   5. Maintain the same design style and structure
   6. Fix any broken HTML tags or syntax errors
   7. Return ONLY the completion part that should be appended to fix the incomplete HTML
+  8. If adding new sections, maintain consistent styling
+  9. Ensure all images have proper alt text
+  10. Verify all links work properly
   
   RETURN FORMAT: Only return the HTML content needed to complete the incomplete portfolio. Do not include the original partial content.`;
   
