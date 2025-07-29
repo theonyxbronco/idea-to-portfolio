@@ -1549,7 +1549,7 @@ const ProjectDetailsForm = () => {
         </div>
       </CardContent>
     )}
-            </Card>
+  </Card>
 
             {/* Build Button Section */}
             <div className="pt-8 border-t border-border">

@@ -11,6 +11,7 @@ const fileProcessor = require('./utils/fileProcessor');
 const promptGenerator = require('./utils/promptGenerator');
 const htmlValidator = require('./utils/htmlValidator');
 const qualityAnalyzer = require('./utils/validators/qualityAnalyzer');
+const { GoogleSheetsTracker } = require('./utils/googleSheets');
 
 // Import middleware
 const {
@@ -82,6 +83,25 @@ const upload = multer({
     }
   }
 });
+
+const sheetsTracker = new GoogleSheetsTracker({
+  clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+  privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+  sheetId: process.env.GOOGLE_SHEETS_ID,
+  sheetName: process.env.GOOGLE_SHEETS_NAME
+});
+
+// Optional: Verify connection on startup
+if (sheetsTracker.initialized) {
+  sheetsTracker.verifyConnection()
+    .then(success => {
+      if (success) {
+        console.log('✅ Verified Google Sheets connection');
+      } else {
+        console.warn('⚠️ Google Sheets connection verification failed');
+      }
+    });
+}
 
 // In-memory storage for visual editor sessions
 const editorSessions = new Map();
@@ -567,18 +587,38 @@ app.post('/api/generate-portfolio',
   async (req, res) => {
     const processingStartTime = Date.now();
     let processedImageIds = [];
-    let continuationAttempts = 0;
-    const maxContinuationAttempts = 3; // Reduced from 4 to 3
-    let finalHtml = '';
-    let isComplete = false;
     
     try {
       console.log('Starting portfolio generation for:', req.portfolioData.personalInfo.name);
+      console.log('Files received:', req.files?.length || 0);
       
       const portfolioData = req.portfolioData;
       const files = req.files || [];
       
-      // Process images (keep existing image processing code)
+      const isContinuation = req.body.continueGeneration === 'true';
+      const partialHtml = req.body.partialHtml;
+
+      // Start Google Sheets tracking in parallel if configured
+      let trackingPromise = Promise.resolve();
+      if (sheetsTracker) {
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        const screenSize = req.headers['sec-ch-ua-width'] || 'unknown';
+        
+        trackingPromise = sheetsTracker.appendData(portfolioData, userAgent, screenSize)
+          .then(success => {
+            if (success) {
+              console.log('📊 Successfully tracked portfolio generation in Google Sheets');
+            } else {
+              console.warn('⚠️ Failed to track portfolio generation in Google Sheets');
+            }
+          })
+          .catch(error => {
+            console.error('Google Sheets tracking error:', error);
+          });
+      }
+
+      // Process uploaded images
+      console.log('Processing uploaded images...');
       const processedImages = {
         process: [],
         final: [],
@@ -586,187 +626,317 @@ app.post('/api/generate-portfolio',
       };
       
       if (files.length > 0) {
-        console.log('Processing images...');
-        // ... your existing image processing code here ...
+        const categorizeFile = (file) => {
+          const fieldName = file.fieldname || '';
+          const originalName = file.originalname || '';
+          
+          if (fieldName.includes('moodboard') || originalName.includes('moodboard')) {
+            return 'moodboard';
+          } else if (fieldName.includes('final') || originalName.includes('final')) {
+            return 'final';
+          } else if (fieldName.includes('process') || originalName.includes('process')) {
+            return 'process';
+          } else {
+            return 'process';
+          }
+        };
+        
+        const filesByCategory = { process: [], final: [], moodboard: [] };
+        files.forEach(file => {
+          const category = categorizeFile(file);
+          filesByCategory[category].push(file);
+        });
+        
+        const imageProcessingPromises = [];
+        
+        for (const [category, categoryFiles] of Object.entries(filesByCategory)) {
+          if (categoryFiles.length > 0) {
+            try {
+              const options = {
+                moodboard: { width: 800, height: 600, quality: 85 },
+                process: { width: 1200, height: 800, quality: 90 },
+                final: { width: 1200, height: 800, quality: 95 }
+              };
+              
+              imageProcessingPromises.push(
+                fileProcessor.processMultipleImages(categoryFiles, options[category])
+                  .then(result => {
+                    processedImages[category] = result.results;
+                    processedImageIds.push(...result.results.map(img => img.id));
+                    console.log(`Successfully processed ${result.results.length} ${category} images`);
+                  })
+                  .catch(error => {
+                    console.warn(`Could not process some ${category} images:`, error.message);
+                  })
+              );
+            } catch (error) {
+              console.warn(`Error setting up ${category} image processing:`, error.message);
+            }
+          }
+        }
+
+        // Wait for all image processing and tracking to complete
+        await Promise.all([...imageProcessingPromises, trackingPromise]);
+      } else {
+        // If no files, just wait for tracking
+        await trackingPromise;
       }
 
       console.log('Image processing completed. Generating AI prompt...');
 
-      // Initial generation with timeout handling
       let prompt;
-      let isContinuation = false;
-      let partialHtml = req.body.partialHtml;
-      
-      do {
-        if (isContinuation) {
-          console.log(`Continuing generation (attempt ${continuationAttempts + 1}/${maxContinuationAttempts})`);
-          prompt = htmlValidator.generateContinuationPrompt(partialHtml, portfolioData);
-        } else {
-          const designStyle = portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern';
-          const styleMapping = {
-            'professional': 'professional',
-            'creative': 'creative',
-            'playful': 'funky',
-            'elegant': 'elegant',
-            'edgy': 'modern',
-            'warm': 'warm',
-            'minimal': 'minimal'
-          };
-          const mappedStyle = styleMapping[designStyle] || 'modern';
-          prompt = promptGenerator.generateCompletePrompt(portfolioData, processedImages);
-        }
-
-        console.log('Calling Anthropic API with timeout protection...');
+      if (isContinuation && partialHtml) {
+        console.log('Generating continuation prompt...');
+        prompt = htmlValidator.generateContinuationPrompt(partialHtml, portfolioData);
+      } else {
+        const designStyle = portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern';
+        const styleMapping = {
+          'creative': 'creative',
+          'artistic': 'creative', 
+          'playful': 'funky',
+          'funky': 'funky',
+          'experimental': 'funky',
+          'wild': 'funky',
+          'bold': 'funky',
+          'professional': 'professional',
+          'corporate': 'professional',
+          'minimal': 'minimal',
+          'clean': 'minimal',
+          'elegant': 'professional',
+          'sophisticated': 'professional'
+        };
         
-        // **KEY FIX: Add timeout and chunked approach**
-        try {
-          const response = await callAnthropicWithTimeout(prompt, 180000); // 60 second timeout
-          
-          console.log('Anthropic API response received');
-          
-          const generatedContent = response.content[0].text;
-          let cleanedHTML = generatedContent.trim();
-          
-          if (cleanedHTML.startsWith('```html')) {
-            cleanedHTML = cleanedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
-          } else if (cleanedHTML.startsWith('```')) {
-            cleanedHTML = cleanedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
-          }
-
-          // Merge with previous content if continuation
-          if (isContinuation) {
-            cleanedHTML = htmlValidator.mergeHtmlParts(partialHtml, cleanedHTML);
-            console.log('Merged continuation with partial HTML');
-          }
-
-          // Validate completeness
-          const validation = htmlValidator.validateCompleteness(cleanedHTML);
-          console.log('HTML Validation Result:', {
-            isComplete: validation.isComplete,
-            estimatedCompletion: validation.estimatedCompletion,
-            issuesCount: validation.issues.length
-          });
-
-          // Check if we should continue (more lenient completion check)
-          isComplete = validation.isComplete || validation.estimatedCompletion >= 85;
-          
-          if (!isComplete && continuationAttempts < maxContinuationAttempts - 1) {
-            continuationAttempts++;
-            partialHtml = cleanedHTML;
-            isContinuation = true;
-            console.log(`Generation incomplete (${validation.estimatedCompletion}%), continuing...`);
-          } else {
-            finalHtml = cleanedHTML;
-            console.log(`Generation ${isComplete ? 'completed' : 'terminated'} after ${continuationAttempts + 1} attempts`);
-            break;
-          }
-        } catch (timeoutError) {
-          console.error('API call timed out or failed:', timeoutError.message);
-          
-          // If this was a continuation attempt, try with a smaller prompt
-          if (isContinuation && continuationAttempts < maxContinuationAttempts - 1) {
-            console.log('Retrying with simplified continuation prompt...');
-            continuationAttempts++;
-            // Create a much simpler continuation prompt
-            prompt = createSimpleContinuationPrompt(partialHtml, portfolioData);
-            
-            try {
-              const retryResponse = await callAnthropicWithTimeout(prompt, 45000); // Shorter timeout for retry
-              const retryContent = retryResponse.content[0].text.trim();
-              let retryHTML = retryContent.startsWith('```html') ? 
-                retryContent.replace(/^```html\n/, '').replace(/\n```$/, '') : retryContent;
-              
-              finalHtml = htmlValidator.mergeHtmlParts(partialHtml, retryHTML);
-              isComplete = true; // Accept the result
-              break;
-            } catch (retryError) {
-              console.error('Retry also failed:', retryError.message);
-              // Continue to next attempt or exit
-            }
-          } else {
-            throw timeoutError; // Re-throw if not a continuation or max attempts reached
-          }
-        }
-      } while (continuationAttempts < maxContinuationAttempts);
-
-      // Response handling
-      const processingTime = Date.now() - processingStartTime;
+        const mappedStyle = styleMapping[designStyle] || 'modern';
+        console.log(`Using design style: ${mappedStyle} (from mood: ${designStyle})`);
+        
+        prompt = promptGenerator.generateStyledPrompt(portfolioData, processedImages, mappedStyle);
+      }
       
-      if (finalHtml) {
-        // Run quick quality check
-        let qualityScore = 75; // Default reasonable score
-        try {
-          const quickValidation = await qualityAnalyzer.validatePortfolio(
-            finalHtml,
+      console.log('Calling Anthropic API...');
+      
+      if (!process.env.ANTHROPIC_API_KEY) {
+        throw new Error('ANTHROPIC_API_KEY not configured');
+      }
+      
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8000,
+        temperature: 0.7,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      });
+      
+      console.log('Anthropic API response received');
+      
+      const generatedContent = response.content[0].text;
+      
+      let cleanedHTML;
+      if (isContinuation && partialHtml) {
+        cleanedHTML = htmlValidator.mergeHtmlParts(partialHtml, generatedContent.trim());
+        console.log('Merged continuation with partial HTML');
+      } else {
+        cleanedHTML = generatedContent.trim();
+        
+        if (cleanedHTML.startsWith('```html')) {
+          cleanedHTML = cleanedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
+        } else if (cleanedHTML.startsWith('```')) {
+          cleanedHTML = cleanedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
+        }
+      }
+
+      const validation = htmlValidator.validateCompleteness(cleanedHTML);
+      console.log('HTML Validation Result:', {
+        isComplete: validation.isComplete,
+        estimatedCompletion: validation.estimatedCompletion,
+        issuesCount: validation.issues.length
+      });
+
+      if (!validation.isComplete && !isContinuation && validation.canContinue) {
+        console.log('HTML appears incomplete, sending to incomplete handler');
+        
+        return res.json({
+          success: false,
+          incomplete: true,
+          partialHtml: cleanedHTML,
+          completionStatus: validation,
+          error: 'Generation incomplete',
+          details: 'The AI response was cut off before completion. You can continue generation or start over.',
+          metadata: {
+            estimatedCompletion: validation.estimatedCompletion,
+            issues: validation.issues,
+            canContinue: validation.canContinue,
+            imagesProcessed: processedImages
+          }
+        });
+      }
+
+      // Run quality validation and auto-fixes
+      console.log('🔍 Starting quality validation and auto-fix...');
+      
+      let validatedHTML = cleanedHTML;
+      let validationResults = null;
+      let autoFixApplied = false;
+      
+      try {
+        validationResults = await qualityAnalyzer.validatePortfolio(
+          cleanedHTML,
+          portfolioData,
+          processedImages
+        );
+        
+        console.log('📊 Validation Results:', {
+          overall: validationResults.overall.score,
+          content: validationResults.content.score,
+          design: validationResults.design.score,
+          technical: validationResults.technical.score,
+          accessibility: validationResults.accessibility.score
+        });
+
+        const overallScore = validationResults.overall.score;
+        if (overallScore < 85) {
+          console.log(`⚡ Auto-fixing issues (score: ${overallScore})`);
+          
+          const autoFixResult = await qualityAnalyzer.applyAutoFixes(
+            cleanedHTML,
+            validationResults,
             portfolioData,
             processedImages
           );
-          qualityScore = quickValidation.overall.score;
-        } catch (validationError) {
-          console.warn('Quality validation failed, using default score:', validationError.message);
+          
+          if (autoFixResult.success && autoFixResult.improvedHtml) {
+            validatedHTML = autoFixResult.improvedHtml;
+            autoFixApplied = true;
+            
+            console.log('✅ Auto-fixes applied:', autoFixResult.appliedFixes.length);
+            
+            validationResults = await qualityAnalyzer.validatePortfolio(
+              validatedHTML,
+              portfolioData,
+              processedImages
+            );
+            
+            console.log('📈 Post-fix validation score:', validationResults.overall.score);
+          }
+        } else {
+          console.log('✅ Portfolio passed validation without auto-fixes needed');
         }
-
-        const responseData = {
-          success: true,
-          portfolio: {
-            html: finalHtml,
-            qualityScore
-          },
-          metadata: {
-            processingTime,
-            continuationAttempts: continuationAttempts + 1,
-            designStyle: portfolioData.stylePreferences?.mood || 'modern',
-            autoCompleted: continuationAttempts > 0,
-            isComplete
-          },
-          incomplete: !isComplete,
-          partialHtml: !isComplete ? finalHtml : undefined
-        };
-
-        console.log(`Portfolio generation completed in ${processingTime}ms`);
-        console.log(`Quality score: ${qualityScore}/100`);
         
-        res.json(responseData);
-      } else {
-        throw new Error('Failed to generate any HTML content');
+      } catch (validationError) {
+        console.warn('⚠️ Validation failed, proceeding without validation:', validationError.message);
+        validationResults = {
+          overall: { score: 75, status: 'unknown' },
+          content: { score: 75, issues: [], suggestions: [] },
+          design: { score: 75, issues: [], suggestions: [] },
+          technical: { score: 75, issues: [], suggestions: [] },
+          accessibility: { score: 75, issues: [], suggestions: [] },
+          error: 'Validation failed but generation completed'
+        };
       }
-
+      
+      if (!validatedHTML.includes('<html') && !validatedHTML.includes('<!DOCTYPE')) {
+        throw new Error('Generated content does not appear to be valid HTML');
+      }
+      
+      const portfolioResponse = {
+        html: validatedHTML,
+        metadata: {
+          title: `${portfolioData.personalInfo.name} - Portfolio`,
+          description: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
+          generatedAt: new Date().toISOString(),
+          processingTime: Date.now() - processingStartTime,
+          designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'modern'),
+          imagesProcessed: {
+            process: processedImages.process.length,
+            final: processedImages.final.length,
+            moodboard: processedImages.moodboard.length
+          },
+          isContinuation: isContinuation,
+          validationResult: validation,
+          processedImageDetails: processedImages,
+          qualityValidation: validationResults,
+          autoFixApplied: autoFixApplied,
+          qualityScore: validationResults?.overall?.score || 'unknown'
+        }
+      };
+      
+      console.log(`Portfolio generation completed in ${Date.now() - processingStartTime}ms`);
+      if (validationResults) {
+        console.log(`Quality score: ${validationResults.overall.score}/100`);
+        if (autoFixApplied) {
+          console.log('Auto-fixes were applied to improve quality');
+        }
+      }
+      
+      setTimeout(() => {
+        fileProcessor.cleanupTempFiles(processedImageIds).catch(console.error);
+      }, 60 * 60 * 1000);
+      
+      res.json({
+        success: true,
+        portfolio: portfolioResponse,
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          userInfo: {
+            name: portfolioData.personalInfo.name,
+            title: portfolioData.personalInfo.title
+          },
+          processingTime: Date.now() - processingStartTime,
+          designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'modern'),
+          isContinuation: isContinuation,
+          imagesProcessed: processedImages,
+          validation: {
+            overallScore: validationResults?.overall?.score || 'unknown',
+            autoFixApplied: autoFixApplied,
+            issueCount: validationResults ? 
+              validationResults.content.issues.length + 
+              validationResults.design.issues.length + 
+              validationResults.technical.issues.length + 
+              validationResults.accessibility.issues.length : 0,
+            status: validationResults?.overall?.status || 'unknown'
+          }
+        }
+      });
+      
     } catch (error) {
       console.error('Portfolio generation error:', error);
       
-      const processingTime = Date.now() - processingStartTime;
-      let errorMessage = 'Failed to generate portfolio';
-      let statusCode = 500;
-
-      if (error.message?.includes('timeout') || error.message?.includes('timed out')) {
-        errorMessage = 'API request timed out. Please try again with a simpler request.';
-        statusCode = 408;
-      } else if (error.message?.includes('rate limit') || error.message?.includes('429')) {
-        errorMessage = 'API rate limit exceeded. Please try again in a few minutes.';
-        statusCode = 429;
-      } else if (error.message?.includes('API key')) {
-        errorMessage = 'Invalid API key configuration';
-        statusCode = 401;
-      } else if (error.message?.includes('tokens')) {
-        errorMessage = 'Request too large. Please reduce content or try again.';
-        statusCode = 413;
-      }
-
-      res.status(statusCode).json({
-        success: false,
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        metadata: {
-          processingTime,
-          continuationAttempts,
-          error: error.name
-        }
-      });
-
-      // Cleanup processed images on error
       if (processedImageIds.length > 0) {
         fileProcessor.cleanupTempFiles(processedImageIds).catch(console.error);
       }
+      
+      if (error.message && error.message.includes('API key')) {
+        return res.status(500).json({
+          success: false,
+          error: 'API Configuration Error',
+          details: 'Anthropic API key is not configured properly'
+        });
+      }
+      
+      if (error.message && error.message.includes('rate limit')) {
+        return res.status(429).json({
+          success: false,
+          error: 'Rate Limit Exceeded',
+          details: 'API rate limit exceeded. Please try again later.'
+        });
+      }
+      
+      if (error.message && error.message.includes('Invalid file')) {
+        return res.status(400).json({
+          success: false,
+          error: 'File Processing Error',
+          details: error.message
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        error: 'Portfolio Generation Failed',
+        details: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
+      });
     }
   }
 );
