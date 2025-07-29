@@ -1,9 +1,9 @@
-// Enhanced src/components/VisualEditor/EditableCanvasElement.tsx with inline editing
+// Fixed src/components/VisualEditor/EditableCanvasElement.tsx
 import React, { useState, useRef } from 'react';
 import { useDrag } from 'react-dnd';
-import { EditableElement } from '@/hooks/useHtmlParser';
 import { InlineEditor } from './InlineEditor';
 import { cn } from '@/lib/utils';
+import { EditableElement } from './VisualEditor';
 
 interface EditableCanvasElementProps {
   element: EditableElement;
@@ -27,15 +27,17 @@ export const EditableCanvasElement: React.FC<EditableCanvasElementProps> = ({
 
   const [{ isDragging: dragIsDragging }, drag] = useDrag({
     type: 'canvas-element',
-    item: { id: element.id, type: element.type },
+    item: () => {
+      setIsDragging(true);
+      return { id: element.id, type: element.type };
+    },
     collect: (monitor) => ({
       isDragging: monitor.isDragging()
     }),
-    begin: () => setIsDragging(true),
     end: () => setIsDragging(false)
   });
 
-  const getElementStyles = () => ({
+  const getElementStyles = (): React.CSSProperties => ({
     ...element.styles,
     position: 'absolute' as const,
     cursor: isDragging ? 'grabbing' : isSelected ? 'grab' : 'pointer'
@@ -65,6 +67,7 @@ export const EditableCanvasElement: React.FC<EditableCanvasElementProps> = ({
     }
   };
 
+  // Create dynamic component based on tagName
   const ElementTag = element.tagName as keyof JSX.IntrinsicElements;
 
   return (
@@ -107,15 +110,12 @@ export const EditableCanvasElement: React.FC<EditableCanvasElementProps> = ({
         )}
       </ElementTag>
 
-      {/* Selection Handles */}
       {isSelected && !element.isLocked && (
         <div className="absolute inset-0 pointer-events-none">
-          {/* Corner handles */}
           <div className="absolute -top-1 -left-1 w-2 h-2 bg-blue-500 border border-white cursor-nw-resize pointer-events-auto"></div>
           <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 border border-white cursor-ne-resize pointer-events-auto"></div>
           <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-blue-500 border border-white cursor-sw-resize pointer-events-auto"></div>
           <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-blue-500 border border-white cursor-se-resize pointer-events-auto"></div>
-          {/* Edge handles */}
           <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-500 border border-white cursor-n-resize pointer-events-auto"></div>
           <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-500 border border-white cursor-s-resize pointer-events-auto"></div>
           <div className="absolute -left-1 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-blue-500 border border-white cursor-w-resize pointer-events-auto"></div>
@@ -123,7 +123,6 @@ export const EditableCanvasElement: React.FC<EditableCanvasElementProps> = ({
         </div>
       )}
 
-      {/* Element Label */}
       {(isHovered || isSelected) && (
         <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
           {element.type}
@@ -132,7 +131,6 @@ export const EditableCanvasElement: React.FC<EditableCanvasElementProps> = ({
         </div>
       )}
 
-      {/* Lock indicator */}
       {element.isLocked && (
         <div className="absolute top-1 right-1 w-4 h-4 bg-gray-500 rounded-full flex items-center justify-center">
           <span className="text-white text-xs">🔒</span>

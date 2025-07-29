@@ -1,4 +1,4 @@
-// src/components/VisualEditor/Toolbar.tsx
+// Fixed src/components/VisualEditor/Toolbar.tsx
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -189,34 +189,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <PanelRight className="h-4 w-4" />
           </Button>
         )}
-      </div>
-    </div>
-  );
-}; ? "default" : "ghost"}
-          size="sm"
-          className="w-8 h-8 p-0"
-          onClick={onToggleRulers}
-        >
-          <Ruler className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Right Section - Actions */}
-      <div className="flex items-center space-x-2">
-        <Button variant="ghost" size="sm">
-          <Eye className="h-4 w-4 mr-2" />
-          Preview
-        </Button>
-        
-        <Button 
-          variant={hasModifications ? "default" : "ghost"} 
-          size="sm"
-          onClick={onSave}
-          disabled={!hasModifications}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          Save
-        </Button>
       </div>
     </div>
   );

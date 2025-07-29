@@ -1,13 +1,12 @@
-// src/components/VisualEditor/LayersPanel.tsx
+// Fixed src/components/VisualEditor/LayersPanel.tsx
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   ChevronDown, ChevronRight, Eye, EyeOff, Lock, Unlock,
   Type, Square, Image as ImageIcon, MousePointer
 } from 'lucide-react';
-import { EditableElement } from '@/hooks/useHtmlParser';
 import { cn } from '@/lib/utils';
+import { EditableElement } from './VisualEditor';
 
 interface LayersPanelProps {
   elements: EditableElement[];
@@ -22,6 +21,7 @@ const getElementIcon = (type: EditableElement['type']) => {
     case 'button': return Square;
     case 'image': return ImageIcon;
     case 'section': return Square;
+    case 'container': return Square;
     default: return MousePointer;
   }
 };

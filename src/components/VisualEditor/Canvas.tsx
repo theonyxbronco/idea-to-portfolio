@@ -1,8 +1,10 @@
+// Fixed src/components/VisualEditor/Canvas.tsx
 import React, { useRef, useEffect, useState } from 'react';
 import { useDrop } from 'react-dnd';
 import { EditableCanvasElement } from './EditableCanvasElement';
 import { SelectionBox } from './SelectionBox';
 import { cn } from '@/lib/utils';
+import { EditableElement } from './VisualEditor';
 
 interface CanvasProps {
   elements: EditableElement[];
@@ -46,12 +48,11 @@ export const Canvas: React.FC<CanvasProps> = ({
         const y = (clientOffset.y - canvasRect.top) / (zoom / 100);
         
         if (item.type === 'element') {
-          // Handle dropping new elements from library
           console.log('Dropped new element at', x, y, item);
         } else if (item.type === 'canvas-element') {
-          // Handle moving existing elements
           onElementModify(item.id, {
             styles: {
+              ...elements.find(el => el.id === item.id)?.styles,
               left: `${x}px`,
               top: `${y}px`,
               position: 'absolute'
@@ -73,12 +74,10 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   const handleCanvasContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Could show canvas context menu here
   };
 
   const zoomScale = zoom / 100;
 
-  // Create rulers
   const createRulerMarks = (length: number, interval: number = 50) => {
     const marks = [];
     for (let i = 0; i <= length; i += interval) {
@@ -100,10 +99,8 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   return (
     <div className="flex-1 overflow-auto bg-gray-100 relative">
-      {/* Rulers */}
       {showRulers && (
         <>
-          {/* Horizontal ruler */}
           <div className="absolute top-0 left-6 right-0 h-6 bg-white border-b border-gray-300 z-20 overflow-hidden">
             <div className="relative h-full" style={{ width: `${canvasSize.width * zoomScale}px` }}>
               {createRulerMarks(canvasSize.width, 100).map((mark, i) => (
@@ -114,7 +111,6 @@ export const Canvas: React.FC<CanvasProps> = ({
             </div>
           </div>
           
-          {/* Vertical ruler */}
           <div className="absolute top-6 left-0 bottom-0 w-6 bg-white border-r border-gray-300 z-20 overflow-hidden">
             <div className="relative w-full" style={{ height: `${canvasSize.height * zoomScale}px` }}>
               {createRulerMarks(canvasSize.height, 100).map((mark, i) => (
@@ -134,12 +130,10 @@ export const Canvas: React.FC<CanvasProps> = ({
             </div>
           </div>
           
-          {/* Corner */}
           <div className="absolute top-0 left-0 w-6 h-6 bg-gray-200 border-r border-b border-gray-300 z-30" />
         </>
       )}
 
-      {/* Canvas Container */}
       <div 
         className="flex items-center justify-center min-h-full p-8"
         style={{ 
@@ -167,7 +161,6 @@ export const Canvas: React.FC<CanvasProps> = ({
           onClick={handleCanvasClick}
           onContextMenu={handleCanvasContextMenu}
         >
-          {/* Grid */}
           {showGrid && (
             <div
               className="absolute inset-0 pointer-events-none"
@@ -181,7 +174,6 @@ export const Canvas: React.FC<CanvasProps> = ({
             />
           )}
 
-          {/* Render Elements */}
           {elements.map((element) => (
             <EditableCanvasElement
               key={element.id}
@@ -193,12 +185,10 @@ export const Canvas: React.FC<CanvasProps> = ({
             />
           ))}
 
-          {/* Selection Box for multi-select */}
           {selectionBox && (
             <SelectionBox {...selectionBox} />
           )}
 
-          {/* Drop zone indicator */}
           {isOver && (
             <div className="absolute inset-0 bg-blue-500 bg-opacity-10 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
               <div className="bg-blue-500 text-white px-3 py-1 rounded text-sm">

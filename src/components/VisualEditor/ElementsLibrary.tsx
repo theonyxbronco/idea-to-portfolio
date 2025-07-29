@@ -1,11 +1,11 @@
-// src/components/VisualEditor/ElementsLibrary.tsx
-import React from 'react';
+// Fixed src/components/VisualEditor/ElementsLibrary.tsx
+import React, { useState } from 'react';
 import { useDrag } from 'react-dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Type, Square, Image as ImageIcon, Layout, 
-  MousePointer, Columns, Grid3x3, Separator
+  Columns
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

@@ -1,8 +1,8 @@
+// Fixed src/components/VisualEditor/ContextMenu.tsx
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { 
-  Copy, Cut, Paste, Trash2, Edit, Layers, 
-  MoveUp, MoveDown, Lock, Unlock, Eye, EyeOff 
+  Copy, Scissors as Cut, Play as Paste, Trash2, Edit, 
+  MoveUp, MoveDown, Lock, EyeOff 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,10 +14,18 @@ interface ContextMenuProps {
   onClose: () => void;
 }
 
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  destructive?: boolean;
+  type?: 'separator';
+}
+
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   x, y, elementId, onAction, onClose
 }) => {
-  const menuItems = [
+  const menuItems: (MenuItem | { type: 'separator' })[] = [
     { id: 'edit', label: 'Edit', icon: Edit },
     { id: 'copy', label: 'Copy', icon: Copy },
     { id: 'cut', label: 'Cut', icon: Cut },
@@ -48,34 +56,22 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           return <div key={index} className="h-px bg-gray-200 my-1" />;
         }
 
-        const Icon = item.icon!;
+        const menuItem = item as MenuItem;
+        const Icon = menuItem.icon;
         return (
           <button
-            <ContextMenu
-              x={contextMenu.x}
-              y={contextMenu.y}
-              elementId={contextMenu.elementId}
-              onAction={handleContextAction}
-              onClose={() => setContextMenu(null)}
-            />
-          </>
-        )}
-      </div>
-    </DndProvider>
-  );
-};key={item.id}
-            onClick={() => handleAction(item.id)}
+            key={menuItem.id}
+            onClick={() => handleAction(menuItem.id)}
             className={cn(
               "w-full flex items-center px-3 py-2 text-sm hover:bg-gray-50 transition-colors",
-              item.destructive && "text-red-600 hover:bg-red-50"
+              menuItem.destructive && "text-red-600 hover:bg-red-50"
             )}
           >
             <Icon className="h-4 w-4 mr-3" />
-            {item.label}
+            {menuItem.label}
           </button>
         );
       })}
     </div>
   );
 };
-
