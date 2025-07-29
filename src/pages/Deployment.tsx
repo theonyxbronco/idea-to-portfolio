@@ -1,4 +1,4 @@
-// src/pages/Deployment.tsx - Updated with proper flow navigation
+// src/pages/Deployment.tsx - Simplified deployment success page
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,8 +13,9 @@ import {
   Calendar,
   Server,
   RefreshCw,
-  Edit,
-  Eye
+  Eye,
+  Crown,
+  Lock
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -85,13 +86,11 @@ const Deployment = () => {
     });
   };
 
-  const handleBackToEdit = () => {
-    navigate('/edit', { 
-      state: { 
-        portfolioData, 
-        generatedPortfolio,
-        metadata: location.state?.metadata 
-      } 
+  const handleProFeature = () => {
+    toast({
+      title: "Pro Feature",
+      description: "Advanced editing is available in our Pro plan. Coming soon!",
+      variant: "default",
     });
   };
 
@@ -110,7 +109,7 @@ const Deployment = () => {
               <div className="w-8 h-px bg-green-600"></div>
               <div className="flex items-center space-x-1 text-green-600">
                 <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span>Edited</span>
+                <span>Previewed</span>
               </div>
               <div className="w-8 h-px bg-green-600"></div>
               <div className="flex items-center space-x-1 text-green-600">
@@ -201,15 +200,6 @@ const Deployment = () => {
                 <Eye className="h-4 w-4 mr-2" />
                 Back to Preview
               </Button>
-              
-              <Button
-                variant="outline"
-                onClick={handleBackToEdit}
-                className="shadow-soft"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Advanced Edit
-              </Button>
 
               <Button
                 variant="outline"
@@ -229,6 +219,37 @@ const Deployment = () => {
                 Create New Portfolio
               </Button>
             </div>
+
+            {/* Pro Features Teaser */}
+            <Card className="shadow-medium border-0 bg-gradient-to-r from-purple-50 to-blue-50">
+              <CardContent className="p-6">
+                <div className="text-center space-y-4">
+                  <div className="flex justify-center">
+                    <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+                      <Crown className="h-8 w-8 text-white" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900">Want to Edit Your Portfolio?</h3>
+                  <p className="text-gray-600 max-w-md mx-auto">
+                    Advanced editing features including visual editor, custom styling, and real-time text editing are coming soon in our Pro plan!
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2 text-sm text-gray-500">
+                    <span className="flex items-center"><Lock className="h-3 w-3 mr-1" />Visual Editor</span>
+                    <span className="flex items-center"><Lock className="h-3 w-3 mr-1" />Custom Styling</span>
+                    <span className="flex items-center"><Lock className="h-3 w-3 mr-1" />Real-time Editing</span>
+                    <span className="flex items-center"><Lock className="h-3 w-3 mr-1" />Advanced Layouts</span>
+                  </div>
+                  <Button 
+                    onClick={handleProFeature}
+                    variant="default"
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    <Crown className="h-4 w-4 mr-2" />
+                    Learn More About Pro
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Next Steps */}
             <Card className="shadow-medium border-0 bg-gradient-subtle">
@@ -250,8 +271,8 @@ const Deployment = () => {
                         <span className="text-xs font-bold text-green-600">2</span>
                       </div>
                       <div>
-                        <p className="font-medium">Update Content</p>
-                        <p className="text-muted-foreground">Need changes? Use the Preview or Advanced Edit to modify your portfolio anytime</p>
+                        <p className="font-medium">Download HTML</p>
+                        <p className="text-muted-foreground">Get the source code to customize further or host on your own domain</p>
                       </div>
                     </div>
                   </div>
@@ -261,8 +282,8 @@ const Deployment = () => {
                         <span className="text-xs font-bold text-purple-600">3</span>
                       </div>
                       <div>
-                        <p className="font-medium">Download Source Code</p>
-                        <p className="text-muted-foreground">Get the HTML source to customize further or host on your own domain</p>
+                        <p className="font-medium">Create More Portfolios</p>
+                        <p className="text-muted-foreground">Build specialized portfolios for different audiences or projects</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
@@ -270,8 +291,8 @@ const Deployment = () => {
                         <span className="text-xs font-bold text-orange-600">4</span>
                       </div>
                       <div>
-                        <p className="font-medium">Create More Portfolios</p>
-                        <p className="text-muted-foreground">Build specialized portfolios for different audiences or projects</p>
+                        <p className="font-medium">Upgrade for Editing</p>
+                        <p className="text-muted-foreground">Get access to advanced editing tools when Pro launches</p>
                       </div>
                     </div>
                   </div>

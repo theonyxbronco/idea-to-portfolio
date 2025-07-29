@@ -29,8 +29,8 @@ const App = () => (
           <Route path="/preview" element={<Preview />} />
           
           {/* Step 4: Advanced Visual Edit (Optional) */}
-          <Route path="/edit" element={<VisualEditPage />} />
-          
+          {/* <Route path="/edit" element={<VisualEditPage />} /> */}
+            
           {/* Step 5: Deployment Success */}
           <Route path="/deployment" element={<Deployment />} />
           

@@ -147,6 +147,33 @@ MOODBOARD PRIORITY:
 - Spacing/rhythm should mirror inspiration`;
   }
 
+  generateFooterRequirements(personalInfo) {
+    // Generate a random appropriate emoji for creative portfolios
+    const creativeEmojis = ['🎨', '✨', '🚀', '💫', '🎯', '💡', '🌟', '🎪', '🎭', '🎨', '🖌️', '📐', '🎬', '📸'];
+    const randomEmoji = creativeEmojis[Math.floor(Math.random() * creativeEmojis.length)];
+    
+    return `
+FOOTER REQUIREMENTS (MANDATORY):
+- Add this EXACT footer at the bottom of the page:
+  "2025 ${personalInfo.name || '[Name]'} — product of Interract Agency. All rights reserved. ${randomEmoji}"
+- Footer styling requirements:
+  * Small font size (12px-14px)
+  * Light gray color (#888 or similar)
+  * Centered text alignment
+  * Add margin-top: 40px or padding-top: 40px to separate from main content
+  * Footer must always be visible on the page
+  * Use semantic <footer> HTML element
+- Example CSS for footer:
+  footer {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-top: 40px;
+    padding: 20px 0;
+    border-top: 1px solid #eee;
+  }`;
+  }
+
   generateCompletePrompt(portfolioData, processedImages = {}) {
     const { personalInfo, projects, stylePreferences } = portfolioData;
     
@@ -156,8 +183,73 @@ MOODBOARD PRIORITY:
       this.generateProjectsSection(projects, processedImages),
       this.generateStyleSection(stylePreferences, processedImages),
       this.generateStructureRequirements(),
-      `FOOTER: Include copyright with "${personalInfo.name || 'Client'} © ${new Date().getFullYear()}"`
+      this.generateFooterRequirements(personalInfo) // Added footer requirements
     ].join('\n');
+  }
+
+  generateStyledPrompt(portfolioData, processedImages, mappedStyle) {
+    const basePrompt = this.generateCompletePrompt(portfolioData, processedImages);
+    
+    // Add style-specific enhancements
+    const styleEnhancements = {
+      'professional': `
+PROFESSIONAL STYLE ENHANCEMENTS:
+- Clean, corporate aesthetic
+- Neutral color palette (blues, grays, whites)
+- Sans-serif typography
+- Grid-based layouts
+- Subtle animations
+- Focus on readability and trust`,
+      
+      'creative': `
+CREATIVE STYLE ENHANCEMENTS:
+- Bold, artistic aesthetic
+- Vibrant color combinations
+- Mix of serif and sans-serif fonts
+- Asymmetric layouts
+- Dynamic animations
+- Focus on visual impact`,
+      
+      'funky': `
+FUNKY STYLE ENHANCEMENTS:
+- Wild, experimental aesthetic
+- Neon and electric colors
+- Bold, playful typography
+- Unconventional layouts
+- Eye-catching animations
+- Focus on uniqueness and fun`,
+      
+      'elegant': `
+ELEGANT STYLE ENHANCEMENTS:
+- Sophisticated, refined aesthetic
+- Muted, premium colors
+- Elegant serif typography
+- Balanced, harmonious layouts
+- Smooth, subtle animations
+- Focus on luxury and sophistication`,
+      
+      'minimal': `
+MINIMAL STYLE ENHANCEMENTS:
+- Clean, simple aesthetic
+- Monochrome or limited color palette
+- Clean sans-serif typography
+- Lots of whitespace
+- Minimal animations
+- Focus on content and clarity`,
+      
+      'warm': `
+WARM STYLE ENHANCEMENTS:
+- Inviting, friendly aesthetic
+- Warm colors (oranges, reds, yellows)
+- Readable, friendly typography
+- Comfortable layouts
+- Gentle animations
+- Focus on approachability`
+    };
+
+    const enhancement = styleEnhancements[mappedStyle] || styleEnhancements['professional'];
+    
+    return basePrompt + '\n' + enhancement;
   }
 }
 
