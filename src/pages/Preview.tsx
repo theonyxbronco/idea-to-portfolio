@@ -1,11 +1,12 @@
-// src/pages/Preview.tsx
+// src/pages/Preview.tsx - Improved Flow Integration
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, Eye, Code, Smartphone, Monitor, Tablet, ExternalLink, 
-  Rocket, AlertCircle, Download, Edit, RotateCcw, Split 
+  Rocket, AlertCircle, Download, Edit, RotateCcw, Split, Settings,
+  Zap, FileCode
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -13,12 +14,11 @@ import { deployToNetlify } from '@/lib/netlifyDeploy';
 import { useHtmlParser } from '@/hooks/useHtmlParser';
 import EditableComponent from '@/components/EditableComponent';
 import EditPanel from '@/components/EditPanel';
-import { Edit } from 'lucide-react';
 
 const NETLIFY_TOKEN = "nfp_ubQ5p2gRqsLfiTf1vj1d1ghjXbPhsXSRea18";
 
 type ViewportSize = 'mobile' | 'tablet' | 'desktop';
-type ViewMode = 'original' | 'edit-only';
+type ViewMode = 'original' | 'editable';
 
 const Preview = () => {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ const Preview = () => {
   const { toast } = useToast();
   
   const [viewportSize, setViewportSize] = useState<ViewportSize>('desktop');
-  const [viewMode, setViewMode] = useState<ViewMode>('edit-only');
+  const [viewMode, setViewMode] = useState<ViewMode>('editable');
   const [isLoading, setIsLoading] = useState(false);
   
   // Get data from previous page
@@ -127,6 +127,17 @@ const Preview = () => {
     navigate('/', { state: { portfolioData } });
   };
 
+  const handleAdvancedEdit = () => {
+    // Navigate to advanced visual editor
+    navigate('/edit', { 
+      state: { 
+        portfolioData, 
+        generatedPortfolio: hasModifications ? { html: generateModifiedHtml() } : generatedPortfolio, 
+        metadata 
+      } 
+    });
+  };
+
   const handleDownloadCode = () => {
     const finalHtml = hasModifications ? generateModifiedHtml() : htmlString;
     const blob = new Blob([finalHtml], { type: 'text/html' });
@@ -138,6 +149,11 @@ const Preview = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    toast({
+      title: "Portfolio Downloaded",
+      description: "Your HTML file has been downloaded successfully",
+    });
   };
 
   const handleElementSelect = (elementId: string) => {
@@ -177,7 +193,7 @@ const Preview = () => {
     <div className="min-h-screen bg-gradient-subtle">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
+          {/* Header with Flow Indicators */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-4">
               <Button
@@ -186,17 +202,36 @@ const Preview = () => {
                 className="shadow-soft"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Edit
+                Back to Generate
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-foreground">
-                  AI-Generated Portfolio Preview
+                  Portfolio Preview & Edit
                 </h1>
                 <p className="text-muted-foreground">
-                  Review and edit your AI-generated portfolio before deployment
+                  Review, edit, and deploy your AI-generated portfolio
                 </p>
               </div>
             </div>
+            
+            {/* Flow Progress Indicator */}
+            <div className="hidden lg:flex items-center space-x-2 text-sm">
+              <div className="flex items-center space-x-1 text-green-600">
+                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                <span>Generated</span>
+              </div>
+              <div className="w-8 h-px bg-gray-300"></div>
+              <div className="flex items-center space-x-1 text-blue-600">
+                <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                <span>Preview/Edit</span>
+              </div>
+              <div className="w-8 h-px bg-gray-300"></div>
+              <div className="flex items-center space-x-1 text-gray-400">
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <span>Deploy</span>
+              </div>
+            </div>
+
             <div className="flex items-center space-x-2">
               <Badge variant="secondary" className="px-4 py-2 text-sm">
                 <Eye className="h-4 w-4 mr-2" />
@@ -204,6 +239,7 @@ const Preview = () => {
               </Badge>
               {hasModifications && (
                 <Badge variant="default" className="px-3 py-1 text-xs">
+                  <Edit className="h-3 w-3 mr-1" />
                   Modified
                 </Badge>
               )}
@@ -216,7 +252,7 @@ const Preview = () => {
             </div>
           </div>
 
-          {/* Top Controls Bar */}
+          {/* Enhanced Controls Bar */}
           <div className="flex flex-wrap items-center justify-between mb-8 p-4 bg-card rounded-lg border shadow-soft">
             <div className="flex flex-wrap items-center gap-4">
               {/* View Mode Toggle */}
@@ -231,9 +267,9 @@ const Preview = () => {
                   Original
                 </Button>
                 <Button
-                  variant={viewMode === 'edit-only' ? 'default' : 'outline'}
+                  variant={viewMode === 'editable' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setViewMode('edit-only')}
+                  onClick={() => setViewMode('editable')}
                 >
                   <Edit className="h-4 w-4 mr-1" />
                   Editable
@@ -242,7 +278,7 @@ const Preview = () => {
 
               {/* Viewport Size Selector */}
               <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">Size:</span>
+                <span className="text-sm font-medium">Device:</span>
                 <Button
                   variant={viewportSize === 'desktop' ? 'default' : 'outline'}
                   size="sm"
@@ -270,7 +306,8 @@ const Preview = () => {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2 flex-wrap">
               {hasModifications && (
                 <Button
                   variant="outline"
@@ -281,6 +318,17 @@ const Preview = () => {
                   Reset Changes
                 </Button>
               )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAdvancedEdit}
+                className="hidden md:flex"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Advanced Edit
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -315,6 +363,7 @@ const Preview = () => {
                           }
                         })}
                       >
+                        <Zap className="h-4 w-4 mr-1" />
                         Continue Generation
                       </Button>
                       <Button 
@@ -322,6 +371,7 @@ const Preview = () => {
                         variant="outline"
                         onClick={() => navigate('/')}
                       >
+                        <FileCode className="h-4 w-4 mr-1" />
                         Start Over
                       </Button>
                     </div>
@@ -334,24 +384,45 @@ const Preview = () => {
           {/* Preview Area */}
           <Card className="shadow-large border-0 mb-8">
             <CardHeader className="bg-gradient-primary text-primary-foreground">
-              <CardTitle className="text-xl">Portfolio Preview</CardTitle>
+              <CardTitle className="text-xl flex items-center justify-between">
+                <span>Portfolio Preview</span>
+                <div className="flex items-center space-x-2">
+                  {viewMode === 'editable' && selectedElement && (
+                    <Badge variant="secondary" className="bg-white/20 text-white">
+                      Editing: {selectedElement.type}
+                    </Badge>
+                  )}
+                </div>
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-8">
               {/* Preview Container */}
               <div className="flex justify-center">
                 <div className={`${getViewportClasses()} transition-all duration-300 bg-white rounded-lg shadow-medium overflow-hidden border border-border`}>
                   {viewMode === 'original' && renderOriginalView()}
-                  {viewMode === 'edit-only' && renderEditableComponents()}
+                  {viewMode === 'editable' && renderEditableComponents()}
                 </div>
               </div>
 
-              {/* Deploy Button */}
-              <div className="flex justify-center mt-8 pt-8 border-t border-border">
+              {/* Next Steps Actions */}
+              <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 mt-8 pt-8 border-t border-border">
+                {/* Advanced Edit Button */}
+                <Button
+                  onClick={handleAdvancedEdit}
+                  variant="accent"
+                  size="lg"
+                  className="px-8 py-3"
+                >
+                  <Settings className="h-5 w-5 mr-2" />
+                  Advanced Visual Editor
+                </Button>
+
+                {/* Deploy Button */}
                 <Button
                   onClick={handleDeploy}
                   variant="build"
                   size="lg"
-                  className="px-12 py-4 text-lg"
+                  className="px-12 py-3 text-lg"
                   disabled={isLoading || isIncomplete}
                 >
                   {isLoading ? (
@@ -372,15 +443,22 @@ const Preview = () => {
                   )}
                 </Button>
               </div>
+
+              {/* Flow Guidance */}
+              <div className="text-center mt-6 text-sm text-muted-foreground">
+                <p>
+                  💡 Tip: Use <strong>Editable mode</strong> for quick text changes, or try the <strong>Advanced Visual Editor</strong> for complete design control
+                </p>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Edit Panel Below - Only show when element is selected */}
-          {selectedElement && (
+          {/* Inline Edit Panel - Only show when element is selected in editable mode */}
+          {selectedElement && viewMode === 'editable' && (
             <Card className="shadow-large border-0">
               <CardHeader className="bg-gradient-accent text-accent-foreground">
                 <CardTitle className="text-xl flex items-center justify-between">
-                  <span>Editing: {selectedElement.type} element</span>
+                  <span>Quick Edit: {selectedElement.type} element</span>
                   <Button
                     variant="ghost"
                     size="sm"

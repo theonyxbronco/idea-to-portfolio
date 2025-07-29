@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Preview from "./pages/Preview";
 import Deployment from "./pages/Deployment";
 import IncompleteGeneration from "./pages/IncompleteGeneration";
+import VisualEditPage from "./pages/VisualEditPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -18,11 +19,22 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Step 1: Generate Portfolio */}
           <Route path="/" element={<Index />} />
-          <Route path="/preview" element={<Preview />} />
+          
+          {/* Step 2: Handle Incomplete Generation */}
           <Route path="/incomplete" element={<IncompleteGeneration />} />
+          
+          {/* Step 3: Preview & Basic Edit */}
+          <Route path="/preview" element={<Preview />} />
+          
+          {/* Step 4: Advanced Visual Edit (Optional) */}
+          <Route path="/edit" element={<VisualEditPage />} />
+          
+          {/* Step 5: Deployment Success */}
           <Route path="/deployment" element={<Deployment />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          
+          {/* Catch-all route for 404s */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

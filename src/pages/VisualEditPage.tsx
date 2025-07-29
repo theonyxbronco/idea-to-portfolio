@@ -1,12 +1,13 @@
-// Enhanced src/pages/VisualEditPage.tsx
+// src/pages/VisualEditPage.tsx - Enhanced with proper flow integration
 import React, { useState, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, Rocket, Download, Eye, Settings, Save, 
   Undo2, Redo2, Grid3x3, Ruler, ZoomIn, ZoomOut,
   PanelLeft, PanelRight, Monitor, Smartphone, Tablet,
-  AlertCircle, CheckCircle, Clock
+  AlertCircle, CheckCircle, Clock, FileCode, Edit
 } from 'lucide-react';
 import { VisualEditor } from '@/components/VisualEditor/VisualEditor';
 import { useToast } from '@/hooks/use-toast';
@@ -25,7 +26,6 @@ const VisualEditPage = () => {
   
   // Basic state
   const [isDeploying, setIsDeploying] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   
   // Enhanced editor state
   const [isAutoSaving, setIsAutoSaving] = useState(false);
@@ -163,28 +163,14 @@ const VisualEditPage = () => {
       return;
     }
 
-    // Open preview in new tab with responsive viewport
-    const previewWindow = window.open('', '_blank');
-    if (previewWindow) {
-      const responsiveHtml = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Portfolio Preview</title>
-          <style>
-            body { margin: 0; padding: 0; }
-          </style>
-        </head>
-        <body>
-          ${currentHtml}
-        </body>
-        </html>
-      `;
-      previewWindow.document.write(responsiveHtml);
-      previewWindow.document.close();
-    }
+    // Navigate back to preview with updated content
+    navigate('/preview', { 
+      state: { 
+        portfolioData, 
+        generatedPortfolio: { html: currentHtml }, 
+        metadata 
+      } 
+    });
   };
 
   const handleDeploy = async () => {
@@ -225,7 +211,8 @@ const VisualEditPage = () => {
           deploymentUrl: deployment?.url || 'https://amazing-portfolio-xyz.netlify.app',
           platform: deployment?.platform || 'Netlify',
           deployedAt: deployment?.deployedAt || new Date().toISOString(),
-          siteId: deployment?.siteId
+          siteId: deployment?.siteId,
+          metadata
         }
       });
       
@@ -290,14 +277,6 @@ const VisualEditPage = () => {
         metadata 
       } 
     });
-  };
-
-  const getViewportIcon = () => {
-    switch (viewportMode) {
-      case 'mobile': return Smartphone;
-      case 'tablet': return Tablet;
-      default: return Monitor;
-    }
   };
 
   const formatLastSaved = () => {
@@ -373,6 +352,31 @@ const VisualEditPage = () => {
           
           <div className="h-6 w-px bg-gray-300" />
           
+          {/* Flow Progress Indicator */}
+          <div className="hidden lg:flex items-center space-x-2 text-xs">
+            <div className="flex items-center space-x-1 text-green-600">
+              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+              <span>Generated</span>
+            </div>
+            <div className="w-4 h-px bg-green-600"></div>
+            <div className="flex items-center space-x-1 text-green-600">
+              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+              <span>Previewed</span>
+            </div>
+            <div className="w-4 h-px bg-blue-600"></div>
+            <div className="flex items-center space-x-1 text-blue-600">
+              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+              <span>Advanced Edit</span>
+            </div>
+            <div className="w-4 h-px bg-gray-300"></div>
+            <div className="flex items-center space-x-1 text-gray-400">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <span>Deploy</span>
+            </div>
+          </div>
+          
+          <div className="h-6 w-px bg-gray-300" />
+          
           {/* Undo/Redo Controls */}
           <div className="flex items-center space-x-1">
             <Button
@@ -400,13 +404,16 @@ const VisualEditPage = () => {
           <div className="h-6 w-px bg-gray-300" />
           
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">Visual Editor</h1>
+            <h1 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Edit className="h-4 w-4 mr-2" />
+              Advanced Visual Editor
+            </h1>
             <div className="flex items-center space-x-2">
               <p className="text-xs text-gray-500">
                 {portfolioData.personalInfo.name}'s Portfolio
               </p>
               {hasUnsavedChanges && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                <Badge variant="secondary" className="text-xs">
                   {isAutoSaving ? (
                     <>
                       <div className="animate-spin rounded-full h-3 w-3 border-b border-yellow-600 mr-1"></div>
@@ -415,16 +422,16 @@ const VisualEditPage = () => {
                   ) : (
                     <>
                       <AlertCircle className="h-3 w-3 mr-1" />
-                      Unsaved changes
+                      Unsaved
                     </>
                   )}
-                </span>
+                </Badge>
               )}
               {!hasUnsavedChanges && lastSaved && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   Saved
-                </span>
+                </Badge>
               )}
             </div>
           </div>
@@ -591,6 +598,10 @@ const VisualEditPage = () => {
         <div className="flex items-center space-x-4">
           <span>Last saved: {formatLastSaved()}</span>
           <span>History: {currentHistoryIndex + 1}/{editHistory.length}</span>
+          <span className="flex items-center">
+            <FileCode className="h-3 w-3 mr-1" />
+            Advanced Mode
+          </span>
         </div>
       </div>
 
@@ -611,7 +622,7 @@ const VisualEditPage = () => {
       {/* Enhanced Footer */}
       <div className="h-6 bg-gray-800 text-gray-300 text-xs flex items-center justify-between px-4">
         <div className="flex items-center space-x-4">
-          <span>Visual Portfolio Editor</span>
+          <span>Advanced Visual Portfolio Editor</span>
           <span>•</span>
           <span className="flex items-center">
             {isAutoSaving ? (
@@ -629,7 +640,7 @@ const VisualEditPage = () => {
           <span>•</span>
           <span>Elements: {(currentHtml.match(/<[^/>]+>/g) || []).length}</span>
           <span>•</span>
-          <span>Claude AI Generated</span>
+          <span>AI Generated & Enhanced</span>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/Deployment.tsx - Updated with proper flow navigation
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,8 +12,9 @@ import {
   Globe,
   Calendar,
   Server,
-  Key,
-  RefreshCw
+  RefreshCw,
+  Edit,
+  Eye
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -24,13 +26,13 @@ const Deployment = () => {
   const [copied, setCopied] = useState(false);
 
   const deploymentData = location.state || {
-    projectData: { title: 'Sample Project' },
+    portfolioData: { personalInfo: { name: 'Sample Project' } },
     deploymentUrl: 'https://amazing-portfolio-xyz.netlify.app',
     platform: 'Netlify',
     deployedAt: new Date().toISOString()
   };
 
-  const { projectData, deploymentUrl, platform, deployedAt } = deploymentData;
+  const { portfolioData, deploymentUrl, platform, deployedAt, generatedPortfolio } = deploymentData;
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -74,25 +76,59 @@ const Deployment = () => {
   };
 
   const handleBackToPreview = () => {
-    navigate('/preview', { state: { projectData } });
+    navigate('/preview', { 
+      state: { 
+        portfolioData, 
+        generatedPortfolio,
+        metadata: location.state?.metadata 
+      } 
+    });
+  };
+
+  const handleBackToEdit = () => {
+    navigate('/edit', { 
+      state: { 
+        portfolioData, 
+        generatedPortfolio,
+        metadata: location.state?.metadata 
+      } 
+    });
   };
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
+          {/* Header with Flow Progress */}
           <div className="text-center mb-12">
+            {/* Flow Progress Indicator */}
+            <div className="flex justify-center items-center space-x-2 text-sm mb-6">
+              <div className="flex items-center space-x-1 text-green-600">
+                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                <span>Generated</span>
+              </div>
+              <div className="w-8 h-px bg-green-600"></div>
+              <div className="flex items-center space-x-1 text-green-600">
+                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                <span>Edited</span>
+              </div>
+              <div className="w-8 h-px bg-green-600"></div>
+              <div className="flex items-center space-x-1 text-green-600">
+                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                <span>Deployed</span>
+              </div>
+            </div>
+
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 bg-gradient-accent rounded-full flex items-center justify-center shadow-large">
                 <CheckCircle className="h-10 w-10 text-white" />
               </div>
             </div>
             <h1 className="text-4xl font-bold text-foreground mb-4">
-              🎉 Deployment Successful!
+              🎉 Portfolio Deployed Successfully!
             </h1>
             <p className="text-xl text-muted-foreground">
-              Your portfolio is now live and accessible to the world
+              Your AI-generated portfolio is now live and accessible worldwide
             </p>
           </div>
 
@@ -135,7 +171,7 @@ const Deployment = () => {
                         className="shadow-soft"
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        Visit
+                        Visit Site
                       </Button>
                     </div>
                   </div>
@@ -155,62 +191,26 @@ const Deployment = () => {
               </CardContent>
             </Card>
 
-            {/* Deployment Information */}
-            <Card className="shadow-medium border-0">
-              <CardHeader>
-                <CardTitle className="text-xl">Deployment Details</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-foreground mb-2">Project Information</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Project Name:</span>
-                          <span className="font-medium">{projectData.title}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Platform:</span>
-                          <Badge variant="secondary">{platform}</Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-foreground mb-2">Access Information</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">SSL Certificate:</span>
-                          <Badge variant="secondary" className="text-green-600">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Enabled
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Custom Domain:</span>
-                          <span className="text-xs text-muted-foreground">Available with upgrade</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Actions */}
+            {/* Navigation Options */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
               <Button
                 variant="outline"
                 onClick={handleBackToPreview}
                 className="shadow-soft"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
+                <Eye className="h-4 w-4 mr-2" />
                 Back to Preview
               </Button>
               
+              <Button
+                variant="outline"
+                onClick={handleBackToEdit}
+                className="shadow-soft"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Advanced Edit
+              </Button>
+
               <Button
                 variant="outline"
                 onClick={() => window.open(deploymentUrl, '_blank')}
@@ -233,20 +233,46 @@ const Deployment = () => {
             {/* Next Steps */}
             <Card className="shadow-medium border-0 bg-gradient-subtle">
               <CardContent className="p-6">
-                <h3 className="font-semibold text-foreground mb-4">What's Next?</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-start space-x-3">
-                    <Key className="h-4 w-4 text-accent mt-0.5" />
-                    <div>
-                      <p className="font-medium">Share Your Portfolio</p>
-                      <p className="text-muted-foreground">Copy the URL and share it with potential clients or employers</p>
+                <h3 className="font-semibold text-foreground mb-4">🚀 What's Next?</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                  <div className="space-y-3">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-blue-600">1</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Share Your Portfolio</p>
+                        <p className="text-muted-foreground">Copy the URL and share it with potential clients, employers, or on social media</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-green-600">2</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Update Content</p>
+                        <p className="text-muted-foreground">Need changes? Use the Preview or Advanced Edit to modify your portfolio anytime</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start space-x-3">
-                    <Download className="h-4 w-4 text-accent mt-0.5" />
-                    <div>
-                      <p className="font-medium">Download Source Code</p>
-                      <p className="text-muted-foreground">Get the source code to customize further or host elsewhere</p>
+                  <div className="space-y-3">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-purple-600">3</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Download Source Code</p>
+                        <p className="text-muted-foreground">Get the HTML source to customize further or host on your own domain</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-orange-600">4</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Create More Portfolios</p>
+                        <p className="text-muted-foreground">Build specialized portfolios for different audiences or projects</p>
+                      </div>
                     </div>
                   </div>
                 </div>

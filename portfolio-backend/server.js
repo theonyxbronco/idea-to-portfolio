@@ -33,36 +33,31 @@ const anthropic = new Anthropic({
 
 // Apply security headers first
 app.use(securityHeaders);
-
-// Request logging
 app.use(requestLogger);
-
-// Rate limiting
 app.use(rateLimit);
 
-// CORS - Updated for frontend connection
+// CORS
 app.use(cors({
   origin: [
-    'http://localhost:8080',  // Your actual frontend port
-    'http://localhost:5173',  // Vite default port
-    'http://localhost:3000',  // Alternative React port
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:3000',
     'http://127.0.0.1:8080',
     'http://127.0.0.1:5173',
     process.env.CORS_ORIGIN
   ].filter(Boolean),
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Add pre-flight OPTIONS handling
 app.options('*', cors());
 
 // Body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Enhanced static file serving with logging and CORS
+// Static file serving
 app.use('/uploads', (req, res, next) => {
   console.log(`📸 Image request: ${req.path}`);
   res.header('Access-Control-Allow-Origin', '*');
@@ -70,13 +65,13 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
-// Configure multer for file uploads
+// Configure multer
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB
-    files: 50 // Maximum number of files
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024,
+    files: 50
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -88,39 +83,486 @@ const upload = multer({
   }
 });
 
-// Error handling middleware for multer
-const handleMulterError = (error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({
-        success: false,
-        error: 'File too large',
-        details: 'Maximum file size is 10MB'
-      });
-    }
-    if (error.code === 'LIMIT_FILE_COUNT') {
-      return res.status(400).json({
-        success: false,
-        error: 'Too many files',
-        details: 'Maximum 50 files allowed'
-      });
-    }
-  }
-  
-  if (error.message.includes('Invalid file type')) {
-    return res.status(400).json({
+// In-memory storage for visual editor sessions
+const editorSessions = new Map();
+
+// ============= VISUAL EDITOR ENDPOINTS =============
+
+// Create or get editor session
+app.post('/api/visual-editor/session', async (req, res) => {
+  try {
+    const { portfolioData, htmlContent, sessionId } = req.body;
+    
+    const session = {
+      id: sessionId || Date.now().toString(),
+      portfolioData,
+      currentHtml: htmlContent,
+      history: [htmlContent],
+      historyIndex: 0,
+      lastModified: new Date(),
+      autoSaveEnabled: true
+    };
+
+    editorSessions.set(session.id, session);
+
+    console.log(`📝 Created editor session: ${session.id}`);
+
+    res.json({
+      success: true,
+      sessionId: session.id,
+      session: {
+        id: session.id,
+        lastModified: session.lastModified,
+        historyLength: session.history.length,
+        currentIndex: session.historyIndex
+      }
+    });
+
+  } catch (error) {
+    console.error('Session creation error:', error);
+    res.status(500).json({
       success: false,
-      error: 'Invalid file type',
-      details: 'Only JPEG, PNG, GIF, and WebP images are allowed'
+      error: 'Failed to create editor session',
+      details: error.message
     });
   }
-  
-  next(error);
-};
+});
 
+// Get session data
+app.get('/api/visual-editor/session/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = editorSessions.get(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      session: {
+        id: session.id,
+        currentHtml: session.currentHtml,
+        portfolioData: session.portfolioData,
+        lastModified: session.lastModified,
+        historyLength: session.history.length,
+        currentIndex: session.historyIndex,
+        canUndo: session.historyIndex > 0,
+        canRedo: session.historyIndex < session.history.length - 1
+      }
+    });
+
+  } catch (error) {
+    console.error('Session retrieval error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve session',
+      details: error.message
+    });
+  }
+});
+
+// Auto-save endpoint
+app.post('/api/visual-editor/auto-save', async (req, res) => {
+  try {
+    const { sessionId, htmlContent, changeDescription } = req.body;
+    
+    if (!sessionId || !htmlContent) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID and HTML content are required'
+      });
+    }
+
+    const session = editorSessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    // Update session with auto-save
+    session.currentHtml = htmlContent;
+    session.lastModified = new Date();
+    
+    // Optional: Add to history if significant change
+    if (changeDescription && changeDescription !== 'auto-save') {
+      const newHistory = session.history.slice(0, session.historyIndex + 1);
+      newHistory.push(htmlContent);
+      session.history = newHistory;
+      session.historyIndex = newHistory.length - 1;
+    }
+
+    console.log(`💾 Auto-saved session: ${sessionId}`);
+
+    res.json({
+      success: true,
+      message: 'Auto-save successful',
+      timestamp: session.lastModified,
+      historyLength: session.history.length
+    });
+
+  } catch (error) {
+    console.error('Auto-save error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Auto-save failed',
+      details: error.message
+    });
+  }
+});
+
+// Manual save with history
+app.post('/api/visual-editor/save', async (req, res) => {
+  try {
+    const { sessionId, htmlContent, changeDescription } = req.body;
+    
+    const session = editorSessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    // Add to history
+    const newHistory = session.history.slice(0, session.historyIndex + 1);
+    newHistory.push(htmlContent);
+    
+    session.currentHtml = htmlContent;
+    session.history = newHistory;
+    session.historyIndex = newHistory.length - 1;
+    session.lastModified = new Date();
+
+    console.log(`💾 Manual save session: ${sessionId} - ${changeDescription || 'No description'}`);
+
+    res.json({
+      success: true,
+      message: 'Save successful',
+      timestamp: session.lastModified,
+      historyLength: session.history.length,
+      canUndo: session.historyIndex > 0,
+      canRedo: false
+    });
+
+  } catch (error) {
+    console.error('Save error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Save failed',
+      details: error.message
+    });
+  }
+});
+
+// Undo/Redo endpoints
+app.post('/api/visual-editor/undo/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = editorSessions.get(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    if (session.historyIndex <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nothing to undo'
+      });
+    }
+
+    session.historyIndex--;
+    session.currentHtml = session.history[session.historyIndex];
+    session.lastModified = new Date();
+
+    res.json({
+      success: true,
+      currentHtml: session.currentHtml,
+      historyIndex: session.historyIndex,
+      canUndo: session.historyIndex > 0,
+      canRedo: session.historyIndex < session.history.length - 1
+    });
+
+  } catch (error) {
+    console.error('Undo error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Undo failed',
+      details: error.message
+    });
+  }
+});
+
+app.post('/api/visual-editor/redo/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = editorSessions.get(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    if (session.historyIndex >= session.history.length - 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nothing to redo'
+      });
+    }
+
+    session.historyIndex++;
+    session.currentHtml = session.history[session.historyIndex];
+    session.lastModified = new Date();
+
+    res.json({
+      success: true,
+      currentHtml: session.currentHtml,
+      historyIndex: session.historyIndex,
+      canUndo: session.historyIndex > 0,
+      canRedo: session.historyIndex < session.history.length - 1
+    });
+
+  } catch (error) {
+    console.error('Redo error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Redo failed',
+      details: error.message
+    });
+  }
+});
+
+// Real-time validation endpoint
+app.post('/api/visual-editor/validate', async (req, res) => {
+  try {
+    const { sessionId, htmlContent, validationType = 'full' } = req.body;
+    
+    const session = editorSessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    console.log(`🔍 Running ${validationType} validation for session: ${sessionId}`);
+
+    // Run quality validation
+    const validationResults = await qualityAnalyzer.validatePortfolio(
+      htmlContent,
+      session.portfolioData,
+      {} // processedImages - you might want to store this in session too
+    );
+
+    // Check if auto-fixes should be applied
+    let fixedHtml = htmlContent;
+    let autoFixesApplied = [];
+
+    if (validationResults.overall.score < 85) {
+      console.log(`⚡ Applying auto-fixes (score: ${validationResults.overall.score})`);
+      
+      const autoFixResult = await qualityAnalyzer.applyAutoFixes(
+        htmlContent,
+        validationResults,
+        session.portfolioData,
+        {}
+      );
+
+      if (autoFixResult.success && autoFixResult.improvedHtml) {
+        fixedHtml = autoFixResult.improvedHtml;
+        autoFixesApplied = autoFixResult.appliedFixes;
+        
+        // Re-validate after fixes
+        validationResults.postFixValidation = await qualityAnalyzer.validatePortfolio(
+          fixedHtml,
+          session.portfolioData,
+          {}
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      validation: validationResults,
+      autoFixesApplied,
+      fixedHtml: fixedHtml !== htmlContent ? fixedHtml : null,
+      recommendations: validationResults.suggestions?.slice(0, 5) || []
+    });
+
+  } catch (error) {
+    console.error('Validation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Validation failed',
+      details: error.message
+    });
+  }
+});
+
+// HTML parsing endpoint for elements extraction
+app.post('/api/visual-editor/parse-html', async (req, res) => {
+  try {
+    const { htmlContent } = req.body;
+    
+    if (!htmlContent) {
+      return res.status(400).json({
+        success: false,
+        error: 'HTML content is required'
+      });
+    }
+
+    // Simple HTML parsing - you can enhance this
+    const elements = [];
+    let elementId = 1;
+
+    // Extract text elements
+    const textMatches = htmlContent.match(/<(p|span|div)[^>]*>(.*?)<\/\1>/gi);
+    if (textMatches) {
+      textMatches.forEach((match, index) => {
+        const tagMatch = match.match(/<(\w+)/);
+        const contentMatch = match.match(/>(.*?)<\//);
+        
+        if (tagMatch && contentMatch) {
+          elements.push({
+            id: `text_${elementId++}`,
+            type: 'text',
+            tagName: tagMatch[1],
+            content: contentMatch[1].replace(/<[^>]*>/g, ''), // Strip inner HTML
+            styles: {},
+            attributes: {}
+          });
+        }
+      });
+    }
+
+    // Extract headers
+    const headerMatches = htmlContent.match(/<(h[1-6])[^>]*>(.*?)<\/\1>/gi);
+    if (headerMatches) {
+      headerMatches.forEach((match, index) => {
+        const tagMatch = match.match(/<(\w+)/);
+        const contentMatch = match.match(/>(.*?)<\//);
+        
+        if (tagMatch && contentMatch) {
+          elements.push({
+            id: `header_${elementId++}`,
+            type: 'header',
+            tagName: tagMatch[1],
+            content: contentMatch[1].replace(/<[^>]*>/g, ''),
+            styles: {},
+            attributes: {}
+          });
+        }
+      });
+    }
+
+    // Extract buttons
+    const buttonMatches = htmlContent.match(/<button[^>]*>(.*?)<\/button>/gi);
+    if (buttonMatches) {
+      buttonMatches.forEach((match, index) => {
+        const contentMatch = match.match(/>(.*?)<\//);
+        
+        if (contentMatch) {
+          elements.push({
+            id: `button_${elementId++}`,
+            type: 'button',
+            tagName: 'button',
+            content: contentMatch[1].replace(/<[^>]*>/g, ''),
+            styles: {},
+            attributes: {}
+          });
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      elements,
+      totalElements: elements.length
+    });
+
+  } catch (error) {
+    console.error('HTML parsing error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'HTML parsing failed',
+      details: error.message
+    });
+  }
+});
+
+// Element modification endpoint
+app.patch('/api/visual-editor/element/:sessionId/:elementId', async (req, res) => {
+  try {
+    const { sessionId, elementId } = req.params;
+    const { content, styles, attributes } = req.body;
+    
+    const session = editorSessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    // This is a simplified implementation
+    // In practice, you'd want more sophisticated HTML manipulation
+    let modifiedHtml = session.currentHtml;
+    
+    // Simple find and replace for content changes
+    if (content !== undefined) {
+      // This is a basic implementation - you'd want proper HTML parsing
+      const regex = new RegExp(`(id="${elementId}"[^>]*>)([^<]*)(</\\w+>)`, 'gi');
+      modifiedHtml = modifiedHtml.replace(regex, `$1${content}$3`);
+    }
+
+    // Update session
+    session.currentHtml = modifiedHtml;
+    session.lastModified = new Date();
+
+    res.json({
+      success: true,
+      message: 'Element modified successfully',
+      modifiedHtml
+    });
+
+  } catch (error) {
+    console.error('Element modification error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Element modification failed',
+      details: error.message
+    });
+  }
+});
+
+// Clean up old sessions (run periodically)
+setInterval(() => {
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  
+  for (const [sessionId, session] of editorSessions.entries()) {
+    if (session.lastModified < oneHourAgo) {
+      editorSessions.delete(sessionId);
+      console.log(`🧹 Cleaned up old session: ${sessionId}`);
+    }
+  }
+}, 30 * 60 * 1000); // Run every 30 minutes
+
+// ============= EXISTING ENDPOINTS =============
+
+// Original portfolio generation endpoint (keeping existing functionality)
 app.post('/api/generate-portfolio', 
   upload.any(),
-  handleMulterError,
   validatePortfolioData,
   async (req, res) => {
     const processingStartTime = Date.now();
@@ -130,18 +572,9 @@ app.post('/api/generate-portfolio',
       console.log('Starting portfolio generation for:', req.portfolioData.personalInfo.name);
       console.log('Files received:', req.files?.length || 0);
       
-      // Log all received files for debugging
-      if (req.files && req.files.length > 0) {
-        console.log('Received files:');
-        req.files.forEach(file => {
-          console.log(`- ${file.fieldname}: ${file.originalname} (${file.size} bytes)`);
-        });
-      }
-      
       const portfolioData = req.portfolioData;
       const files = req.files || [];
       
-      // Check if this is a continuation request
       const isContinuation = req.body.continueGeneration === 'true';
       const partialHtml = req.body.partialHtml;
 
@@ -150,7 +583,7 @@ app.post('/api/generate-portfolio',
         console.log('Partial HTML length:', partialHtml?.length || 0);
       }
 
-      // Process uploaded images with IMPROVED categorization
+      // Process uploaded images
       console.log('Processing uploaded images...');
       const processedImages = {
         process: [],
@@ -159,51 +592,29 @@ app.post('/api/generate-portfolio',
       };
       
       if (files.length > 0) {
-        // IMPROVED: Categorize files based on field names
         const categorizeFile = (file) => {
           const fieldName = file.fieldname || '';
           const originalName = file.originalname || '';
           
-          console.log(`Categorizing file: ${fieldName} -> ${originalName}`);
-          
-          // Check for moodboard images
           if (fieldName.includes('moodboard') || originalName.includes('moodboard')) {
-            console.log('  -> Categorized as MOODBOARD');
             return 'moodboard';
-          } 
-          // Check for final product images
-          else if (fieldName.includes('final') || originalName.includes('final')) {
-            console.log('  -> Categorized as FINAL');
+          } else if (fieldName.includes('final') || originalName.includes('final')) {
             return 'final';
-          } 
-          // Check for process images
-          else if (fieldName.includes('process') || originalName.includes('process')) {
-            console.log('  -> Categorized as PROCESS');
+          } else if (fieldName.includes('process') || originalName.includes('process')) {
             return 'process';
-          } 
-          // Default fallback
-          else {
-            console.log('  -> Categorized as PROCESS (default)');
-            return 'process'; // Default to process images
+          } else {
+            return 'process';
           }
         };
         
-        // Group files by category
         const filesByCategory = { process: [], final: [], moodboard: [] };
         files.forEach(file => {
           const category = categorizeFile(file);
           filesByCategory[category].push(file);
         });
         
-        console.log('Files by category:');
-        console.log(`- Moodboard: ${filesByCategory.moodboard.length} files`);
-        console.log(`- Process: ${filesByCategory.process.length} files`);
-        console.log(`- Final: ${filesByCategory.final.length} files`);
-        
-        // Process each category
         for (const [category, categoryFiles] of Object.entries(filesByCategory)) {
           if (categoryFiles.length > 0) {
-            console.log(`Processing ${categoryFiles.length} ${category} images...`);
             try {
               const options = {
                 moodboard: { width: 800, height: 600, quality: 85 },
@@ -216,10 +627,6 @@ app.post('/api/generate-portfolio',
               processedImageIds.push(...result.results.map(img => img.id));
               
               console.log(`Successfully processed ${result.results.length} ${category} images`);
-              
-              if (result.errors.length > 0) {
-                console.warn(`${category} image errors:`, result.errors);
-              }
             } catch (error) {
               console.warn(`Could not process some ${category} images:`, error.message);
             }
@@ -228,18 +635,12 @@ app.post('/api/generate-portfolio',
       }
 
       console.log('Image processing completed. Generating AI prompt...');
-      console.log('Processed images summary:', {
-        moodboard: processedImages.moodboard.length,
-        process: processedImages.process.length,
-        final: processedImages.final.length
-      });
 
       let prompt;
       if (isContinuation && partialHtml) {
         console.log('Generating continuation prompt...');
         prompt = htmlValidator.generateContinuationPrompt(partialHtml, portfolioData);
       } else {
-        // Determine design style based on user preferences
         const designStyle = portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern';
         const styleMapping = {
           'creative': 'creative',
@@ -260,19 +661,15 @@ app.post('/api/generate-portfolio',
         const mappedStyle = styleMapping[designStyle] || 'modern';
         console.log(`Using design style: ${mappedStyle} (from mood: ${designStyle})`);
         
-        // Generate the prompt with processed images
         prompt = promptGenerator.generateStyledPrompt(portfolioData, processedImages, mappedStyle);
       }
       
       console.log('Calling Anthropic API...');
-      console.log('Prompt length:', prompt.length, 'characters');
       
-      // Check if API key is configured
       if (!process.env.ANTHROPIC_API_KEY) {
         throw new Error('ANTHROPIC_API_KEY not configured');
       }
       
-      // Call Anthropic API
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 8000,
@@ -289,7 +686,6 @@ app.post('/api/generate-portfolio',
       
       const generatedContent = response.content[0].text;
       
-      // Handle continuation vs new generation
       let cleanedHTML;
       if (isContinuation && partialHtml) {
         cleanedHTML = htmlValidator.mergeHtmlParts(partialHtml, generatedContent.trim());
@@ -304,7 +700,6 @@ app.post('/api/generate-portfolio',
         }
       }
 
-      // Validate HTML completeness (existing code)
       const validation = htmlValidator.validateCompleteness(cleanedHTML);
       console.log('HTML Validation Result:', {
         isComplete: validation.isComplete,
@@ -312,7 +707,6 @@ app.post('/api/generate-portfolio',
         issuesCount: validation.issues.length
       });
 
-      // If HTML is incomplete, handle it (existing code)
       if (!validation.isComplete && !isContinuation && validation.canContinue) {
         console.log('HTML appears incomplete, sending to incomplete handler');
         
@@ -332,17 +726,14 @@ app.post('/api/generate-portfolio',
         });
       }
 
-      // ===== NEW VALIDATION INTEGRATION STARTS HERE =====
-      
+      // Run quality validation and auto-fixes
       console.log('🔍 Starting quality validation and auto-fix...');
       
-      // Run comprehensive validation
       let validatedHTML = cleanedHTML;
       let validationResults = null;
       let autoFixApplied = false;
       
       try {
-        // Run quality validation
         validationResults = await qualityAnalyzer.validatePortfolio(
           cleanedHTML,
           portfolioData,
@@ -357,7 +748,6 @@ app.post('/api/generate-portfolio',
           accessibility: validationResults.accessibility.score
         });
 
-        // Apply auto-fixes if validation score is below threshold
         const overallScore = validationResults.overall.score;
         if (overallScore < 85) {
           console.log(`⚡ Auto-fixing issues (score: ${overallScore})`);
@@ -375,7 +765,6 @@ app.post('/api/generate-portfolio',
             
             console.log('✅ Auto-fixes applied:', autoFixResult.appliedFixes.length);
             
-            // Re-validate after auto-fixes
             validationResults = await qualityAnalyzer.validatePortfolio(
               validatedHTML,
               portfolioData,
@@ -390,7 +779,6 @@ app.post('/api/generate-portfolio',
         
       } catch (validationError) {
         console.warn('⚠️ Validation failed, proceeding without validation:', validationError.message);
-        // Don't fail the entire generation if validation fails
         validationResults = {
           overall: { score: 75, status: 'unknown' },
           content: { score: 75, issues: [], suggestions: [] },
@@ -401,16 +789,12 @@ app.post('/api/generate-portfolio',
         };
       }
       
-      // ===== VALIDATION INTEGRATION ENDS HERE =====
-      
-      // Validate that we have valid HTML (keep existing check)
       if (!validatedHTML.includes('<html') && !validatedHTML.includes('<!DOCTYPE')) {
         throw new Error('Generated content does not appear to be valid HTML');
       }
       
-      // Create portfolio response with validation results
       const portfolioResponse = {
-        html: validatedHTML, // Use the validated/fixed HTML
+        html: validatedHTML,
         metadata: {
           title: `${portfolioData.personalInfo.name} - Portfolio`,
           description: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
@@ -425,8 +809,6 @@ app.post('/api/generate-portfolio',
           isContinuation: isContinuation,
           validationResult: validation,
           processedImageDetails: processedImages,
-          
-          // NEW: Add quality validation results
           qualityValidation: validationResults,
           autoFixApplied: autoFixApplied,
           qualityScore: validationResults?.overall?.score || 'unknown'
@@ -441,7 +823,6 @@ app.post('/api/generate-portfolio',
         }
       }
       
-      // Schedule cleanup of processed images (after 1 hour)
       setTimeout(() => {
         fileProcessor.cleanupTempFiles(processedImageIds).catch(console.error);
       }, 60 * 60 * 1000);
@@ -459,8 +840,6 @@ app.post('/api/generate-portfolio',
           designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'modern'),
           isContinuation: isContinuation,
           imagesProcessed: processedImages,
-          
-          // NEW: Include validation summary in response
           validation: {
             overallScore: validationResults?.overall?.score || 'unknown',
             autoFixApplied: autoFixApplied,
@@ -477,12 +856,10 @@ app.post('/api/generate-portfolio',
     } catch (error) {
       console.error('Portfolio generation error:', error);
       
-      // Cleanup processed images on error
       if (processedImageIds.length > 0) {
         fileProcessor.cleanupTempFiles(processedImageIds).catch(console.error);
       }
       
-      // Determine error type and send appropriate response
       if (error.message && error.message.includes('API key')) {
         return res.status(500).json({
           success: false,
@@ -524,9 +901,18 @@ app.get('/api/info', (req, res) => {
   res.json({
     name: 'Portfolio Generator API',
     version: '1.0.0',
-    description: 'AI-powered portfolio generation using Anthropic Claude',
+    description: 'AI-powered portfolio generation using Anthropic Claude with Visual Editor',
     endpoints: {
       'POST /api/generate-portfolio': 'Generate portfolio from user data and images',
+      'POST /api/visual-editor/session': 'Create or get editor session',
+      'GET /api/visual-editor/session/:sessionId': 'Get session data',
+      'POST /api/visual-editor/auto-save': 'Auto-save changes',
+      'POST /api/visual-editor/save': 'Manual save with history',
+      'POST /api/visual-editor/undo/:sessionId': 'Undo changes',
+      'POST /api/visual-editor/redo/:sessionId': 'Redo changes',
+      'POST /api/visual-editor/validate': 'Real-time validation',
+      'POST /api/visual-editor/parse-html': 'Parse HTML to extract elements',
+      'PATCH /api/visual-editor/element/:sessionId/:elementId': 'Modify element',
       'GET /api/health': 'Health check endpoint',
       'GET /api/info': 'API information',
       'POST /api/reset-rate-limit': 'Reset rate limit (development only)'
@@ -536,7 +922,13 @@ app.get('/api/info', (req, res) => {
       maxFiles: 50,
       supportedFormats: ['JPEG', 'PNG', 'GIF', 'WebP']
     },
-    designStyles: ['professional', 'creative', 'minimal', 'funky']
+    designStyles: ['professional', 'creative', 'minimal', 'funky'],
+    visualEditor: {
+      sessionTimeout: '1 hour',
+      autoSaveInterval: '5 seconds',
+      historyLimit: 50,
+      realTimeValidation: true
+    }
   });
 });
 
@@ -658,6 +1050,15 @@ const server = app.listen(PORT, () => {
   } else {
     console.log('✅ Anthropic API key configured');
   }
+
+  // Visual Editor specific logs
+  console.log('\n🎨 Visual Editor Features Enabled:');
+  console.log('   ✅ Session management');
+  console.log('   ✅ Auto-save functionality');
+  console.log('   ✅ Undo/Redo history');
+  console.log('   ✅ Real-time validation');
+  console.log('   ✅ Quality analysis integration');
+  console.log('   ✅ Auto-fix suggestions');
 });
 
 module.exports = app;
