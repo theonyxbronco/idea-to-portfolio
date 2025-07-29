@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Preview from "./pages/Preview";
+import FreemiumEditPreview from "./pages/Preview";
 import Deployment from "./pages/Deployment";
 import IncompleteGeneration from "./pages/IncompleteGeneration";
 import VisualEditPage from "./pages/VisualEditPage";
@@ -26,7 +26,7 @@ const App = () => (
           <Route path="/incomplete" element={<IncompleteGeneration />} />
           
           {/* Step 3: Preview & Basic Edit */}
-          <Route path="/preview" element={<Preview />} />
+          <Route path="/preview" element={<FreemiumEditPreview />} />
           
           {/* Step 4: Advanced Visual Edit (Optional) */}
           {/* <Route path="/edit" element={<VisualEditPage />} /> */}

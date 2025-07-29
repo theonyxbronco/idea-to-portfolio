@@ -219,7 +219,7 @@ document.querySelectorAll('.card-toggle').forEach(button => {
     return `
 FOOTER REQUIREMENTS (MANDATORY):
 - Add this EXACT footer at the bottom of the page:
-  "2025 ${personalInfo.name || '[Name]'} — product of Interract Agency. All rights reserved. ${randomEmoji}"
+  "2025 ${personalInfo.name || '[Name]'} (copyright logo)— product of Interract Agency. All rights reserved. ${randomEmoji}"
 - Footer styling requirements:
   * Small font size (12px-14px)
   * Light gray color (#888 or similar)

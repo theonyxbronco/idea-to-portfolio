@@ -9,19 +9,17 @@ import {
   ArrowLeft, Rocket, Download, Eye, Edit3, Check, X, 
   Smartphone, Tablet, Monitor, Crown, Lock, Lightbulb,
   Type, Palette, Layout, Zap, AlertCircle, Save,
-  Sparkles, ChevronRight, ExternalLink
+  Sparkles, ChevronRight, ExternalLink, Undo2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deployToNetlify } from '@/lib/netlifyDeploy';
 import { cn } from '@/lib/utils';
 
-const NETLIFY_TOKEN = "nfp_ubQ5p2gRqsLfiTf1vj1d1ghjXbPhsXSRea18";
-
 interface EditableRegion {
   id: string;
   type: 'heading' | 'paragraph' | 'list-item' | 'button';
   content: string;
-  selector: string; // CSS selector to find the element
+  selector: string;
   bounds: { top: number; left: number; width: number; height: number };
 }
 
@@ -71,6 +69,18 @@ const FreemiumEditPreview = () => {
     setHtmlContent(originalHtml);
   }, [originalHtml]);
 
+  // Reset all changes to original content
+  const handleResetChanges = useCallback(() => {
+    setHtmlContent(originalHtml);
+    setHasChanges(false);
+    setActiveEdit(null);
+    setEditingText('');
+    toast({
+      title: "Changes Reset",
+      description: "All edits have been reverted to original content",
+    });
+  }, [originalHtml, toast]);
+
   // Generate suggestions based on content
   const generateSuggestions = useCallback(() => {
     const newSuggestions: Suggestion[] = [
@@ -97,7 +107,6 @@ const FreemiumEditPreview = () => {
         type: 'text',
         confidence: 0.9,
         action: () => {
-          // Add a contact button if email exists
           if (portfolioData.personalInfo.email) {
             const contactButton = `<div style="text-align: center; margin: 2rem 0;"><a href="mailto:${portfolioData.personalInfo.email}" style="background: #3b82f6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Get In Touch</a></div>`;
             const updatedHtml = htmlContent.replace('</body>', contactButton + '</body>');
@@ -364,7 +373,36 @@ const FreemiumEditPreview = () => {
       });
       return;
     }
-
+  
+    // Ensure we have HTML content
+    if (!htmlContent) {
+      toast({
+        title: "Portfolio Content Missing",
+        description: "No HTML content found to deploy",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    // Check if user has provided a Netlify token
+    const netlifyToken = import.meta.env.VITE_NETLIFY_TOKEN || 
+                         window.localStorage.getItem('netlifyToken') || 
+                         prompt("Please enter your Netlify Personal Access Token:");
+    
+    if (!netlifyToken) {
+      toast({
+        title: "Netlify Token Required",
+        description: "You need a Netlify Personal Access Token to deploy",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    // Store the token for future use if it was entered via prompt
+    if (!import.meta.env.VITE_NETLIFY_TOKEN && !window.localStorage.getItem('netlifyToken')) {
+      window.localStorage.setItem('netlifyToken', netlifyToken);
+    }
+  
     setIsDeploying(true);
     
     try {
@@ -372,43 +410,41 @@ const FreemiumEditPreview = () => {
         title: "Deploying to Netlify...",
         description: "Creating your live portfolio",
       });
-
-      const demoPortfolio = {
-        html: htmlContent,
-        css: '',
-        js: ''
-      };
-
-      const deployment = await deployToNetlify(demoPortfolio, NETLIFY_TOKEN);
-      
-      toast({
-        title: "🎉 Deployment Successful!",
-        description: "Your portfolio is now live on the web",
-      });
-
-      navigate('/deployment', { 
-        state: { 
-          portfolioData,
-          generatedPortfolio: { html: htmlContent },
-          deploymentUrl: deployment?.url || 'https://amazing-portfolio-xyz.netlify.app',
-          platform: deployment?.platform || 'Netlify',
-          deployedAt: deployment?.deployedAt || new Date().toISOString(),
-          siteId: deployment?.siteId,
-          metadata
-        }
-      });
-      
-    } catch (error) {
-      console.error('Deployment failed:', error);
-      toast({
-        variant: "destructive",
-        title: "Deployment Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-      });
-    } finally {
-      setIsDeploying(false);
-    }
-  };
+  
+      // Create a complete HTML document if needed
+      const completeHtml = htmlContent.includes('<!DOCTYPE html>') 
+        ? htmlContent 
+        : `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${portfolioData.personalInfo.name}'s Portfolio</title></head><body>${htmlContent}</body></html>`;
+  
+        const deployment = await deployToNetlify(htmlContent, netlifyToken);
+    
+        toast({
+          title: "🎉 Deployment Successful!",
+          description: "Your portfolio is now live on the web",
+        });
+    
+        navigate('/deployment', { 
+          state: { 
+            portfolioData,
+            generatedPortfolio: { html: htmlContent }, // Use the same HTML
+            deploymentUrl: deployment.url,
+            platform: deployment.platform,
+            deployedAt: deployment.deployedAt,
+            siteId: deployment.siteId,
+            metadata
+          }
+        });
+      } catch (error) {
+        console.error('Deployment failed:', error);
+        toast({
+          variant: "destructive",
+          title: "Deployment Failed",
+          description: error.message,
+        });
+      } finally {
+        setIsDeploying(false);
+      }
+    };
 
   const handleDownload = () => {
     const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -474,10 +510,10 @@ const FreemiumEditPreview = () => {
             {/* Status and Actions */}
             <div className="flex items-center space-x-3">
               {hasChanges && (
-                <Badge variant="outline" className="text-orange-600 border-orange-200">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Unsaved
-                </Badge>
+                <Button variant="outline" onClick={handleResetChanges}>
+                  <Undo2 className="h-4 w-4 mr-2" />
+                  Reset Changes
+                </Button>
               )}
               
               <Button
