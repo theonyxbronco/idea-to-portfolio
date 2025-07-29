@@ -13,6 +13,7 @@ import { deployToNetlify } from '@/lib/netlifyDeploy';
 import { useHtmlParser } from '@/hooks/useHtmlParser';
 import EditableComponent from '@/components/EditableComponent';
 import EditPanel from '@/components/EditPanel';
+import { Edit } from 'lucide-react';
 
 const NETLIFY_TOKEN = "nfp_ubQ5p2gRqsLfiTf1vj1d1ghjXbPhsXSRea18";
 
