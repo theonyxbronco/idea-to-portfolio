@@ -1317,239 +1317,154 @@ const ProjectDetailsForm = () => {
 
             {/* Advanced Settings Section */}
             <Card className="shadow-large border-0 mt-8">
-    <CardHeader 
-      className={`rounded-t-lg cursor-pointer ${showAdvancedSettings ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}
-      onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-    >
-      <CardTitle className="text-xl font-semibold flex items-center justify-between">
-        <span className="flex items-center">
-          <Settings className="h-5 w-5 mr-3" />
-          Advanced Settings
-        </span>
-        <ChevronDown className={`h-5 w-5 transition-transform ${showAdvancedSettings ? 'rotate-180' : ''}`} />
-      </CardTitle>
-    </CardHeader>
-    
-    {showAdvancedSettings && (
-      <CardContent className="p-8 space-y-8">
-        {/* Color Customization */}
-        <div className="space-y-4">
-          <Label className="text-base font-medium">Custom Color Scheme</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="primaryColor" className="text-sm flex items-center">
-                <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: customColors.primary }} />
-                Primary
-              </Label>
-              <input
-                type="color"
-                id="primaryColor"
-                value={customColors.primary}
-                onChange={(e) => setCustomColors({...customColors, primary: e.target.value})}
-                className="w-full h-10 cursor-pointer"
-              />
-              <Input
-                value={customColors.primary}
-                onChange={(e) => setCustomColors({...customColors, primary: e.target.value})}
-                className="text-xs h-8"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="secondaryColor" className="text-sm flex items-center">
-                <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: customColors.secondary }} />
-                Secondary
-              </Label>
-              <input
-                type="color"
-                id="secondaryColor"
-                value={customColors.secondary}
-                onChange={(e) => setCustomColors({...customColors, secondary: e.target.value})}
-                className="w-full h-10 cursor-pointer"
-              />
-              <Input
-                value={customColors.secondary}
-                onChange={(e) => setCustomColors({...customColors, secondary: e.target.value})}
-                className="text-xs h-8"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="accentColor" className="text-sm flex items-center">
-                <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: customColors.accent }} />
-                Accent
-              </Label>
-              <input
-                type="color"
-                id="accentColor"
-                value={customColors.accent}
-                onChange={(e) => setCustomColors({...customColors, accent: e.target.value})}
-                className="w-full h-10 cursor-pointer"
-              />
-              <Input
-                value={customColors.accent}
-                onChange={(e) => setCustomColors({...customColors, accent: e.target.value})}
-                className="text-xs h-8"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="textColor" className="text-sm flex items-center">
-                <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: customColors.text }} />
-                Text
-              </Label>
-              <input
-                type="color"
-                id="textColor"
-                value={customColors.text}
-                onChange={(e) => setCustomColors({...customColors, text: e.target.value})}
-                className="w-full h-10 cursor-pointer"
-              />
-              <Input
-                value={customColors.text}
-                onChange={(e) => setCustomColors({...customColors, text: e.target.value})}
-                className="text-xs h-8"
-              />
-            </div>
-          </div>
-        </div>
+              <CardHeader 
+                className={`rounded-t-lg cursor-not-allowed ${showAdvancedSettings ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}
+                title="Pro feature - Coming soon!"
+                onClick={(e) => {
+                  e.preventDefault();
+                  toast({
+                    title: "Pro Feature",
+                    description: "Advanced settings will be available soon!",
+                    variant: "default",
+                  });
+                }}
+              >
+                <CardTitle className="text-xl font-semibold flex items-center justify-between">
+                  <span className="flex items-center">
+                    <Settings className="h-5 w-5 mr-3" />
+                    Advanced Settings
+                  </span>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${showAdvancedSettings ? 'rotate-180' : ''}`} />
+                </CardTitle>
+              </CardHeader>
 
-        {/* Font Selection */}
-        <div className="space-y-4">
-          <Label className="text-base font-medium">Typography</Label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="fontFamily" className="text-sm">Font Family</Label>
-              <select
-                id="fontFamily"
-                value={selectedFont}
-                onChange={(e) => setSelectedFont(e.target.value)}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
-                style={{ fontFamily: selectedFont }}
-              >
-                {FONT_OPTIONS.map((font) => (
-                  <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                    {font.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fontPreview" className="text-sm">Preview</Label>
-              <div 
-                id="fontPreview"
-                className="w-full p-4 rounded-md border border-input bg-background text-base shadow-soft"
-                style={{ fontFamily: selectedFont }}
-              >
-                The quick brown fox jumps over the lazy dog. 1234567890
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Layout Style */}
-        <div className="space-y-4">
-          <Label className="text-base font-medium">Layout Structure</Label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {LAYOUT_OPTIONS.map((layout) => (
-              <div 
-                key={layout.value}
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                  selectedLayout === layout.value 
-                    ? 'border-accent bg-accent/10 ring-2 ring-accent/30' 
-                    : 'border-muted hover:border-accent/50'
-                }`}
-                onClick={() => setSelectedLayout(layout.value)}
-              >
-                <div className="flex items-center">
-                  <div className="w-4 h-4 rounded-full mr-3 border-2 flex items-center justify-center">
-                    {selectedLayout === layout.value && (
-                      <div className="w-2 h-2 rounded-full bg-accent" />
-                    )}
-                  </div>
-                  <span className="font-medium">{layout.label}</span>
-                </div>
-                <div className="mt-3">
-                  {layout.value === 'instagram' && (
-                    <div className="grid grid-cols-3 gap-1">
-                      {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="aspect-square bg-muted rounded-sm" />
+              {showAdvancedSettings && (
+                <CardContent className="p-8 space-y-8">
+                  {/* === Custom Color Scheme === */}
+                  <div className="space-y-4">
+                    <Label className="text-base font-medium">Custom Color Scheme</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {['primary', 'secondary', 'accent', 'text'].map((type) => (
+                        <div key={type} className="space-y-2">
+                          <Label htmlFor={`${type}Color`} className="text-sm flex items-center">
+                            <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: customColors[type] }} />
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Label>
+                          <input
+                            type="color"
+                            id={`${type}Color`}
+                            value={customColors[type]}
+                            onChange={(e) => setCustomColors({ ...customColors, [type]: e.target.value })}
+                            className="w-full h-10 cursor-pointer"
+                          />
+                          <Input
+                            value={customColors[type]}
+                            onChange={(e) => setCustomColors({ ...customColors, [type]: e.target.value })}
+                            className="text-xs h-8"
+                          />
+                        </div>
                       ))}
                     </div>
-                  )}
-                  {layout.value === 'pinterest' && (
-                    <div className="space-y-1">
-                      <div className="h-3 bg-muted rounded-sm" />
-                      <div className="h-4 bg-muted rounded-sm" />
-                      <div className="h-2 bg-muted rounded-sm" />
-                      <div className="h-3 bg-muted rounded-sm" />
-                    </div>
-                  )}
-                  {layout.value === 'reddit' && (
-                    <div className="space-y-2">
-                      <div className="h-2 bg-muted rounded-sm" />
-                      <div className="h-2 bg-muted rounded-sm w-3/4" />
-                      <div className="h-8 bg-muted rounded-sm mt-2" />
-                    </div>
-                  )}
-                  {layout.value === 'videogame' && (
-                    <div className="relative h-12 bg-muted rounded-sm overflow-hidden">
-                      <div className="absolute bottom-0 left-0 right-0 h-4 bg-accent/30" />
-                      <div className="absolute top-1 left-1 w-2 h-2 bg-destructive rounded-full" />
-                      <div className="absolute top-1 right-1 w-6 h-1 bg-muted-foreground/30 rounded-full" />
-                    </div>
-                  )}
-                  {layout.value === 'minimal' && (
-                    <div className="flex items-center justify-center h-12">
-                      <div className="w-8 h-8 border-2 border-muted-foreground/30 rounded-full" />
-                    </div>
-                  )}
-                  {layout.value === 'magazine' && (
-                    <div className="grid grid-cols-2 gap-1 h-12">
-                      <div className="bg-muted rounded-sm" />
-                      <div className="bg-muted rounded-sm" />
-                      <div className="bg-muted rounded-sm col-span-2" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                  </div>
 
-        {/* Additional Advanced Options */}
-        <div className="space-y-4">
-          <Label className="text-base font-medium">Advanced Options</Label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="animationLevel" className="text-sm">Animation Intensity</Label>
-              <select
-                id="animationLevel"
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
-              >
-                <option value="none">None (Static)</option>
-                <option value="subtle">Subtle (Recommended)</option>
-                <option value="moderate">Moderate</option>
-                <option value="high">High (Showcase)</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="interactionStyle" className="text-sm">Interaction Style</Label>
-              <select
-                id="interactionStyle"
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
-              >
-                <option value="standard">Standard</option>
-                <option value="playful">Playful</option>
-                <option value="professional">Professional</option>
-                <option value="experimental">Experimental</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    )}
-  </Card>
+                  {/* === Typography === */}
+                  <div className="space-y-4">
+                    <Label className="text-base font-medium">Typography</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="fontFamily" className="text-sm">Font Family</Label>
+                        <select
+                          id="fontFamily"
+                          value={selectedFont}
+                          onChange={(e) => setSelectedFont(e.target.value)}
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
+                          style={{ fontFamily: selectedFont }}
+                        >
+                          {FONT_OPTIONS.map((font) => (
+                            <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                              {font.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="fontPreview" className="text-sm">Preview</Label>
+                        <div 
+                          id="fontPreview"
+                          className="w-full p-4 rounded-md border border-input bg-background text-base shadow-soft"
+                          style={{ fontFamily: selectedFont }}
+                        >
+                          The quick brown fox jumps over the lazy dog. 1234567890
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* === Layout Structure === */}
+                  <div className="space-y-4">
+                    <Label className="text-base font-medium">Layout Structure</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {LAYOUT_OPTIONS.map((layout) => (
+                        <div 
+                          key={layout.value}
+                          className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                            selectedLayout === layout.value 
+                              ? 'border-accent bg-accent/10 ring-2 ring-accent/30' 
+                              : 'border-muted hover:border-accent/50'
+                          }`}
+                          onClick={() => setSelectedLayout(layout.value)}
+                        >
+                          <div className="flex items-center">
+                            <div className="w-4 h-4 rounded-full mr-3 border-2 flex items-center justify-center">
+                              {selectedLayout === layout.value && (
+                                <div className="w-2 h-2 rounded-full bg-accent" />
+                              )}
+                            </div>
+                            <span className="font-medium">{layout.label}</span>
+                          </div>
+                          <div className="mt-3">
+                            {/* Optional: Simplified visuals per layout */}
+                            {/* Your existing layout thumbnails go here */}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* === Additional Advanced Options === */}
+                  <div className="space-y-4">
+                    <Label className="text-base font-medium">Advanced Options</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="animationLevel" className="text-sm">Animation Intensity</Label>
+                        <select
+                          id="animationLevel"
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
+                        >
+                          <option value="none">None (Static)</option>
+                          <option value="subtle">Subtle (Recommended)</option>
+                          <option value="moderate">Moderate</option>
+                          <option value="high">High (Showcase)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="interactionStyle" className="text-sm">Interaction Style</Label>
+                        <select
+                          id="interactionStyle"
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
+                        >
+                          <option value="standard">Standard</option>
+                          <option value="playful">Playful</option>
+                          <option value="professional">Professional</option>
+                          <option value="experimental">Experimental</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+
 
             {/* Build Button Section */}
             <div className="pt-8 border-t border-border">
