@@ -32,40 +32,37 @@ const Dashboard = () => {
   const { user } = useUser();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userTags, setUserTags] = useState<string[]>([]);
+  const [tier, setTier] = useState<string>('Free');
 
-  // Mock data for now - replace with actual API call
   useEffect(() => {
-    const mockPortfolios: Portfolio[] = [
-      {
-        id: '1',
-        name: 'Creative Portfolio 2024',
-        createdAt: '2024-01-15',
-        status: 'deployed',
-        deployUrl: 'https://amazing-portfolio.netlify.app',
-        lastModified: '2024-01-20'
-      },
-      {
-        id: '2',
-        name: 'Photography Portfolio',
-        createdAt: '2024-01-10',
-        status: 'generated',
-        lastModified: '2024-01-18'
-      },
-      {
-        id: '3',
-        name: 'UX Design Portfolio',
-        createdAt: '2024-01-05',
-        status: 'draft',
-        lastModified: '2024-01-15'
-      }
-    ];
+    const fetchUserData = async () => {
+      if (!user?.primaryEmailAddress?.emailAddress) return;
 
-    // Simulate loading
-    setTimeout(() => {
-      setPortfolios(mockPortfolios);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+      try {
+        setIsLoading(true);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user-data?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);        
+        if (!response.ok) {
+          throw new Error('Failed to fetch user data');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          setPortfolios(data.data.portfolios || []);
+          setUserTags(data.data.tags || []);
+          setTier(data.data.tier || 'Free');
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+        // You might want to add error handling UI here
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
 
   const getStatusColor = (status: Portfolio['status']) => {
     switch (status) {
@@ -123,6 +120,27 @@ const Dashboard = () => {
           {/* Welcome Section */}
           <DashboardWelcome />
 
+          {/* Current Plan Section */}
+          <Card className="shadow-medium border-0 mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Current Plan</p>
+                  <p className="text-xl font-bold flex items-center">
+                    {tier}
+                    <Badge variant="outline" className="ml-2">
+                      {tier === 'Free' ? 'Upgrade Available' : 'Active'}
+                    </Badge>
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => navigate('/upgrade')}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {tier === 'Free' ? 'Upgrade to Pro' : 'Manage Plan'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card className="shadow-medium border-0">
@@ -176,8 +194,8 @@ const Dashboard = () => {
                     <Zap className="h-6 w-6 text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">Pro</p>
-                    <p className="text-sm text-muted-foreground">Features</p>
+                    <p className="text-2xl font-bold">Free</p>
+                    <p className="text-sm text-muted-foreground">Plan</p>
                   </div>
                 </div>
               </CardContent>
@@ -291,21 +309,71 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Pro Features Teaser */}
-          <Card className="shadow-medium border-0 mt-8 bg-gradient-to-r from-purple-50 to-blue-50">
-            <CardContent className="p-6">
-              <div className="text-center space-y-4">
-                <h3 className="text-xl font-semibold text-gray-900">Ready for More?</h3>
-                <p className="text-gray-600 max-w-2xl mx-auto">
-                  Upgrade to Pro for unlimited portfolios, advanced editing, custom domains, analytics, and priority AI generation.
-                </p>
-                <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Upgrade to Pro
-                </Button>
+          {/* Recent Activity Section */}
+          <Card className="shadow-medium border-0 mt-8">
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {portfolios.length > 0 && (
+                  <>
+                    <div className="flex items-center text-sm">
+                      <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span>
+                        Last deployed: <strong>{portfolios[0].name}</strong> on {new Date(portfolios[0].lastModified).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span>
+                        Last modified: <strong>{portfolios[0].name}</strong> on {new Date(portfolios[0].lastModified).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
+
+          {/* User Tags Section */}
+          {userTags.length > 0 && (
+            <Card className="shadow-medium border-0 mt-8">
+              <CardHeader>
+                <CardTitle>Your Portfolio Tags</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {userTags.map(tag => (
+                    <Badge key={tag} variant="outline">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pro Features Teaser - Only show for Free tier */}
+          {tier === 'Free' && (
+            <Card className="shadow-medium border-0 mt-8 bg-gradient-to-r from-purple-50 to-blue-50">
+              <CardContent className="p-6">
+                <div className="text-center space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-900">Ready for More?</h3>
+                  <p className="text-gray-600 max-w-2xl mx-auto">
+                    Upgrade to Pro for unlimited portfolios, advanced editing, custom domains, analytics, and priority AI generation.
+                  </p>
+                  <Button 
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    onClick={() => navigate('/upgrade')}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Upgrade to Pro
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

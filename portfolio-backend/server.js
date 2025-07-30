@@ -543,6 +543,87 @@ app.get('/api/test-image-analysis', async (req, res) => {
   }
 });
 
+// User data endpoint to fetch portfolio history from Google Sheets
+app.get('/api/user-data', async (req, res) => {
+  try {
+    const userEmail = req.query.email;
+    if (!userEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    if (!sheetsTracker.initialized) {
+      return res.status(500).json({
+        success: false,
+        error: 'Google Sheets integration not configured'
+      });
+    }
+
+    // Get all rows from the sheet
+    const response = await sheetsTracker.sheets.spreadsheets.values.get({
+      spreadsheetId: sheetsTracker.sheetId,
+      range: `${sheetsTracker.sheetName}!A:Z`,
+    });
+
+    const rows = response.data.values || [];
+    if (rows.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          portfolios: [],
+          tier: 'Free',
+          tags: []
+        }
+      });
+    }
+
+    // Extract headers (first row)
+    const headers = rows[0];
+    const emailIndex = headers.indexOf('Email');
+    const tierIndex = headers.indexOf('Tier');
+    const tagsIndex = headers.indexOf('Project Tags');
+    
+    if (emailIndex === -1) {
+      return res.status(500).json({
+        success: false,
+        error: 'Email column not found in sheet'
+      });
+    }
+
+    // Filter rows for this user's email
+    const userRows = rows.slice(1).filter(row => row[emailIndex] === userEmail);
+    
+    // Extract relevant data
+    const result = {
+      portfolios: userRows.map(row => ({
+        id: `sheet-${row[0]}`, // Using timestamp as part of ID
+        name: row[1] || 'Untitled Portfolio',
+        createdAt: row[0],
+        status: 'deployed', // Assuming all from sheets are deployed
+        deployUrl: '', // Can be empty or add a column for this
+        lastModified: row[0] // Using creation time as modified time
+      })),
+      tier: userRows.length > 0 ? (userRows[0][tierIndex] || 'Free') : 'Free',
+      tags: userRows.length > 0 ? 
+        [...new Set(userRows[0][tagsIndex]?.split(',').map(tag => tag.trim()).filter(Boolean) || [])] : []
+    };
+
+    res.json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user data'
+    });
+  }
+});
+
 // Error handling middleware
 app.use(errorHandler);
 

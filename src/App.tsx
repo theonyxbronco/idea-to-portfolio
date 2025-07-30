@@ -14,7 +14,6 @@ import {
 import Index from "@/pages/Index";
 import Preview from "@/pages/Preview";
 import Deployment from "@/pages/Deployment";
-import IncompleteGeneration from "@/pages/IncompleteGeneration";
 import Dashboard from "@/pages/Dashboard"; // New dashboard page
 import NotFound from "@/pages/NotFound";
 
@@ -71,12 +70,6 @@ function App() {
         <Route path="/deployment" element={
           <ProtectedRoute>
             <Deployment />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/incomplete" element={
-          <ProtectedRoute>
-            <IncompleteGeneration />
           </ProtectedRoute>
         } />
         

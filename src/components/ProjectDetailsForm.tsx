@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // <-- Added useEffect here
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, ImageIcon, Plus, X, User, Palette, FolderOpen, Loader2, AlertTriangle, RefreshCw, Settings, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@clerk/clerk-react';
 
 interface PersonalInfo {
   name: string;
@@ -116,6 +117,27 @@ const ProjectDetailsForm = () => {
       mood: ''
     }
   });
+
+  const { isLoaded, isSignedIn } = useUser(); 
+  
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  useEffect(() => {
+    if (isLoaded) {
+      setIsAuthChecking(false);
+      if (!isSignedIn) { // Corrected spelling (was isSignedln)
+        navigate('/sign-in');
+      }
+    }
+  }, [isLoaded, isSignedIn, navigate]);
+
+  if (isAuthChecking || !isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const [newSkill, setNewSkill] = useState('');
   const [newTag, setNewTag] = useState('');
