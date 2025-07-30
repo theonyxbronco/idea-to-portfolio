@@ -18,6 +18,7 @@ import Dashboard from "@/pages/Dashboard";
 import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import NotFound from "@/pages/NotFound";
 import ProWaitlist from "@/pages/ProWaitlist";
+import Support from "@/pages/support";
 
 function App() {
   return (
@@ -41,6 +42,9 @@ function App() {
         
         {/* Pro Waitlist - Accessible to both signed in and out users */}
         <Route path="/pro-waitlist" element={<ProWaitlist />} />
+        
+        {/* Support - Accessible to both signed in and out users */}
+        <Route path="/support" element={<Support />} />
         
         {/* Protected Routes */}
         <Route path="/" element={

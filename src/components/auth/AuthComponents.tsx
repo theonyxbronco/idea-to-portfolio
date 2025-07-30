@@ -10,7 +10,7 @@ import {
 } from '@clerk/clerk-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { User, LogIn, UserPlus } from 'lucide-react';
+import { User, LogIn, UserPlus, HelpCircle } from 'lucide-react';
 
 // Sign In Page Component
 export const SignInPage = () => {
@@ -100,7 +100,15 @@ export const AuthStatus = () => {
             }
           }}
           showName={false}
-        />
+        >
+          <UserButton.MenuItems>
+            <UserButton.Link
+              label="Support"
+              labelIcon={<HelpCircle size={15} />}
+              href="/support"
+            />
+          </UserButton.MenuItems>
+        </UserButton>
       </SignedIn>
       <SignedOut>
         <div className="flex items-center space-x-2">
