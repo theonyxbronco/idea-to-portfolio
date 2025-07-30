@@ -1,4 +1,4 @@
-// src/pages/Deployment.tsx - Simplified deployment success page
+// src/pages/Deployment.tsx - Updated with viral sharing
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,10 +15,13 @@ import {
   RefreshCw,
   Eye,
   Crown,
-  Lock
+  Lock,
+  Share2,
+  TrendingUp
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import ViralSharing from '@/components/ViralSharing';
 
 const Deployment = () => {
   const navigate = useNavigate();
@@ -26,14 +29,38 @@ const Deployment = () => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
+  // Update the default deploymentData to include all required properties
   const deploymentData = location.state || {
-    portfolioData: { personalInfo: { name: 'Sample Project' } },
+    portfolioData: { 
+      personalInfo: { 
+        name: 'Sample Project',
+        title: 'Developer', // Added default title
+        bio: 'Sample bio'  // Added default bio
+      },
+      projects: [], // Ensure projects array exists
+      skills: [],   // Ensure skills array exists
+      experience: [] // Ensure experience array exists
+    },
     deploymentUrl: 'https://amazing-portfolio-xyz.netlify.app',
     platform: 'Netlify',
-    deployedAt: new Date().toISOString()
+    deployedAt: new Date().toISOString(),
+    generatedPortfolio: '' // Add default for generatedPortfolio
   };
 
-  const { portfolioData, deploymentUrl, platform, deployedAt, generatedPortfolio } = deploymentData;
+  // Destructure with defaults
+  const { 
+    portfolioData = {
+      personalInfo: { name: '', title: '' },
+      projects: []
+    }, 
+    deploymentUrl = '', 
+    platform = '', 
+    deployedAt = new Date().toISOString(),
+    generatedPortfolio = ''
+  } = deploymentData;
+
+  // Optional: Add validation before rendering ViralSharing
+  const canRenderViralSharing = portfolioData?.personalInfo?.name && portfolioData?.personalInfo?.title;
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -190,6 +217,42 @@ const Deployment = () => {
               </CardContent>
             </Card>
 
+            {/* VIRAL SHARING SECTION */}
+            {canRenderViralSharing && (
+              <ViralSharing 
+                portfolioData={portfolioData}
+                deploymentUrl={deploymentUrl}
+                isDeployed={true}
+                variant="deployed"
+              />
+            )}
+
+            {/* Success Stats */}
+            <Card className="shadow-medium border-0 bg-gradient-to-r from-green-50 to-blue-50">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                  <div className="space-y-2">
+                    <div className="text-3xl font-bold text-green-600">
+                      {portfolioData.projects?.length || 0}
+                    </div>
+                    <p className="text-sm text-gray-600">Projects Showcased</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-3xl font-bold text-blue-600">
+                      ~5 min
+                    </div>
+                    <p className="text-sm text-gray-600">Time to Create</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-3xl font-bold text-purple-600">
+                      100%
+                    </div>
+                    <p className="text-sm text-gray-600">AI Generated</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Navigation Options */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
               <Button
@@ -263,7 +326,7 @@ const Deployment = () => {
                       </div>
                       <div>
                         <p className="font-medium">Share Your Portfolio</p>
-                        <p className="text-muted-foreground">Copy the URL and share it with potential clients, employers, or on social media</p>
+                        <p className="text-muted-foreground">Use the sharing tools above to spread the word about your new portfolio</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
@@ -291,8 +354,8 @@ const Deployment = () => {
                         <span className="text-xs font-bold text-orange-600">4</span>
                       </div>
                       <div>
-                        <p className="font-medium">Upgrade for Editing</p>
-                        <p className="text-muted-foreground">Get access to advanced editing tools when Pro launches</p>
+                        <p className="font-medium">Help Others Discover Moodi</p>
+                        <p className="text-muted-foreground">Share your experience and help fellow creators find this tool</p>
                       </div>
                     </div>
                   </div>

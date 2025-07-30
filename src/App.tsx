@@ -26,7 +26,7 @@ function App() {
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <a href="/" className="font-bold text-xl">
-              Portfolio Builder
+              Moodi
             </a>
           </div>
           <AuthStatus />
