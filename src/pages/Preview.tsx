@@ -1080,16 +1080,11 @@ useEffect(() => {
                     <Button 
                       size="sm"
                       className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-xs h-8"
-                      onClick={() => {
-                        toast({
-                          title: "Pro Features Coming Soon",
-                          description: "Advanced editing features will be available in our Pro plan",
-                        });
-                      }}
+                      onClick={() => navigate('/pro-waitlist')}
                     >
                       <Crown className="h-3 w-3 mr-1" />
                       Upgrade to Pro
-                    </Button>
+                  </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1149,14 +1144,12 @@ useEffect(() => {
               <Eye className="h-4 w-4 mr-2" />
               Back to Preview
             </Button>
-
             <Button
               variant="outline"
-              onClick={() => window.open('https://example.com/pro-features', '_blank')}
+              onClick={() => navigate('/pro-waitlist')}
             >
               <Crown className="h-4 w-4 mr-2" />
               Learn About Pro
-              <ExternalLink className="h-3 w-3 ml-1" />
             </Button>
 
             <Button

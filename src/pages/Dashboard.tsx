@@ -133,7 +133,7 @@ const Dashboard = () => {
                     </Badge>
                   </p>
                 </div>
-                <Button variant="outline" onClick={() => navigate('/upgrade')}>
+                <Button variant="outline" onClick={() => navigate('/pro-waitlist')}>
                   <Sparkles className="h-4 w-4 mr-2" />
                   {tier === 'Free' ? 'Upgrade to Pro' : 'Manage Plan'}
                 </Button>
@@ -365,7 +365,7 @@ const Dashboard = () => {
                   </p>
                   <Button 
                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    onClick={() => navigate('/upgrade')}
+                    onClick={() => navigate('/pro-waitlist')}
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
                     Upgrade to Pro

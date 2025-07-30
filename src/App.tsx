@@ -17,6 +17,7 @@ import Deployment from "@/pages/Deployment";
 import Dashboard from "@/pages/Dashboard";
 import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import NotFound from "@/pages/NotFound";
+import ProWaitlist from "@/pages/ProWaitlist";
 
 function App() {
   return (
@@ -37,6 +38,9 @@ function App() {
         {/* Public Routes */}
         <Route path="/sign-in/*" element={<SignInPage />} />
         <Route path="/sign-up/*" element={<SignUpPage />} />
+        
+        {/* Pro Waitlist - Accessible to both signed in and out users */}
+        <Route path="/pro-waitlist" element={<ProWaitlist />} />
         
         {/* Protected Routes */}
         <Route path="/" element={
