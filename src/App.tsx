@@ -14,7 +14,8 @@ import {
 import Index from "@/pages/Index";
 import Preview from "@/pages/Preview";
 import Deployment from "@/pages/Deployment";
-import Dashboard from "@/pages/Dashboard"; // New dashboard page
+import Dashboard from "@/pages/Dashboard";
+import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import NotFound from "@/pages/NotFound";
 
 function App() {

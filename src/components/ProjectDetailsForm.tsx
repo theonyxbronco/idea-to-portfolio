@@ -119,25 +119,6 @@ const ProjectDetailsForm = () => {
   });
 
   const { isLoaded, isSignedIn } = useUser(); 
-  
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
-
-  useEffect(() => {
-    if (isLoaded) {
-      setIsAuthChecking(false);
-      if (!isSignedIn) { // Corrected spelling (was isSignedln)
-        navigate('/sign-in');
-      }
-    }
-  }, [isLoaded, isSignedIn, navigate]);
-
-  if (isAuthChecking || !isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   const [newSkill, setNewSkill] = useState('');
   const [newTag, setNewTag] = useState('');
@@ -728,6 +709,23 @@ const ProjectDetailsForm = () => {
   };
 
   const currentProjectData = portfolioData.projects[currentProject];
+  
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  useEffect(() => {
+    if (isLoaded) {
+      setIsAuthChecking(false);
+      if (!isSignedIn) { // Corrected spelling (was isSignedln)
+        navigate('/sign-in');
+      }
+    }
+  }, [isLoaded, isSignedIn, navigate]);
+  if (isAuthChecking || !isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
