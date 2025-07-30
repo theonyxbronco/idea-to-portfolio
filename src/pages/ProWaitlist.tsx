@@ -30,66 +30,75 @@ const ProWaitlist: React.FC = () => {
     'Priority support'
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email.trim()) {
-      toast({
-        title: "Email Required",
-        description: "Please enter your email address",
-        variant: "destructive",
-      });
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!email.trim()) {
+    toast({
+      title: "Email Required",
+      description: "Please enter your email address",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/join-waitlist`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          source: 'pro-waitlist',
-          timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent,
-          referrer: document.referrer || 'direct'
-        })
-      });
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/join-waitlist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email.trim()
+      })
+    });
 
-      if (!response.ok) {
-        throw new Error('Failed to join waitlist');
-      }
+    const data = await response.json();
 
-      setHasJoined(true);
-      setEmail('');
-      
-      toast({
-        title: "🎉 You're on the list!",
-        description: "We'll notify you when Pro features launch with your exclusive 50% discount.",
-      });
-
-      // Track analytics if available
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'waitlist_signup', {
-          'event_category': 'engagement',
-          'event_label': 'pro_waitlist'
+    if (!response.ok) {
+      if (response.status === 409) {
+        // Email already exists
+        toast({
+          title: "Already on the list! 🎉",
+          description: "This email is already registered for the Pro waitlist.",
+          variant: "default",
         });
+        setHasJoined(true);
+        setEmail('');
+        return;
       }
-
-    } catch (error) {
-      console.error('Error joining waitlist:', error);
-      toast({
-        title: "Oops! Something went wrong",
-        description: "Please try again or contact support if the issue persists.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+      throw new Error(data.error || 'Failed to join waitlist');
     }
-  };
+
+    setHasJoined(true);
+    setEmail('');
+    
+    toast({
+      title: "🎉 You're on the list!",
+      description: "We'll notify you when Pro features launch with your exclusive 50% discount.",
+    });
+
+    // Track analytics if available
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'waitlist_signup', {
+        'event_category': 'engagement',
+        'event_label': 'pro_waitlist'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error joining waitlist:', error);
+    toast({
+      title: "Oops! Something went wrong",
+      description: "Please try again or contact support if the issue persists.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handleBack = () => {
     navigate(-1);

@@ -551,6 +551,100 @@ app.get('/api/test-image-analysis', async (req, res) => {
     });
   }
 });
+
+app.post('/api/join-waitlist', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+
+    // Create a separate Google Sheets tracker for the waitlist
+    const waitlistTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID2, // Using your waitlist sheet ID
+      sheetName: process.env.GOOGLE_SHEETS_NAME2 || 'Sheet1'
+    });
+
+    if (!waitlistTracker.initialized) {
+      return res.status(500).json({
+        success: false,
+        error: 'Waitlist tracking not configured'
+      });
+    }
+
+    // Check if email already exists in the sheet
+    try {
+      const response = await waitlistTracker.sheets.spreadsheets.values.get({
+        spreadsheetId: waitlistTracker.sheetId,
+        range: `${waitlistTracker.sheetName}!B:B`, // Email column
+      });
+
+      const emailColumn = response.data.values || [];
+      const existingEmails = emailColumn.slice(1).map(row => row[0]); // Skip header row
+      
+      if (existingEmails.includes(email.trim())) {
+        return res.status(409).json({
+          success: false,
+          error: 'Email already registered',
+          message: 'This email is already on the waitlist'
+        });
+      }
+    } catch (error) {
+      console.warn('Could not check for duplicate emails:', error.message);
+    }
+
+    // Add to waitlist sheet
+    const values = [
+      [
+        new Date().toISOString(), // Timestamp
+        email.trim()              // Email
+      ]
+    ];
+
+    await waitlistTracker.sheets.spreadsheets.values.append({
+      spreadsheetId: waitlistTracker.sheetId,
+      range: `${waitlistTracker.sheetName}!A:B`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values,
+      },
+    });
+
+    console.log('Successfully added email to waitlist:', email.trim());
+    
+    res.json({
+      success: true,
+      message: 'Successfully joined waitlist',
+      email: email.trim(),
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error adding to waitlist:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to join waitlist',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later'
+    });
+  }
+});
+
 // Move these endpoints BEFORE the error handlers and 404 catch-all
 app.post('/api/save-portfolio', async (req, res) => {
   try {
