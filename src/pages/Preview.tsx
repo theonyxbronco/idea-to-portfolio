@@ -9,7 +9,7 @@ import {
   ArrowLeft, Rocket, Download, Eye, Edit3, Check, X, 
   Smartphone, Tablet, Monitor, Crown, Lock, Lightbulb,
   Type, Palette, Layout, Zap, AlertCircle, Save,
-  Sparkles, ChevronRight, ExternalLink, Undo2
+  Sparkles, ChevronRight, ExternalLink, Undo2, FileArchive
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deployToNetlify } from '@/lib/netlifyDeploy';
@@ -62,6 +62,7 @@ const FreemiumEditPreview = () => {
   const [aiRequest, setAiRequest] = useState('');
   const [isProcessingAiRequest, setIsProcessingAiRequest] = useState(false);
   const [aiChatHistory, setAiChatHistory] = useState<Array<{request: string; timestamp: string}>>([]);
+  const [isDownloading, setIsDownloading] = useState(false);
   const originalHtml = typeof generatedPortfolio === 'string' 
     ? generatedPortfolio 
     : generatedPortfolio?.html || '';
@@ -347,6 +348,25 @@ const applyTextEdit = useCallback((regionId: string, newText: string) => {
   }
 }, [editableRegions, toast]);
 
+useEffect(() => {
+  // Show disclaimer toast when preview loads if there are images
+  const hasImages = metadata?.imagesProcessed && 
+    (metadata.imagesProcessed.final > 0 || metadata.imagesProcessed.process > 0 || metadata.imagesProcessed.moodboard > 0);
+  
+  if (hasImages) {
+    const timer = setTimeout(() => {
+      toast({
+        title: "📸 Preview Note",
+        description: "Images may not display in this preview due to browser security. Your images will appear correctly when downloaded or deployed to the web.",
+        duration: 8000, // Show for 8 seconds
+        className: "border-blue-200 bg-blue-50 text-blue-900",
+      });
+    }, 1500); // Show after 1.5 seconds to let page settle
+
+    return () => clearTimeout(timer);
+  }
+}, [metadata, toast]);
+
   const handleSaveEdit = () => {
     if (activeEdit && editingText.trim()) {
       applyTextEdit(activeEdit, editingText.trim());
@@ -466,21 +486,85 @@ const applyTextEdit = useCallback((regionId: string, newText: string) => {
     }
   };
 
-  const handleDownload = () => {
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${portfolioData.personalInfo.name.replace(/\s+/g, '_')}_portfolio.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Portfolio Downloaded",
-      description: "Your HTML file has been downloaded successfully",
-    });
+  const handleDownload = async () => {
+    try {
+      // Get the current HTML from the iframe instead of the state
+      const currentHtml = iframeRef.current?.contentDocument?.documentElement.outerHTML || htmlContent;
+      
+      // Use a consistent filename for the updated version
+      const updatedFilename = 'updatedIndex.html';
+      
+      // First save the current HTML to the server with custom filename
+      const saveResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/save-portfolio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          htmlContent: currentHtml,
+          filename: updatedFilename,
+          includeImages: true // Request to include images
+        }),
+      });
+  
+      if (!saveResponse.ok) {
+        const errorText = await saveResponse.text();
+        console.error('Save response error:', errorText);
+        throw new Error(`Failed to save portfolio: ${saveResponse.status} ${saveResponse.statusText}`);
+      }
+  
+      const saveData = await saveResponse.json();
+      
+      if (!saveData.success) {
+        throw new Error(saveData.error || 'Failed to save portfolio');
+      }
+  
+      console.log('Portfolio saved successfully:', saveData.filename);
+      console.log('Images found:', saveData.imageFiles?.length || 0);
+  
+      // Now create and download the ZIP file with images
+      const zipResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/create-zip`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: saveData.filename,
+          imageFiles: saveData.imageFiles || [] // Pass the image files info
+        }),
+      });
+  
+      if (!zipResponse.ok) {
+        const errorText = await zipResponse.text();
+        console.error('ZIP response error:', errorText);
+        throw new Error(`Failed to create ZIP file: ${zipResponse.status} ${zipResponse.statusText}`);
+      }
+  
+      // Download the ZIP file
+      const zipBlob = await zipResponse.blob();
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${portfolioData.personalInfo.name.replace(/\s+/g, '_')}_portfolio.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  
+      const imageCount = saveData.imageFiles?.length || 0;
+      toast({
+        title: "Portfolio Downloaded",
+        description: `ZIP file contains index.html${imageCount > 0 ? ` and ${imageCount} image${imageCount !== 1 ? 's' : ''}` : ''} with all current edits`,
+      });
+  
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : 'Could not download portfolio',
+        variant: "destructive",
+      });
+    }
   };
 
   const getSuggestionIcon = (type: string) => {
@@ -672,14 +756,28 @@ const applyTextEdit = useCallback((regionId: string, newText: string) => {
                 </DialogContent>
               </Dialog>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownload}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
+                    <Button
+        variant="outline"
+        size="sm"
+        onClick={handleDownload}
+        disabled={isDownloading}
+      >
+        {isDownloading ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+            Preparing...
+          </>
+        ) : (
+          <>
+            {metadata?.portfolioId ? (
+              <FileArchive className="h-4 w-4 mr-2" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {metadata?.portfolioId ? 'Download ZIP' : 'Download HTML'}
+          </>
+        )}
+      </Button>
               
               <Button
                 onClick={handleDeploy}

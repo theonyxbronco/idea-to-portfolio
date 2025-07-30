@@ -14,7 +14,6 @@ const qualityAnalyzer = require('./utils/validators/qualityAnalyzer');
 const { GoogleSheetsTracker } = require('./utils/googleSheets');
 
 const JSZip = require('jszip');
-const zip = new JSZip();
 
 const {
   validatePortfolioData,
@@ -58,6 +57,9 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve images from temp folders
+app.use('/temp', express.static(path.join(__dirname, 'temp')));
+
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
@@ -78,9 +80,111 @@ const sheetsTracker = new GoogleSheetsTracker({
   sheetName: process.env.GOOGLE_SHEETS_NAME
 });
 
+// Helper function to create portfolio folder and save images
+const savePortfolioImages = async (files, portfolioData) => {
+  const personName = portfolioData.personalInfo.name.replace(/[^a-zA-Z0-9]/g, '_');
+  const timestamp = Date.now();
+  const portfolioId = `${personName}_${timestamp}`;
+  const portfolioFolder = path.join(tempDir, `portfolio_${portfolioId}`);
+  
+  // Create portfolio folder
+  await fs.ensureDir(portfolioFolder);
+  
+  const savedImages = {
+    process: [], // For AI analysis only, not saved to disk
+    final: [],   // Saved to disk and used in HTML
+    moodboard: [], // For AI analysis only, not saved to disk
+    portfolioId: portfolioId,
+    portfolioFolder: portfolioFolder
+  };
+  
+  const categorizeFile = (file) => {
+    const fieldName = file.fieldname || '';
+    const originalName = file.originalname || '';
+    if (fieldName.includes('moodboard') || originalName.includes('moodboard')) return 'moodboard';
+    if (fieldName.includes('final') || originalName.includes('final')) return 'final';
+    return 'process';
+  };
+  
+  // Process images
+  for (const file of files) {
+    const category = categorizeFile(file);
+    
+    if (category === 'final') {
+      // Save final images to disk for use in HTML
+      const fileExt = path.extname(file.originalname);
+      const fileName = `final_${savedImages.final.length + 1}${fileExt}`;
+      const filePath = path.join(portfolioFolder, fileName);
+      
+      // Save file to disk
+      await fs.writeFile(filePath, file.buffer);
+      
+      // Store relative path for HTML generation
+      const relativePath = `./${fileName}`;
+      const serverPath = `/temp/portfolio_${portfolioId}/${fileName}`;
+      
+      savedImages.final.push({
+        id: `final_${savedImages.final.length}`,
+        path: filePath,
+        relativePath: relativePath,
+        serverPath: serverPath,
+        filename: fileName,
+        originalName: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
+      });
+    } else {
+      // For process and moodboard images, store in memory for AI analysis only
+      // Create a temporary path for analysis but don't save to portfolio folder
+      const tempPath = path.join(tempDir, 'analysis_temp', `${category}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${path.extname(file.originalname)}`);
+      await fs.ensureDir(path.dirname(tempPath));
+      await fs.writeFile(tempPath, file.buffer);
+      
+      savedImages[category].push({
+        id: `${category}_${savedImages[category].length}`,
+        path: tempPath, // Temporary path for analysis
+        originalName: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
+      });
+    }
+  }
+  
+  return savedImages;
+};
+
+// Helper function to update HTML with correct image paths (only final images)
+const updateHtmlWithImagePaths = (html, savedImages, portfolioId) => {
+  let updatedHtml = html;
+  
+  // Only replace final image paths in HTML
+  if (savedImages.final && Array.isArray(savedImages.final)) {
+    savedImages.final.forEach((image, index) => {
+      // Replace various possible placeholder patterns for final images
+      const patterns = [
+        new RegExp(`\\./uploads/final_${index + 1}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
+        new RegExp(`uploads/final_${index + 1}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
+        new RegExp(`final_${index + 1}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
+        new RegExp(`placeholder_final_${index + 1}`, 'gi'),
+        // Also handle zero-indexed patterns
+        new RegExp(`\\./uploads/final_${index}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
+        new RegExp(`uploads/final_${index}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
+        new RegExp(`final_${index}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
+        new RegExp(`placeholder_final_${index}`, 'gi')
+      ];
+      
+      patterns.forEach(pattern => {
+        updatedHtml = updatedHtml.replace(pattern, image.relativePath);
+      });
+    });
+  }
+  
+  return updatedHtml;
+};
+
 app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (req, res) => {
   const processingStartTime = Date.now();
-  let processedImageIds = [];
+  let savedImages = null;
   let imageAnalysisResults = {};
   
   try {
@@ -97,49 +201,23 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
       ).catch(() => {});
     }
 
-    const processedImages = { process: [], final: [], moodboard: [] };
-    
+    // Save images to organized folder structure
     if (files.length > 0) {
-      const categorizeFile = (file) => {
-        const fieldName = file.fieldname || '';
-        const originalName = file.originalname || '';
-        if (fieldName.includes('moodboard') || originalName.includes('moodboard')) return 'moodboard';
-        if (fieldName.includes('final') || originalName.includes('final')) return 'final';
-        return 'process';
-      };
+      savedImages = await savePortfolioImages(files, portfolioData);
       
-      const filesByCategory = { process: [], final: [], moodboard: [] };
-      files.forEach(file => filesByCategory[categorizeFile(file)].push(file));
-      
-      const imageProcessingPromises = [];
-      
-      for (const [category, categoryFiles] of Object.entries(filesByCategory)) {
-        if (categoryFiles.length > 0) {
-          const options = {
-            moodboard: { width: 800, height: 600, quality: 85 },
-            process: { width: 1200, height: 800, quality: 90 },
-            final: { width: 1200, height: 800, quality: 95 }
-          };
-          
-          imageProcessingPromises.push(
-            fileProcessor.processMultipleImages(categoryFiles, options[category])
-              .then(async (result) => {
-                processedImages[category] = result.results;
-                processedImageIds.push(...result.results.map(img => img.id));
-                
-                if (result.results.length > 0 && !isContinuation) {
-                  try {
-                    const imagePaths = result.results.map(img => img.path);
-                    imageAnalysisResults[category] = await imageParser.analyzeImageSet(imagePaths, category);
-                  } catch (analysisError) {}
-                }
-              })
-              .catch(() => {})
-          );
+      // Analyze images if not continuation
+      if (!isContinuation && savedImages) {
+        try {
+          for (const [category, images] of Object.entries(savedImages)) {
+            if (Array.isArray(images) && images.length > 0) {
+              const imagePaths = images.map(img => img.path);
+              imageAnalysisResults[category] = await imageParser.analyzeImageSet(imagePaths, category);
+            }
+          }
+        } catch (analysisError) {
+          console.error('Image analysis failed:', analysisError);
         }
       }
-
-      await Promise.all(imageProcessingPromises);
     }
 
     let anthropicMessages;
@@ -151,6 +229,13 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
     } else {
       const designStyle = portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern';
       try {
+        // Convert savedImages to the expected format for prompt generation
+        const processedImages = savedImages ? {
+          process: savedImages.process || [],
+          final: savedImages.final || [],
+          moodboard: savedImages.moodboard || []
+        } : { process: [], final: [], moodboard: [] };
+        
         anthropicMessages = await promptGenerator.generateAnthropicMessages(portfolioData, processedImages, designStyle);
       } catch {
         anthropicMessages = [{
@@ -177,6 +262,11 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
       else if (cleanedHTML.startsWith('```')) cleanedHTML = cleanedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
     }
 
+    // Update HTML with correct image paths
+    if (savedImages) {
+      cleanedHTML = updateHtmlWithImagePaths(cleanedHTML, savedImages, savedImages.portfolioId);
+    }
+
     const validation = htmlValidator.validateCompleteness(cleanedHTML);
     if (!validation.isComplete && !isContinuation && validation.canContinue) {
       return res.json({
@@ -190,8 +280,9 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
           estimatedCompletion: validation.estimatedCompletion,
           issues: validation.issues,
           canContinue: validation.canContinue,
-          imagesProcessed: processedImages,
-          imageAnalysisResults: imageAnalysisResults
+          imagesProcessed: savedImages || {},
+          imageAnalysisResults: imageAnalysisResults,
+          portfolioId: savedImages?.portfolioId
         }
       });
     }
@@ -201,6 +292,12 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
     let autoFixApplied = false;
     
     try {
+      const processedImages = savedImages ? {
+        process: savedImages.process || [],
+        final: savedImages.final || [],
+        moodboard: savedImages.moodboard || []
+      } : { process: [], final: [], moodboard: [] };
+
       validationResults = await qualityAnalyzer.validatePortfolio(
         cleanedHTML,
         portfolioData,
@@ -218,6 +315,12 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
         if (autoFixResult.success && autoFixResult.improvedHtml) {
           validatedHTML = autoFixResult.improvedHtml;
           autoFixApplied = true;
+          
+          // Update HTML with image paths again after auto-fixes
+          if (savedImages) {
+            validatedHTML = updateHtmlWithImagePaths(validatedHTML, savedImages, savedImages.portfolioId);
+          }
+          
           validationResults = await qualityAnalyzer.validatePortfolio(
             validatedHTML,
             portfolioData,
@@ -226,6 +329,7 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
         }
       }
     } catch (validationError) {
+      console.error('Validation error:', validationError);
       validationResults = {
         overall: { score: 75, status: 'unknown' },
         content: { score: 75, issues: [], suggestions: [] },
@@ -238,6 +342,12 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
     
     if (!validatedHTML.includes('<html') && !validatedHTML.includes('<!DOCTYPE')) {
       throw new Error('Generated content does not appear to be valid HTML');
+    }
+
+    // Save the final HTML file to the portfolio folder
+    if (savedImages) {
+      const htmlFilePath = path.join(savedImages.portfolioFolder, 'index.html');
+      await fs.writeFile(htmlFilePath, validatedHTML);
     }
     
     const processingTimeMs = Date.now() - processingStartTime;
@@ -254,32 +364,58 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
           generatedAt: new Date().toISOString(),
           processingTime: processingTimeMs,
           designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'modern'),
-          imagesProcessed: {
-            process: processedImages.process.length,
-            final: processedImages.final.length,
-            moodboard: processedImages.moodboard.length
-          },
+          imagesProcessed: savedImages ? {
+            process: savedImages.process.length,
+            final: savedImages.final.length,
+            moodboard: savedImages.moodboard.length
+          } : { process: 0, final: 0, moodboard: 0 },
           isContinuation,
           validationResult: validation,
-          processedImageDetails: processedImages,
+          processedImageDetails: savedImages || {},
           qualityValidation: validationResults,
           autoFixApplied,
           qualityScore: validationResults?.overall?.score || 'unknown',
           computerVisionAnalysis: imageAnalysisResults,
           aiPromptEnhanced: Object.keys(imageAnalysisResults).length > 0,
           analysisMethod: 'sharp-based',
-          visionCapabilitiesUsed: hasImages
+          visionCapabilitiesUsed: hasImages,
+          portfolioId: savedImages?.portfolioId,
+          portfolioFolder: savedImages?.portfolioFolder
         }
       }
     });
     
+    // Cleanup temporary analysis files after processing
     setTimeout(() => {
-      fileProcessor.cleanupTempFiles(processedImageIds).catch(() => {});
-    }, 60 * 60 * 1000);
+      if (savedImages?.portfolioFolder) {
+        // Clean up temporary analysis files
+        const analysisFiles = [...(savedImages.process || []), ...(savedImages.moodboard || [])];
+        analysisFiles.forEach(file => {
+          if (file.path && file.path.includes('analysis_temp')) {
+            fs.remove(file.path).catch(() => {});
+          }
+        });
+        
+        // Clean up the entire portfolio folder after 24 hours  
+        setTimeout(() => {
+          fs.remove(savedImages.portfolioFolder).catch(() => {});
+        }, 24 * 60 * 60 * 1000); // 24 hours
+      }
+    }, 5 * 60 * 1000); // Clean analysis files after 5 minutes
     
   } catch (error) {
-    if (processedImageIds.length > 0) {
-      fileProcessor.cleanupTempFiles(processedImageIds).catch(() => {});
+    // Cleanup on error
+    if (savedImages?.portfolioFolder) {
+      // Clean up temporary analysis files
+      const analysisFiles = [...(savedImages.process || []), ...(savedImages.moodboard || [])];
+      analysisFiles.forEach(file => {
+        if (file.path && file.path.includes('analysis_temp')) {
+          fs.remove(file.path).catch(() => {});
+        }
+      });
+      
+      // Clean up portfolio folder
+      fs.remove(savedImages.portfolioFolder).catch(() => {});
     }
     
     if (error.message && error.message.includes('API key')) {
@@ -314,6 +450,58 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
   }
 });
 
+// Download portfolio as ZIP
+app.post('/api/download-portfolio', async (req, res) => {
+  try {
+    const { portfolioId } = req.body;
+    
+    if (!portfolioId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Portfolio ID is required'
+      });
+    }
+
+    const portfolioFolder = path.join(tempDir, `portfolio_${portfolioId}`);
+    
+    if (!await fs.pathExists(portfolioFolder)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Portfolio folder not found'
+      });
+    }
+
+    const zip = new JSZip();
+    
+    // Read all files in the portfolio folder
+    const files = await fs.readdir(portfolioFolder);
+    
+    for (const fileName of files) {
+      const filePath = path.join(portfolioFolder, fileName);
+      const stats = await fs.stat(filePath);
+      
+      if (stats.isFile()) {
+        const fileContent = await fs.readFile(filePath);
+        zip.file(fileName, fileContent);
+      }
+    }
+
+    const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename=portfolio_${portfolioId}.zip`);
+    res.send(zipContent);
+
+  } catch (error) {
+    console.error('Error creating portfolio zip:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create portfolio zip',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 app.get('/api/health', detailedHealthCheck);
 
 app.get('/api/info', (req, res) => {
@@ -323,6 +511,7 @@ app.get('/api/info', (req, res) => {
     description: 'AI-powered portfolio generation using Anthropic Claude with computer vision image analysis',
     endpoints: {
       'POST /api/generate-portfolio': 'Generate portfolio from user data and images with AI analysis',
+      'POST /api/download-portfolio': 'Download portfolio as ZIP file',
       'GET /api/health': 'Health check endpoint',
       'GET /api/info': 'API information'
     },
@@ -331,7 +520,8 @@ app.get('/api/info', (req, res) => {
       aiGeneration: 'Anthropic Claude with enhanced prompts from image analysis',
       qualityValidation: 'Comprehensive HTML, design, and accessibility validation',
       autoFixes: 'Automatic fixes for common issues',
-      responsiveDesign: 'Mobile-first responsive portfolio generation'
+      responsiveDesign: 'Mobile-first responsive portfolio generation',
+      imageManagement: 'Organized image storage and ZIP download'
     },
     limits: {
       maxFileSize: '10MB',
@@ -360,6 +550,181 @@ app.get('/api/test-image-analysis', async (req, res) => {
       error: error.message
     });
   }
+});
+// Move these endpoints BEFORE the error handlers and 404 catch-all
+app.post('/api/save-portfolio', async (req, res) => {
+  try {
+    const { htmlContent, filename, includeImages = true } = req.body;
+    
+    if (!htmlContent) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing HTML content'
+      });
+    }
+
+    // Use provided filename or generate default one
+    const finalFilename = filename || `portfolio_${Date.now()}.html`;
+    const filePath = path.join(tempDir, finalFilename);
+
+    // Save the HTML file
+    await fs.writeFile(filePath, htmlContent);
+
+    let imageFiles = [];
+    
+    if (includeImages) {
+      // Extract image sources from HTML
+      const imageRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+      const backgroundImageRegex = /background-image:\s*url\(["']?([^"')]+)["']?\)/gi;
+      const imageSources = new Set();
+      
+      let match;
+      
+      // Find img src attributes
+      while ((match = imageRegex.exec(htmlContent)) !== null) {
+        const src = match[1];
+        if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+          imageSources.add(src);
+        }
+      }
+      
+      // Find background-image URLs
+      while ((match = backgroundImageRegex.exec(htmlContent)) !== null) {
+        const src = match[1];
+        if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+          imageSources.add(src);
+        }
+      }
+      
+      // Copy image files to temp directory
+      for (const imageSrc of imageSources) {
+        try {
+          // Remove leading slash if present
+          const cleanSrc = imageSrc.startsWith('/') ? imageSrc.substring(1) : imageSrc;
+          const sourcePath = path.join(__dirname, cleanSrc);
+          
+          if (await fs.pathExists(sourcePath)) {
+            const imageName = path.basename(cleanSrc);
+            const tempImagePath = path.join(tempDir, `${finalFilename}_${imageName}`);
+            await fs.copy(sourcePath, tempImagePath);
+            imageFiles.push({
+              originalSrc: imageSrc,
+              filename: `${finalFilename}_${imageName}`,
+              tempPath: tempImagePath
+            });
+          }
+        } catch (error) {
+          console.warn(`Could not copy image ${imageSrc}:`, error.message);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      filename: finalFilename,
+      imageFiles: imageFiles,
+      savedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error saving portfolio:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save portfolio',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+app.post('/api/create-zip', async (req, res) => {
+  try {
+    const { filename, imageFiles = [] } = req.body;
+    
+    if (!filename) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing filename'
+      });
+    }
+
+    const filePath = path.join(tempDir, filename);
+    
+    // Check if HTML file exists
+    if (!await fs.pathExists(filePath)) {
+      return res.status(404).json({
+        success: false,
+        error: 'HTML file not found'
+      });
+    }
+
+    let htmlContent = await fs.readFile(filePath, 'utf8');
+    const zip = new JSZip();
+    
+    // Create images folder in ZIP if we have images
+    const imagesFolder = imageFiles.length > 0 ? zip.folder("images") : null;
+    
+    // Add images to ZIP and update HTML paths
+    for (const imageFile of imageFiles) {
+      try {
+        if (await fs.pathExists(imageFile.tempPath)) {
+          const imageBuffer = await fs.readFile(imageFile.tempPath);
+          const imageName = path.basename(imageFile.originalSrc);
+          
+          // Add image to ZIP in images folder
+          if (imagesFolder) {
+            imagesFolder.file(imageName, imageBuffer);
+          }
+          
+          // Update HTML to reference images in the images folder
+          const oldSrc = imageFile.originalSrc;
+          const newSrc = `images/${imageName}`;
+          htmlContent = htmlContent.replace(new RegExp(oldSrc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newSrc);
+        }
+      } catch (error) {
+        console.warn(`Could not add image ${imageFile.originalSrc} to ZIP:`, error.message);
+      }
+    }
+    
+    // Add the updated HTML file to ZIP
+    zip.file("index.html", htmlContent);
+    
+    // Generate ZIP buffer
+    const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename=portfolio.zip');
+    res.send(zipContent);
+
+    // Clean up temp files after sending
+    setTimeout(async () => {
+      try {
+        await fs.remove(filePath);
+        for (const imageFile of imageFiles) {
+          await fs.remove(imageFile.tempPath).catch(() => {});
+        }
+      } catch (error) {
+        console.warn('Error cleaning up temp files:', error.message);
+      }
+    }, 5000);
+
+  } catch (error) {
+    console.error('Error creating zip:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create zip file',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// THEN keep the existing error handlers and 404 catch-all at the bottom:
+app.use(errorHandler);
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Not Found',
+    details: `Route ${req.method} ${req.originalUrl} not found`
+  });
 });
 
 app.get('/api/user-data', async (req, res) => {
@@ -404,7 +769,6 @@ app.get('/api/user-data', async (req, res) => {
   }
 });
 
-// Add this to server.js after the other endpoints
 app.post('/api/ai-edit-portfolio', async (req, res) => {
   try {
     const { htmlContent, editRequest } = req.body;
@@ -425,7 +789,6 @@ app.post('/api/ai-edit-portfolio', async (req, res) => {
       });
     }
 
-    // Prepare the prompt for Claude
     const prompt = `
 You are a web design assistant that helps modify HTML/CSS based on user requests.
 The user has provided their current HTML and wants to make the following changes:
@@ -449,14 +812,12 @@ The HTML should be complete and valid. Do not include any explanations or markdo
 
     let modifiedHtml = response.content[0].text.trim();
     
-    // Clean up the response if it includes markdown formatting
     if (modifiedHtml.startsWith('```html')) {
       modifiedHtml = modifiedHtml.replace(/^```html\n/, '').replace(/\n```$/, '');
     } else if (modifiedHtml.startsWith('```')) {
       modifiedHtml = modifiedHtml.replace(/^```\n/, '').replace(/\n```$/, '');
     }
 
-    // Ensure we're sending valid JSON
     res.setHeader('Content-Type', 'application/json');
     res.status(200).json({
       success: true,
@@ -469,7 +830,6 @@ The HTML should be complete and valid. Do not include any explanations or markdo
 
   } catch (error) {
     console.error('AI Edit Error:', error);
-    // Ensure we're sending valid JSON even in error cases
     res.setHeader('Content-Type', 'application/json');
     res.status(500).json({
       success: false,
@@ -488,73 +848,6 @@ app.use('*', (req, res) => {
   });
 });
 
-app.post('/api/save-portfolio', async (req, res) => {
-  try {
-    const { htmlContent } = req.body;
-    
-    if (!htmlContent) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing HTML content'
-      });
-    }
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const filename = `portfolio_${timestamp}.html`;
-    const filePath = path.join(tempDir, filename);
-
-    // Save the file
-    await fs.writeFile(filePath, htmlContent);
-
-    res.json({
-      success: true,
-      filename,
-      savedAt: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error('Error saving portfolio:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to save portfolio',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-app.post('/api/create-zip', async (req, res) => {
-  try {
-    const { filename } = req.body;
-    
-    if (!filename) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing filename'
-      });
-    }
-
-    const filePath = path.join(tempDir, filename);
-    const fileContent = await fs.readFile(filePath, 'utf8');
-
-    const zip = new JSZip();
-    zip.file("index.html", fileContent);
-    const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
-
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', 'attachment; filename=portfolio.zip');
-    res.send(zipContent);
-
-  } catch (error) {
-    console.error('Error creating zip:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create zip file',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
 process.on('SIGTERM', () => server.close(() => {}));
 process.on('SIGINT', () => server.close(() => {}));
 
@@ -562,12 +855,16 @@ const server = app.listen(PORT, () => {
   const uploadDirs = [
     path.join(__dirname, 'uploads'),
     path.join(__dirname, 'uploads', 'processed'),
-    path.join(__dirname, 'uploads', 'temp')
+    path.join(__dirname, 'uploads', 'temp'),
+    tempDir
   ];
 
   uploadDirs.forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   });
+
+  console.log(`Portfolio Generator API running on port ${PORT}`);
+  console.log(`Temp directory: ${tempDir}`);
 });
 
 module.exports = app;

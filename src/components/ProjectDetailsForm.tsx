@@ -505,7 +505,12 @@ const ProjectDetailsForm = () => {
           state: { 
             portfolioData,
             generatedPortfolio: result.portfolio,
-            metadata: { ...result.metadata, autoCompleted: true, attempts: attempt }
+            metadata: { 
+              ...result.portfolio.metadata, 
+              autoCompleted: true, 
+              attempts: attempt,
+              portfolioId: result.portfolio.metadata.portfolioId
+            }
           }
         });
       } else {
@@ -677,7 +682,10 @@ const ProjectDetailsForm = () => {
           state: { 
             portfolioData,
             generatedPortfolio: result.portfolio,
-            metadata: result.metadata
+            metadata: {
+              ...result.portfolio.metadata,
+              portfolioId: result.portfolio.metadata.portfolioId
+            }
           }
         });
       } else {
