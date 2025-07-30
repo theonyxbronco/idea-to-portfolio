@@ -1,45 +1,92 @@
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import FreemiumEditPreview from "./pages/Preview";
-import Deployment from "./pages/Deployment";
-import IncompleteGeneration from "./pages/IncompleteGeneration";
-import VisualEditPage from "./pages/VisualEditPage";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 
-const queryClient = new QueryClient();
+// Auth Components
+import { 
+  SignInPage, 
+  SignUpPage, 
+  ProtectedRoute,
+  AuthStatus 
+} from '@/components/auth/AuthComponents';
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+// Existing Pages
+import Index from "@/pages/Index";
+import Preview from "@/pages/Preview";
+import Deployment from "@/pages/Deployment";
+import IncompleteGeneration from "@/pages/IncompleteGeneration";
+import Dashboard from "@/pages/Dashboard"; // New dashboard page
+import NotFound from "@/pages/NotFound";
+
+function App() {
+  return (
+    <div className="min-h-screen bg-background font-sans antialiased">
+      {/* Top Navigation Bar */}
+      <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <a href="/" className="font-bold text-xl">
+              Portfolio Builder
+            </a>
+          </div>
+          <AuthStatus />
+        </div>
+      </nav>
+
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/sign-in/*" element={<SignInPage />} />
+        <Route path="/sign-up/*" element={<SignUpPage />} />
+        
+        {/* Protected Routes */}
+        <Route path="/" element={
+          <>
+            <SignedIn>
+              <Dashboard />
+            </SignedIn>
+            <SignedOut>
+              <Index />
+            </SignedOut>
+          </>
+        } />
+        
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/create" element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/preview" element={
+          <ProtectedRoute>
+            <Preview />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/deployment" element={
+          <ProtectedRoute>
+            <Deployment />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/incomplete" element={
+          <ProtectedRoute>
+            <IncompleteGeneration />
+          </ProtectedRoute>
+        } />
+        
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      
       <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Step 1: Generate Portfolio */}
-          <Route path="/" element={<Index />} />
-          
-          {/* Step 2: Handle Incomplete Generation */}
-          <Route path="/incomplete" element={<IncompleteGeneration />} />
-          
-          {/* Step 3: Preview & Basic Edit */}
-          <Route path="/preview" element={<FreemiumEditPreview />} />
-          
-          {/* Step 4: Advanced Visual Edit (Optional) */}
-          {/* <Route path="/edit" element={<VisualEditPage />} /> */}
-            
-          {/* Step 5: Deployment Success */}
-          <Route path="/deployment" element={<Deployment />} />
-          
-          {/* Catch-all route for 404s */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </div>
+  );
+}
 
 export default App;
