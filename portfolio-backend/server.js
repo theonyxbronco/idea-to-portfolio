@@ -13,6 +13,9 @@ const htmlValidator = require('./utils/htmlValidator');
 const qualityAnalyzer = require('./utils/validators/qualityAnalyzer');
 const { GoogleSheetsTracker } = require('./utils/googleSheets');
 
+const JSZip = require('jszip');
+const zip = new JSZip();
+
 const {
   validatePortfolioData,
   rateLimit,
@@ -28,6 +31,9 @@ const PORT = process.env.PORT || 3001;
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+const tempDir = path.join(__dirname, 'temp');
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
 app.use(securityHeaders);
 app.use(requestLogger);
@@ -398,6 +404,81 @@ app.get('/api/user-data', async (req, res) => {
   }
 });
 
+// Add this to server.js after the other endpoints
+app.post('/api/ai-edit-portfolio', async (req, res) => {
+  try {
+    const { htmlContent, editRequest } = req.body;
+    
+    if (!htmlContent || !editRequest) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        details: 'Both htmlContent and editRequest are required'
+      });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: 'API Configuration Error',
+        details: 'Anthropic API key is not configured properly'
+      });
+    }
+
+    // Prepare the prompt for Claude
+    const prompt = `
+You are a web design assistant that helps modify HTML/CSS based on user requests.
+The user has provided their current HTML and wants to make the following changes:
+"${editRequest}"
+
+Here is the current HTML:
+\`\`\`html
+${htmlContent}
+\`\`\`
+
+Please respond with ONLY the modified HTML that implements the requested changes.
+The HTML should be complete and valid. Do not include any explanations or markdown formatting.
+`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      temperature: 0.7,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    let modifiedHtml = response.content[0].text.trim();
+    
+    // Clean up the response if it includes markdown formatting
+    if (modifiedHtml.startsWith('```html')) {
+      modifiedHtml = modifiedHtml.replace(/^```html\n/, '').replace(/\n```$/, '');
+    } else if (modifiedHtml.startsWith('```')) {
+      modifiedHtml = modifiedHtml.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+
+    // Ensure we're sending valid JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json({
+      success: true,
+      modifiedHtml,
+      metadata: {
+        processedAt: new Date().toISOString(),
+        request: editRequest
+      }
+    });
+
+  } catch (error) {
+    console.error('AI Edit Error:', error);
+    // Ensure we're sending valid JSON even in error cases
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({
+      success: false,
+      error: 'AI Edit Failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
+    });
+  }
+});
+
 app.use(errorHandler);
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -405,6 +486,73 @@ app.use('*', (req, res) => {
     error: 'Not Found',
     details: `Route ${req.method} ${req.originalUrl} not found`
   });
+});
+
+app.post('/api/save-portfolio', async (req, res) => {
+  try {
+    const { htmlContent } = req.body;
+    
+    if (!htmlContent) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing HTML content'
+      });
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const filename = `portfolio_${timestamp}.html`;
+    const filePath = path.join(tempDir, filename);
+
+    // Save the file
+    await fs.writeFile(filePath, htmlContent);
+
+    res.json({
+      success: true,
+      filename,
+      savedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error saving portfolio:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save portfolio',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+app.post('/api/create-zip', async (req, res) => {
+  try {
+    const { filename } = req.body;
+    
+    if (!filename) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing filename'
+      });
+    }
+
+    const filePath = path.join(tempDir, filename);
+    const fileContent = await fs.readFile(filePath, 'utf8');
+
+    const zip = new JSZip();
+    zip.file("index.html", fileContent);
+    const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename=portfolio.zip');
+    res.send(zipContent);
+
+  } catch (error) {
+    console.error('Error creating zip:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create zip file',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 });
 
 process.on('SIGTERM', () => server.close(() => {}));

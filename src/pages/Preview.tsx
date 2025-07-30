@@ -14,6 +14,14 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { deployToNetlify } from '@/lib/netlifyDeploy';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 interface EditableRegion {
   id: string;
@@ -40,7 +48,6 @@ const FreemiumEditPreview = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  
   const [viewportSize, setViewportSize] = useState<ViewportSize>('desktop');
   const [isDeploying, setIsDeploying] = useState(false);
   const [editableRegions, setEditableRegions] = useState<EditableRegion[]>([]);
@@ -50,19 +57,21 @@ const FreemiumEditPreview = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
-  const { portfolioData, generatedPortfolio, metadata, isIncomplete } = location.state || {};
-  
+  const { portfolioData, generatedPortfolio, metadata, isIncomplete } = location.state || {}; 
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiRequest, setAiRequest] = useState('');
+  const [isProcessingAiRequest, setIsProcessingAiRequest] = useState(false);
+  const [aiChatHistory, setAiChatHistory] = useState<Array<{request: string; timestamp: string}>>([]);
+  const originalHtml = typeof generatedPortfolio === 'string' 
+    ? generatedPortfolio 
+    : generatedPortfolio?.html || '';
+
   if (!portfolioData || !generatedPortfolio) {
     React.useEffect(() => {
       navigate('/');
     }, [navigate]);
     return null;
   }
-
-  const originalHtml = typeof generatedPortfolio === 'string' 
-    ? generatedPortfolio 
-    : generatedPortfolio?.html || '';
 
   // Initialize HTML content
   useEffect(() => {
@@ -302,41 +311,41 @@ const FreemiumEditPreview = () => {
   }, [parseEditableRegions]);
 
   // Apply text edit
-  const applyTextEdit = useCallback((regionId: string, newText: string) => {
-    if (!iframeRef.current?.contentDocument) return;
-    
-    const region = editableRegions.find(r => r.id === regionId);
-    if (!region) return;
-    
-    try {
-      const element = iframeRef.current.contentDocument.querySelector(region.selector);
-      if (element) {
-        element.textContent = newText;
-        
-        // Update HTML content
-        const newHtml = iframeRef.current.contentDocument.documentElement.outerHTML;
-        setHtmlContent(newHtml);
-        setHasChanges(true);
-        
-        // Update the region in our state
-        setEditableRegions(prev => 
-          prev.map(r => r.id === regionId ? { ...r, content: newText } : r)
-        );
-        
-        toast({
-          title: "Text Updated",
-          description: "Your changes have been applied",
-        });
-      }
-    } catch (error) {
-      console.error('Failed to apply text edit:', error);
+const applyTextEdit = useCallback((regionId: string, newText: string) => {
+  if (!iframeRef.current?.contentDocument) return;
+  
+  const region = editableRegions.find(r => r.id === regionId);
+  if (!region) return;
+  
+  try {
+    const element = iframeRef.current.contentDocument.querySelector(region.selector);
+    if (element) {
+      element.textContent = newText;
+      
+      // Get the complete updated HTML
+      const newHtml = iframeRef.current.contentDocument.documentElement.outerHTML;
+      setHtmlContent(newHtml);
+      setHasChanges(true);
+      
+      // Update the region in our state
+      setEditableRegions(prev => 
+        prev.map(r => r.id === regionId ? { ...r, content: newText } : r)
+      );
+      
       toast({
-        title: "Update Failed",
-        description: "Could not apply the text change",
-        variant: "destructive",
+        title: "Text Updated",
+        description: "Your changes have been applied",
       });
     }
-  }, [editableRegions, toast]);
+  } catch (error) {
+    console.error('Failed to apply text edit:', error);
+    toast({
+      title: "Update Failed",
+      description: "Could not apply the text change",
+      variant: "destructive",
+    });
+  }
+}, [editableRegions, toast]);
 
   const handleSaveEdit = () => {
     if (activeEdit && editingText.trim()) {
@@ -374,77 +383,88 @@ const FreemiumEditPreview = () => {
       return;
     }
   
-    // Ensure we have HTML content
-    if (!htmlContent) {
-      toast({
-        title: "Portfolio Content Missing",
-        description: "No HTML content found to deploy",
-        variant: "destructive",
-      });
-      return;
-    }
+    const currentHtml = iframeRef.current?.contentDocument?.documentElement.outerHTML || htmlContent;
   
-    // Check if user has provided a Netlify token
-    const netlifyToken = import.meta.env.VITE_NETLIFY_TOKEN || 
-                         window.localStorage.getItem('netlifyToken') || 
-                         prompt("Please enter your Netlify Personal Access Token:");
-    
-    if (!netlifyToken) {
-      toast({
-        title: "Netlify Token Required",
-        description: "You need a Netlify Personal Access Token to deploy",
-        variant: "destructive",
-      });
-      return;
-    }
-  
-    // Store the token for future use if it was entered via prompt
-    if (!import.meta.env.VITE_NETLIFY_TOKEN && !window.localStorage.getItem('netlifyToken')) {
-      window.localStorage.setItem('netlifyToken', netlifyToken);
-    }
-  
-    setIsDeploying(true);
-    
     try {
+      setIsDeploying(true);
+      
+      // First offer the file for download (optional)
+      const blob = new Blob([currentHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${portfolioData.personalInfo.name.replace(/\s+/g, '_')}_portfolio_${Date.now()}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  
+      // Then proceed with deployment
+      return await proceedWithDeployment(currentHtml);
+  
+    } catch (error) {
+      console.error('Error during deployment:', error);
       toast({
-        title: "Deploying to Netlify...",
-        description: "Creating your live portfolio",
+        variant: "destructive",
+        title: "Deployment Failed",
+        description: error instanceof Error ? error.message : 'Could not prepare for deployment',
       });
+    } finally {
+      setIsDeploying(false);
+    }
+  };
   
-      // Create a complete HTML document if needed
-      const completeHtml = htmlContent.includes('<!DOCTYPE html>') 
-        ? htmlContent 
-        : `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${portfolioData.personalInfo.name}'s Portfolio</title></head><body>${htmlContent}</body></html>`;
-  
-        const deployment = await deployToNetlify(htmlContent, netlifyToken);
-    
+  const proceedWithDeployment = async (htmlContent: string): Promise<void> => {
+    setIsDeploying(true);
+
+    try {
+      const netlifyToken = import.meta.env.VITE_NETLIFY_TOKEN ||
+        localStorage.getItem('netlifyToken') ||
+        prompt("Please enter your Netlify Personal Access Token:");
+
+      if (!netlifyToken) {
         toast({
-          title: "🎉 Deployment Successful!",
-          description: "Your portfolio is now live on the web",
-        });
-    
-        navigate('/deployment', { 
-          state: { 
-            portfolioData,
-            generatedPortfolio: { html: htmlContent }, // Use the same HTML
-            deploymentUrl: deployment.url,
-            platform: deployment.platform,
-            deployedAt: deployment.deployedAt,
-            siteId: deployment.siteId,
-            metadata
-          }
-        });
-      } catch (error) {
-        console.error('Deployment failed:', error);
-        toast({
+          title: "Netlify Token Required",
+          description: "Deployment requires a Netlify Personal Access Token",
           variant: "destructive",
-          title: "Deployment Failed",
-          description: error.message,
         });
-      } finally {
-        setIsDeploying(false);
+        return;
       }
-    };
+
+      // Store token if entered manually
+      if (!import.meta.env.VITE_NETLIFY_TOKEN && !localStorage.getItem('netlifyToken')) {
+        localStorage.setItem('netlifyToken', netlifyToken);
+      }
+
+      const deployment = await deployToNetlify(htmlContent, netlifyToken);
+
+      // Save deployment info to localStorage
+      const deploymentInfo = {
+        url: deployment.url,
+        siteId: deployment.siteId,
+        deployedAt: deployment.deployedAt,
+        localHtmlName: `${portfolioData.personalInfo.name.replace(/\s+/g, '_')}_portfolio_${Date.now()}`
+      };
+      localStorage.setItem('lastDeployment', JSON.stringify(deploymentInfo));
+
+      window.open(deployment.url, '_blank');
+
+      toast({
+        title: "🎉 Deployment Successful!",
+        description: "Your portfolio is now live!",
+      });
+
+    } catch (error) {
+      console.error('Deployment failed:', error);
+      toast({
+        variant: "destructive",
+        title: "Deployment Failed",
+        description: error instanceof Error ? error.message : 'Failed to deploy portfolio',
+      });
+    } finally {
+      setIsDeploying(false);
+    }
+  };
 
   const handleDownload = () => {
     const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -476,6 +496,64 @@ const FreemiumEditPreview = () => {
     if (confidence >= 0.8) return 'text-green-600 bg-green-100';
     if (confidence >= 0.6) return 'text-blue-600 bg-blue-100';
     return 'text-orange-600 bg-orange-100';
+  };
+
+  const handleAiEditRequest = async () => {
+    if (!aiRequest.trim()) return;
+    
+    setIsProcessingAiRequest(true);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ai-edit-portfolio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          htmlContent,
+          editRequest: aiRequest
+        }),
+      });
+  
+      // First check if the response is OK
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      // Then try to parse the JSON
+      const data = await response.json();
+      
+      if (data.success) {
+        setHtmlContent(data.modifiedHtml);
+        setHasChanges(true);
+        
+        // Update the chat history
+        setAiChatHistory(prev => [
+          ...prev,
+          {
+            request: aiRequest,
+            timestamp: new Date().toLocaleTimeString(),
+          }
+        ]);
+        
+        toast({
+          title: "AI Edit Applied",
+          description: "Your changes have been processed",
+        });
+      } else {
+        throw new Error(data.error || 'Failed to process AI edit');
+      }
+    } catch (error) {
+      console.error('AI Edit Error:', error);
+      toast({
+        variant: "destructive",
+        title: "AI Edit Failed",
+        description: error.message || 'Could not process your request',
+      });
+    } finally {
+      setIsProcessingAiRequest(false);
+      setAiRequest('');
+    }
   };
 
   return (
@@ -516,6 +594,84 @@ const FreemiumEditPreview = () => {
                 </Button>
               )}
               
+              {/* AI Chat Dialog */}
+              <Dialog open={aiChatOpen} onOpenChange={setAiChatOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="shadow-soft">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    AI Edit Assistant
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center">
+                      <Sparkles className="h-5 w-5 mr-2" />
+                      AI Edit Assistant
+                    </DialogTitle>
+                    <DialogDescription>
+                      Describe the changes you'd like to make to your portfolio
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4">
+                    {aiChatHistory.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Previous Requests</h4>
+                        <div className="border rounded-lg p-3 max-h-40 overflow-y-auto">
+                          {aiChatHistory.map((item, index) => (
+                            <div key={index} className="text-sm mb-2 last:mb-0">
+                              <div className="flex justify-between">
+                                <span className="font-medium">{item.request}</span>
+                                <span className="text-muted-foreground text-xs">{item.timestamp}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <Textarea
+                      value={aiRequest}
+                      onChange={(e) => setAiRequest(e.target.value)}
+                      placeholder="Example: I want to make the header smaller and all the text varying shades of blue"
+                      className="min-h-[120px]"
+                      disabled={isProcessingAiRequest}
+                    />
+                    
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setAiChatOpen(false)}
+                        disabled={isProcessingAiRequest}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleAiEditRequest}
+                        disabled={isProcessingAiRequest || !aiRequest.trim()}
+                      >
+                        {isProcessingAiRequest ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Apply Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground flex items-center">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Note: Only one AI edit is allowed per session
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -655,6 +811,16 @@ const FreemiumEditPreview = () => {
                               </div>
                             </CardContent>
                           </Card>
+                        </div>
+                      )}
+
+                      {/* AI Processing Overlay */}
+                      {isProcessingAiRequest && (
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50">
+                          <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-2">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span>Applying AI changes...</span>
+                          </div>
                         </div>
                       )}
                     </div>
