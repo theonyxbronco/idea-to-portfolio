@@ -15,10 +15,16 @@ import Index from "@/pages/Index";
 import Preview from "@/pages/Preview";
 import Deployment from "@/pages/Deployment";
 import Dashboard from "@/pages/Dashboard";
-import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import NotFound from "@/pages/NotFound";
 import ProWaitlist from "@/pages/ProWaitlist";
 import Support from "@/pages/support";
+
+// New Modular Pages
+import UserPage from "@/pages/User";
+import ProjectsPage from "@/pages/projects";
+
+// Updated Components
+import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 
 function App() {
   return (
@@ -70,6 +76,26 @@ function App() {
           </ProtectedRoute>
         } />
         
+        {/* New Modular Routes */}
+        <Route path="/user" element={
+          <ProtectedRoute>
+            <UserPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/projects" element={
+          <ProtectedRoute>
+            <ProjectsPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/portfolio-builder" element={
+          <ProtectedRoute>
+            <ProjectDetailsForm />
+          </ProtectedRoute>
+        } />
+        
+        {/* Existing Portfolio Routes */}
         <Route path="/preview" element={
           <ProtectedRoute>
             <Preview />
@@ -79,6 +105,13 @@ function App() {
         <Route path="/deployment" element={
           <ProtectedRoute>
             <Deployment />
+          </ProtectedRoute>
+        } />
+        
+        {/* Legacy route - redirect to new modular flow */}
+        <Route path="/create-portfolio" element={
+          <ProtectedRoute>
+            <UserPage />
           </ProtectedRoute>
         } />
         

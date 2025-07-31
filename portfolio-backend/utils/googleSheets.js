@@ -4,6 +4,13 @@ const { JWT } = require('google-auth-library');
 class GoogleSheetsTracker {
   constructor(config) {
     try {
+      // Validate required config
+      if (!config.clientEmail || !config.privateKey || !config.sheetId) {
+        console.error('Google Sheets Tracker: Missing required configuration (clientEmail, privateKey, or sheetId)');
+        this.initialized = false;
+        return;
+      }
+
       const auth = new JWT({
         email: config.clientEmail,
         key: config.privateKey.replace(/\\n/g, '\n'), // Handle newlines in private key
@@ -14,9 +21,9 @@ class GoogleSheetsTracker {
       this.sheetId = config.sheetId;
       this.sheetName = config.sheetName || 'Sheet1'; // Default to Sheet1 if not specified
       this.initialized = true;
-      console.log('Google Sheets Tracker initialized successfully');
+      console.log(`Google Sheets Tracker initialized successfully for sheet: ${this.sheetId}`);
     } catch (error) {
-      console.error('Google Sheets Tracker initialization failed:', error);
+      console.error('Google Sheets Tracker initialization failed:', error.message);
       this.initialized = false;
     }
   }
@@ -78,10 +85,17 @@ class GoogleSheetsTracker {
         },
       });
 
-      console.log('Successfully tracked data in Google Sheets');
+      console.log(`Successfully tracked data in Google Sheets (${this.sheetId})`);
       return true;
     } catch (error) {
       console.error('Error writing to Google Sheets:', error.message);
+      // Log more details for debugging
+      if (error.code) {
+        console.error('Error code:', error.code);
+      }
+      if (error.errors) {
+        console.error('Error details:', error.errors);
+      }
       return false;
     }
   }
@@ -99,18 +113,94 @@ class GoogleSheetsTracker {
     }
   }
 
-  // Optional: Method to verify connection
+  // Method to verify connection and sheet access
   async verifyConnection() {
+    if (!this.initialized) {
+      console.error('Google Sheets Tracker not initialized');
+      return false;
+    }
+    
+    try {
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId: this.sheetId,
+        fields: 'properties.title,sheets.properties.title',
+      });
+      
+      console.log(`Connected to Google Sheet: "${response.data.properties.title}"`);
+      const sheetExists = response.data.sheets.some(sheet => 
+        sheet.properties.title === this.sheetName
+      );
+      
+      if (!sheetExists) {
+        console.warn(`Sheet "${this.sheetName}" not found in spreadsheet. Available sheets:`, 
+          response.data.sheets.map(s => s.properties.title));
+        return false;
+      }
+      
+      console.log(`Sheet "${this.sheetName}" found and accessible`);
+      return true;
+    } catch (error) {
+      console.error('Google Sheets connection verification failed:', error.message);
+      if (error.code === 404) {
+        console.error('Sheet not found - check GOOGLE_SHEETS_ID1');
+      } else if (error.code === 403) {
+        console.error('Access denied - check service account permissions');
+      }
+      return false;
+    }
+  }
+
+  // Method to get sheet headers (useful for debugging)
+  async getHeaders() {
+    if (!this.initialized) return null;
+    
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: this.sheetId,
+        range: `${this.sheetName}!1:1`,
+      });
+      
+      return response.data.values?.[0] || [];
+    } catch (error) {
+      console.error('Error getting sheet headers:', error.message);
+      return null;
+    }
+  }
+
+  // Method to ensure headers exist (call this during initialization)
+  async ensureHeaders() {
     if (!this.initialized) return false;
     
     try {
-      await this.sheets.spreadsheets.get({
-        spreadsheetId: this.sheetId,
-        fields: 'properties.title',
-      });
+      const headers = await this.getHeaders();
+      
+      if (!headers || headers.length === 0) {
+        // Create default headers
+        const defaultHeaders = [
+          'Timestamp', 'Full Name', 'Email', 'Title', 'Experience', 'Education', 
+          'Skills', 'Number of Projects', 'Project Categories', 'Project Tags',
+          'Style - Color Scheme', 'Style - Layout', 'Style - Typography', 'Style - Mood',
+          'LinkedIn', 'Instagram', 'Behance', 'Dribbble', 'Website',
+          'Browser', 'Screen Size', 'Device Type', 'Language', 'Timezone', 'Tier'
+        ];
+        
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId: this.sheetId,
+          range: `${this.sheetName}!1:1`,
+          valueInputOption: 'USER_ENTERED',
+          resource: {
+            values: [defaultHeaders],
+          },
+        });
+        
+        console.log('Headers created in Google Sheet');
+        return true;
+      }
+      
+      console.log('Headers already exist in Google Sheet');
       return true;
     } catch (error) {
-      console.error('Google Sheets connection verification failed:', error);
+      console.error('Error ensuring headers:', error.message);
       return false;
     }
   }

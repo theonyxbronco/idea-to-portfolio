@@ -36,12 +36,17 @@ class imageParser {
         filename: path.basename(imagePath),
         designStyle: {},
         technicalSpecs: {},
-        aiPromptInsights: ''
+        aiPromptInsights: '',
+        structureAnalysis: null // NEW: Add structure analysis
       };
 
       // Generate design insights from color and filename analysis
       analysisResults.designStyle = this.interpretDesignStyle(analysisResults);
       analysisResults.technicalSpecs = this.generateTechnicalSpecs(analysisResults);
+      
+      // NEW: Add structure analysis for layout patterns
+      analysisResults.structureAnalysis = await this.analyzeImageStructure(imagePath);
+      
       analysisResults.aiPromptInsights = this.generateAIPromptInsights(analysisResults);
 
       return analysisResults;
@@ -65,7 +70,275 @@ class imageParser {
       imagePaths.map(imagePath => this.analyzeImage(imagePath))
     );
 
-    return this.combineAnalyses(individualAnalyses, type);
+    const combinedResult = this.combineAnalyses(individualAnalyses, type);
+
+    // NEW: Enhanced analysis for moodboard type
+    if (type === 'moodboard') {
+      combinedResult.structureAnalysis = await this.combineMoodboardStructures(individualAnalyses);
+    }
+
+    return combinedResult;
+  }
+
+  /**
+   * NEW: Analyze image for website structure and layout patterns
+   * @param {string} imagePath - Path to image file
+   * @returns {Object} Structure analysis results
+   */
+  async analyzeImageStructure(imagePath) {
+    try {
+      const image = sharp(imagePath);
+      const { width, height } = await image.metadata();
+      const stats = await image.stats();
+      
+      let confidence = 0;
+      const structures = {
+        filename: path.basename(imagePath),
+        dimensions: { width, height, aspectRatio: (width / height).toFixed(2) }
+      };
+      
+      // Detect header region (top 15% of image)
+      const hasHeader = await this.detectHeaderRegion(image, width, height);
+      if (hasHeader.detected) {
+        structures.hasHeader = true;
+        structures.headerStyle = hasHeader.style;
+        confidence += 0.2;
+      }
+      
+      // Detect navigation patterns
+      const navigationStyle = await this.detectNavigationStyle(image, width, height);
+      if (navigationStyle.detected) {
+        structures.navigationStyle = navigationStyle.type;
+        confidence += 0.25;
+      }
+      
+      // Detect sidebar patterns
+      const hasSidebar = await this.detectSidebarPattern(image, width, height);
+      if (hasSidebar.detected) {
+        structures.hasSidebar = true;
+        structures.sidebarPosition = hasSidebar.position;
+        confidence += 0.15;
+      }
+      
+      // Estimate section count and layout type
+      const sectionAnalysis = await this.analyzeSectionLayout(image, width, height);
+      structures.sectionCount = sectionAnalysis.count;
+      structures.layoutType = sectionAnalysis.type;
+      if (sectionAnalysis.confidence > 0.3) {
+        confidence += 0.2;
+      }
+      
+      // Detect grid patterns
+      const gridAnalysis = await this.detectGridPatterns(image, width, height);
+      if (gridAnalysis.detected) {
+        structures.gridStyle = gridAnalysis.type;
+        structures.columns = gridAnalysis.columns;
+        confidence += 0.2;
+      }
+      
+      structures.confidence = confidence;
+      structures.hasStructuralElements = confidence > 0.3;
+      
+      return structures;
+    } catch (error) {
+      console.warn('Image structure analysis failed:', error);
+      return { confidence: 0, hasStructuralElements: false };
+    }
+  }
+
+  /**
+   * NEW: Combine structure analyses from multiple moodboard images
+   */
+  async combineMoodboardStructures(individualAnalyses) {
+    const structuralElements = individualAnalyses
+      .map(analysis => analysis.structureAnalysis)
+      .filter(structure => structure && structure.hasStructuralElements);
+
+    if (structuralElements.length === 0) {
+      return {
+        hasStructuralElements: false,
+        recommendedFallback: true,
+        detectedStructures: [],
+        summary: 'No clear website structure patterns detected in moodboard images. Using fallback sections.'
+      };
+    }
+
+    // Analyze common patterns
+    const commonPatterns = {
+      navigationStyles: this.getMostFrequent(structuralElements.map(s => s.navigationStyle).filter(Boolean)),
+      layoutTypes: this.getMostFrequent(structuralElements.map(s => s.layoutType).filter(Boolean)),
+      gridStyles: this.getMostFrequent(structuralElements.map(s => s.gridStyle).filter(Boolean)),
+      hasHeaders: structuralElements.filter(s => s.hasHeader).length > structuralElements.length / 2,
+      hasSidebars: structuralElements.filter(s => s.hasSidebar).length > structuralElements.length / 2
+    };
+
+    const avgConfidence = structuralElements.reduce((sum, s) => sum + s.confidence, 0) / structuralElements.length;
+
+    return {
+      hasStructuralElements: true,
+      recommendedFallback: false,
+      detectedStructures: structuralElements,
+      commonPatterns,
+      averageConfidence: avgConfidence,
+      summary: this.generateStructureSummary(commonPatterns, avgConfidence)
+    };
+  }
+
+  /**
+   * NEW: Generate structure summary for AI prompt
+   */
+  generateStructureSummary(patterns, confidence) {
+    let summary = `DETECTED LAYOUT PATTERNS (${Math.round(confidence * 100)}% confidence):\n`;
+    
+    if (patterns.navigationStyles) {
+      summary += `🧭 Navigation Style: ${patterns.navigationStyles}\n`;
+    }
+    
+    if (patterns.layoutTypes) {
+      summary += `📐 Layout Type: ${patterns.layoutTypes}\n`;
+    }
+    
+    if (patterns.gridStyles) {
+      summary += `🔲 Grid Style: ${patterns.gridStyles}\n`;
+    }
+    
+    if (patterns.hasHeaders) {
+      summary += `📋 Has Header Sections: Yes\n`;
+    }
+    
+    if (patterns.hasSidebars) {
+      summary += `📌 Has Sidebar Elements: Yes\n`;
+    }
+    
+    summary += `\n💡 RECOMMENDATION: Use these detected patterns as the primary structure instead of standard portfolio sections.`;
+    
+    return summary;
+  }
+
+  /**
+   * NEW: Detect header region in image
+   */
+  async detectHeaderRegion(image, width, height) {
+    try {
+      const headerHeight = Math.floor(height * 0.15);
+      const headerStats = await image.extract({ left: 0, top: 0, width, height: headerHeight }).stats();
+      
+      const colorVariance = headerStats.channels.reduce((sum, channel) => sum + channel.stdev, 0) / headerStats.channels.length;
+      
+      return {
+        detected: colorVariance < 30,
+        style: colorVariance < 15 ? 'minimal' : 'complex'
+      };
+    } catch (error) {
+      return { detected: false };
+    }
+  }
+
+  /**
+   * NEW: Detect navigation style patterns
+   */
+  async detectNavigationStyle(image, width, height) {
+    try {
+      const aspectRatio = width / height;
+      const navHeight = Math.floor(height * 0.1);
+      const navStats = await image.extract({ left: 0, top: 0, width, height: navHeight }).stats();
+      
+      if (aspectRatio > 2) {
+        return { detected: true, type: 'horizontal-wide' };
+      } else if (aspectRatio < 0.5) {
+        return { detected: true, type: 'vertical-sidebar' };
+      } else if (navStats.entropy > 6) {
+        return { detected: true, type: 'complex-navigation' };
+      } else {
+        return { detected: true, type: 'minimal-nav' };
+      }
+    } catch (error) {
+      return { detected: false };
+    }
+  }
+
+  /**
+   * NEW: Detect sidebar patterns
+   */
+  async detectSidebarPattern(image, width, height) {
+    try {
+      const aspectRatio = width / height;
+      
+      if (aspectRatio > 1.5) {
+        const leftStats = await image.extract({ left: 0, top: 0, width: Math.floor(width * 0.2), height }).stats();
+        const rightStats = await image.extract({ left: Math.floor(width * 0.8), top: 0, width: Math.floor(width * 0.2), height }).stats();
+        
+        const leftVariance = leftStats.channels.reduce((sum, channel) => sum + channel.stdev, 0) / leftStats.channels.length;
+        const rightVariance = rightStats.channels.reduce((sum, channel) => sum + channel.stdev, 0) / rightStats.channels.length;
+        
+        if (leftVariance < 25) {
+          return { detected: true, position: 'left' };
+        } else if (rightVariance < 25) {
+          return { detected: true, position: 'right' };
+        }
+      }
+      
+      return { detected: false };
+    } catch (error) {
+      return { detected: false };
+    }
+  }
+
+  /**
+   * NEW: Analyze section layout patterns
+   */
+  async analyzeSectionLayout(image, width, height) {
+    try {
+      const aspectRatio = width / height;
+      
+      let sectionCount = 3;
+      let layoutType = 'standard';
+      let confidence = 0.3;
+      
+      if (aspectRatio > 2) {
+        layoutType = 'horizontal-scroll';
+        sectionCount = Math.floor(aspectRatio * 2);
+        confidence = 0.6;
+      } else if (aspectRatio < 0.5) {
+        layoutType = 'vertical-long';
+        sectionCount = Math.floor(height / (width * 0.8));
+        confidence = 0.7;
+      } else if (aspectRatio > 1.2 && aspectRatio < 1.8) {
+        layoutType = 'balanced-grid';
+        confidence = 0.5;
+      }
+      
+      return {
+        count: Math.min(Math.max(sectionCount, 2), 8),
+        type: layoutType,
+        confidence
+      };
+    } catch (error) {
+      return { count: 3, type: 'standard', confidence: 0.1 };
+    }
+  }
+
+  /**
+   * NEW: Detect grid patterns in images
+   */
+  async detectGridPatterns(image, width, height) {
+    try {
+      const aspectRatio = width / height;
+      
+      if (aspectRatio > 1.2 && aspectRatio < 2.5) {
+        const estimatedColumns = Math.floor(aspectRatio * 2);
+        
+        return {
+          detected: true,
+          type: estimatedColumns <= 2 ? 'two-column' : estimatedColumns <= 3 ? 'three-column' : 'multi-column',
+          columns: Math.min(estimatedColumns, 4)
+        };
+      }
+      
+      return { detected: false };
+    } catch (error) {
+      return { detected: false };
+    }
   }
 
   /**
@@ -345,12 +618,13 @@ class imageParser {
   }
 
   /**
-   * Generate insights for AI prompt
+   * Generate insights for AI prompt - ENHANCED with structure analysis
    */
   generateAIPromptInsights(analysis) {
     const colors = analysis.colors || {};
     const style = analysis.designStyle || {};
     const metadata = analysis.metadata || {};
+    const structure = analysis.structureAnalysis || {};
     const filename = analysis.filename || '';
 
     let insights = `IMAGE ANALYSIS INSIGHTS (Sharp-based):\n`;
@@ -362,6 +636,17 @@ class imageParser {
     insights += `📐 DIMENSIONS: ${metadata.width}x${metadata.height} (${metadata.aspectRatio} ratio, ${metadata.isLandscape ? 'landscape' : metadata.isPortrait ? 'portrait' : 'square'})\n`;
     insights += `🎯 FORMAT: ${metadata.format?.toUpperCase()}\n`;
 
+    // NEW: Add structure analysis insights
+    if (structure.hasStructuralElements) {
+      insights += `\n🏗️ STRUCTURE ANALYSIS (${Math.round(structure.confidence * 100)}% confidence):\n`;
+      if (structure.navigationStyle) insights += `🧭 Navigation: ${structure.navigationStyle}\n`;
+      if (structure.layoutType) insights += `📐 Layout: ${structure.layoutType}\n`;
+      if (structure.gridStyle) insights += `🔲 Grid: ${structure.gridStyle} (${structure.columns} columns)\n`;
+      if (structure.hasHeader) insights += `📋 Header: ${structure.headerStyle} style\n`;
+      if (structure.hasSidebar) insights += `📌 Sidebar: ${structure.sidebarPosition} position\n`;
+      insights += `📊 Sections: ${structure.sectionCount} estimated\n`;
+    }
+
     if (style.layoutSuggestions.length > 0) {
       insights += `📋 LAYOUT SUGGESTIONS: ${style.layoutSuggestions.join(', ')}\n`;
     }
@@ -371,6 +656,11 @@ class imageParser {
     }
 
     insights += `\nDESIGN DIRECTION: Create a portfolio that captures the ${style.mood} ${style.vibe} aesthetic with ${colors.dominant} as the primary color. `;
+    
+    // NEW: Include structure recommendations
+    if (structure.hasStructuralElements) {
+      insights += `IMPORTANT: Use the detected ${structure.layoutType} layout pattern with ${structure.navigationStyle} navigation instead of standard portfolio sections. `;
+    }
     
     if (style.layoutSuggestions.length > 0) {
       insights += `Consider implementing ${style.layoutSuggestions[0]} to match the detected style. `;
@@ -384,7 +674,7 @@ class imageParser {
   }
 
   /**
-   * Combine multiple image analyses
+   * Combine multiple image analyses - ENHANCED for structure
    */
   combineAnalyses(analyses, type) {
     if (!analyses.length) return this.getFallbackAnalysis();
@@ -462,6 +752,7 @@ class imageParser {
       metadata: { width: 800, height: 600, aspectRatio: '1.33' },
       filename,
       designStyle: { mood, vibe: 'clean', confidence: 0.3 },
+      structureAnalysis: { confidence: 0, hasStructuralElements: false }, // NEW
       technicalSpecs: {
         colorPalette: { primary: '#333333', secondary: '#666666', accent: '#999999' }
       },
