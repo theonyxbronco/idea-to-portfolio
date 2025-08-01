@@ -19,6 +19,11 @@ import NotFound from "@/pages/NotFound";
 import ProWaitlist from "@/pages/ProWaitlist";
 import Support from "@/pages/support";
 
+// New Landing Pages
+import Home from "@/pages/Home";
+import Features from "@/pages/Features";
+import Pricing from "@/pages/Pricing";
+
 // New Modular Pages
 import UserPage from "@/pages/User";
 import ProjectsPage from "@/pages/projects";
@@ -36,12 +41,26 @@ function App() {
             <a href="/" className="font-bold text-xl">
               Moodi
             </a>
+            {/* Add navigation links for landing pages */}
+            <div className="hidden md:flex items-center space-x-6 ml-8">
+              <a href="/features" className="text-sm font-medium hover:text-primary transition-colors">
+                Features
+              </a>
+              <a href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
+                Pricing
+              </a>
+            </div>
           </div>
           <AuthStatus />
         </div>
       </nav>
 
       <Routes>
+        {/* Public Landing Pages */}
+        <Route path="/home" element={<Home />} />
+        <Route path="/features" element={<Features />} />
+        <Route path="/pricing" element={<Pricing />} />
+        
         {/* Public Routes */}
         <Route path="/sign-in/*" element={<SignInPage />} />
         <Route path="/sign-up/*" element={<SignUpPage />} />
@@ -52,18 +71,19 @@ function App() {
         {/* Support - Accessible to both signed in and out users */}
         <Route path="/support" element={<Support />} />
         
-        {/* Protected Routes */}
+        {/* Main Route - Dashboard for logged in, Landing for logged out */}
         <Route path="/" element={
           <>
             <SignedIn>
               <Dashboard />
             </SignedIn>
             <SignedOut>
-              <Index />
+              <Home />
             </SignedOut>
           </>
         } />
         
+        {/* Protected Routes */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
