@@ -8,7 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 248 250% 99%;
+    --background: 0 0% 98%;
+    --background-shadow: 0 0% 85%;
     --foreground: 220 39% 11%;
 
     --card: 0 0% 100%;
@@ -43,6 +44,7 @@ All colors MUST be HSL.
     
     --shadow-soft: 0 4px 6px -1px hsl(220 39% 11% / 0.1), 0 2px 4px -1px hsl(220 39% 11% / 0.06);
     --shadow-medium: 0 10px 15px -3px hsl(220 39% 11% / 0.1), 0 4px 6px -2px hsl(220 39% 11% / 0.05);
+    --shadow-glow: 0 0 40px hsla(0, 0%, 74%, 0.4);
     --shadow-large: 0 25px 50px -12px hsl(220 39% 11% / 0.25);
     
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

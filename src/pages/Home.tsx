@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import WaitlistForm from "@/components/WaitlistForm";
 import { ArrowRight, FolderOpen, Palette, Edit3, CheckCircle } from "lucide-react";
@@ -6,6 +7,7 @@ import { useParallax } from "@/hooks/use-parallax";
 
 const Home = () => {
   const parallaxOffset = useParallax(0.6); // Slower scroll speed
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,7 +42,7 @@ const Home = () => {
               <span>5-minute deploy</span>
             </div>
           </div>
-          <Button variant="default" size="lg" className="text-xl px-10 py-7">
+          <Button onClick={() => navigate('/dashboard')} variant="default" size="lg" className="text-xl px-10 py-7">
             Try for free <ArrowRight className="ml-2" />
           </Button>
         </div>

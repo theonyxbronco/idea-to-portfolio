@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   FolderKanban,     // Project Management
   Cloud,            // Storage 
@@ -71,6 +71,8 @@ const Features = () => {
     
   ];
 
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-background py-20">
       <div className="container mx-auto px-4">
@@ -118,7 +120,7 @@ const Features = () => {
             Join thousands of professionals who have already transformed their productivity
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-primary text-primary-foreground px-8 py-3 rounded-md font-medium hover:shadow-glow transition-all duration-300 transform hover:scale-[1.02]">
+            <button onClick={() => navigate('/dashboard')} className="bg-primary text-primary-foreground px-8 py-3 rounded-md font-medium hover:shadow-glow transition-all duration-300 transform hover:scale-[1.02]">
               Start Free Trial
             </button>
             <button className="border border-primary text-primary px-8 py-3 rounded-md font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-300">

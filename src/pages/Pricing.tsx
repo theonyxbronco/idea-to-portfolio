@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import WaitlistForm from "@/components/WaitlistForm";
 import { Check } from "lucide-react";
 import { useParallax } from "@/hooks/use-parallax";
+import { Link, useNavigate } from "react-router-dom";
 
 const Pricing = () => {
   const plans = [
@@ -56,6 +57,8 @@ const Pricing = () => {
     }
   ];
 
+  const navigate = useNavigate();
+  // Parallax effect for smooth scrolling
   const parallaxOffset = useParallax(0.2);
   const parallaxOffset2 = useParallax(0.15);
 
@@ -119,6 +122,7 @@ const Pricing = () => {
                 </ul>
                 
                 <Button 
+                  onClick={() => navigate('/dashboard')}
                   variant={plan.isPopular ? "default" : "outline"} 
                   className="w-full"
                   size="lg"
