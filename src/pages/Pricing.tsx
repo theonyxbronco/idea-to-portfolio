@@ -122,7 +122,7 @@ const Pricing = () => {
                 </ul>
                 
                 <Button 
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => navigate('/sign-in')}
                   variant={plan.isPopular ? "default" : "outline"} 
                   className="w-full"
                   size="lg"

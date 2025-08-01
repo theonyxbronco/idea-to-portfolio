@@ -42,7 +42,7 @@ const Home = () => {
               <span>5-minute deploy</span>
             </div>
           </div>
-          <Button onClick={() => navigate('/dashboard')} variant="default" size="lg" className="text-xl px-10 py-7">
+          <Button onClick={() => navigate('/sign-in')} variant="default" size="lg" className="text-xl px-10 py-7">
             Try for free <ArrowRight className="ml-2" />
           </Button>
         </div>

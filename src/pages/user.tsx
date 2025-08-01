@@ -9,6 +9,7 @@ import { User, Plus, X, Loader2, CheckCircle, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@clerk/clerk-react';
+import { API_BASE_URL } from '@/services/api';
 
 interface Experience {
   duration: string;
@@ -104,7 +105,7 @@ const UserPage = () => {
         email: userEmail
       }));
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/get-user-info?email=${encodeURIComponent(userEmail)}`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-info?email=${encodeURIComponent(userEmail)}`);
       
       if (response.ok) {
         const result = await response.json();
@@ -215,7 +216,7 @@ const UserPage = () => {
     setIsSaving(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/save-user-info`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/save-user-info`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

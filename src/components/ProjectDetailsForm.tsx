@@ -6,6 +6,7 @@ import { Upload, Palette, Loader2, AlertTriangle, RefreshCw, Settings, ChevronDo
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@clerk/clerk-react';
+import { API_BASE_URL } from '@/services/api';
 
 interface PersonalInfo {
   name: string;
@@ -149,8 +150,8 @@ const ProjectDetailsForm = () => {
 
       // Load personal info and all projects in parallel
       const [userInfoResponse, projectsResponse] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/get-user-info?email=${encodeURIComponent(userEmail)}`),
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/get-user-projects?email=${encodeURIComponent(userEmail)}`)
+        fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-info?email=${encodeURIComponent(userEmail)}`),
+        fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-projects?email=${encodeURIComponent(userEmail)}`)
       ]);
 
       let loadedPersonalInfo = portfolioData.personalInfo;
@@ -216,8 +217,8 @@ const ProjectDetailsForm = () => {
 
       // Load personal info and projects in parallel
       const [userInfoResponse, projectsResponse] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/get-user-info?email=${encodeURIComponent(userEmail)}`),
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/get-user-projects?email=${encodeURIComponent(userEmail)}`)
+        fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-info?email=${encodeURIComponent(userEmail)}`),
+        fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-projects?email=${encodeURIComponent(userEmail)}`)
       ]);
 
       let loadedPersonalInfo = portfolioData.personalInfo;
@@ -380,7 +381,7 @@ const ProjectDetailsForm = () => {
 
       setGenerationProgress(85);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/generate-portfolio`, {
         method: 'POST',
         body: formData,
       });
@@ -566,7 +567,7 @@ const ProjectDetailsForm = () => {
       });
   
       console.log('Starting initial generation...');
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-portfolio`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/generate-portfolio`, {
         method: 'POST',
         body: formData,
       });

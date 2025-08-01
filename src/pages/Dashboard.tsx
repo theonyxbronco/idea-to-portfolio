@@ -22,6 +22,8 @@ import {
   Trash2,
   ImageIcon
 } from 'lucide-react';
+import { API_BASE_URL } from '@/services/api';
+
 
 interface Portfolio {
   id: string;
@@ -79,7 +81,7 @@ const Dashboard = () => {
         }
 
         // Fetch user projects
-        const projectsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/get-user-projects?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);
+        const projectsResponse = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-projects?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);
         if (projectsResponse.ok) {
           const projectsData = await projectsResponse.json();
           if (projectsData.success) {

@@ -1,6 +1,9 @@
 // src/services/api.ts
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+export const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? '/api'  // Use relative path for Vercel
+  : 'http://localhost:3001/api';
 
+  
 export interface PortfolioData {
   personalInfo: {
     name: string;
@@ -69,6 +72,13 @@ class ApiService {
     this.baseURL = API_BASE_URL;
   }
 
+  // Helper method to get full API URL
+  private getApiUrl(endpoint: string): string {
+    // Remove duplicate /api if it exists in endpoint
+    const cleanEndpoint = endpoint.startsWith('/api') ? endpoint.slice(4) : endpoint;
+    return `${this.baseURL}${cleanEndpoint.startsWith('/') ? cleanEndpoint : `/${cleanEndpoint}`}`;
+  }
+
   async generatePortfolio(portfolioData: PortfolioData): Promise<ApiResponse> {
     try {
       // Prepare form data
@@ -93,7 +103,8 @@ class ApiService {
         formData.append('moodboardImages', image, `moodboard_${index}`);
       });
 
-      const response = await fetch(`${this.baseURL}/api/generate-portfolio`, {
+      // Fixed: Remove duplicate /api in the URL
+      const response = await fetch(this.getApiUrl('/generate-portfolio'), {
         method: 'POST',
         body: formData,
       });
@@ -113,7 +124,8 @@ class ApiService {
 
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     try {
-      const response = await fetch(`${this.baseURL}/api/health`);
+      // Fixed: Remove duplicate /api in the URL
+      const response = await fetch(this.getApiUrl('/health'));
       
       if (!response.ok) {
         throw new Error(`Health check failed: ${response.status}`);
@@ -122,6 +134,136 @@ class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Health check failed:', error);
+      throw error;
+    }
+  }
+
+  // Additional API methods you might need
+  async saveUserInfo(personalInfo: any, userEmail: string): Promise<any> {
+    try {
+      const response = await fetch(this.getApiUrl('/save-user-info'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ personalInfo, userEmail }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Save user info error:', error);
+      throw error;
+    }
+  }
+
+  async getUserInfo(email: string): Promise<any> {
+    try {
+      const response = await fetch(this.getApiUrl(`/get-user-info?email=${encodeURIComponent(email)}`));
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Get user info error:', error);
+      throw error;
+    }
+  }
+
+  async saveProject(projectData: any, files: File[]): Promise<any> {
+    try {
+      const formData = new FormData();
+      formData.append('projectData', JSON.stringify(projectData));
+      
+      files.forEach((file, index) => {
+        formData.append(`files`, file);
+      });
+
+      const response = await fetch(this.getApiUrl('/save-project'), {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Save project error:', error);
+      throw error;
+    }
+  }
+
+  async getUserProjects(email: string): Promise<any> {
+    try {
+      const response = await fetch(this.getApiUrl(`/get-user-projects?email=${encodeURIComponent(email)}`));
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Get user projects error:', error);
+      throw error;
+    }
+  }
+
+  async deployToNetlify(htmlContent: string, netlifyToken: string, personName: string): Promise<any> {
+    try {
+      const response = await fetch(this.getApiUrl('/deploy-folder-to-netlify'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ htmlContent, netlifyToken, personName }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Deploy to Netlify error:', error);
+      throw error;
+    }
+  }
+
+  async aiEditPortfolio(htmlContent: string, editRequest: string, isContinuation?: boolean, partialHtml?: string): Promise<any> {
+    try {
+      const response = await fetch(this.getApiUrl('/ai-edit-portfolio'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          htmlContent, 
+          editRequest, 
+          isContinuation, 
+          partialHtml 
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('AI edit portfolio error:', error);
       throw error;
     }
   }

@@ -120,7 +120,7 @@ const Features = () => {
             Join thousands of professionals who have already transformed their productivity
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button onClick={() => navigate('/dashboard')} className="bg-primary text-primary-foreground px-8 py-3 rounded-md font-medium hover:shadow-glow transition-all duration-300 transform hover:scale-[1.02]">
+            <button onClick={() => navigate('/sign-in')} className="bg-primary text-primary-foreground px-8 py-3 rounded-md font-medium hover:shadow-glow transition-all duration-300 transform hover:scale-[1.02]">
               Start Free Trial
             </button>
             <button className="border border-primary text-primary px-8 py-3 rounded-md font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-300">

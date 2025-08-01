@@ -9,6 +9,7 @@ import { FolderOpen, Plus, X, Loader2, Save, Edit, Trash2, ImageIcon, Upload, Co
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@clerk/clerk-react';
+import { API_BASE_URL } from '@/services/api';
 
 interface Project {
   id?: string;
@@ -91,7 +92,7 @@ const ProjectsPage = () => {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/get-user-projects?email=${encodeURIComponent(userEmail)}`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-projects?email=${encodeURIComponent(userEmail)}`);
       
       if (response.ok) {
         const result = await response.json();
@@ -250,7 +251,7 @@ const ProjectsPage = () => {
         }
       });
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/save-multiple-projects`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/save-multiple-projects`, {
         method: 'POST',
         body: formData,
       });
@@ -298,7 +299,7 @@ const ProjectsPage = () => {
     setIsDeleting(projectId);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/delete-project`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/delete-project`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
