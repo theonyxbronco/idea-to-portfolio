@@ -339,26 +339,26 @@ app.post('/api/save-user-info', async (req, res) => {
       });
     }
 
-    // Validation
-    if (!personalInfo.name?.trim() || !personalInfo.title?.trim()) {
+    // Basic validation
+    if (!personalInfo.name?.trim()) {
       return res.status(400).json({
         success: false,
-        error: 'Name and title are required'
+        error: 'Name is required'
       });
     }
 
-    // Create Google Sheets tracker for user info (GOOGLE_SHEETS_ID3 + GOOGLE_SHEETS_NAME2)
+    // Create Google Sheets tracker for user info
     const userInfoTracker = new GoogleSheetsTracker({
       clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
       privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
-      sheetId: process.env.GOOGLE_SHEETS_ID3,
-      sheetName: process.env.GOOGLE_SHEETS_NAME2 || 'User Info'
+      sheetId: process.env.GOOGLE_SHEETS_ID1, // Using your deployment sheet ID
+      sheetName: process.env.GOOGLE_SHEETS_NAME1 || 'Sheet1'
     });
 
     if (!userInfoTracker.initialized) {
       return res.status(500).json({
         success: false,
-        error: 'Google Sheets integration not configured for user info'
+        error: 'Google Sheets integration not configured'
       });
     }
 
@@ -367,38 +367,36 @@ app.post('/api/save-user-info', async (req, res) => {
     try {
       const response = await userInfoTracker.sheets.spreadsheets.values.get({
         spreadsheetId: userInfoTracker.sheetId,
-        range: `${userInfoTracker.sheetName}!A:B`,
+        range: `${userInfoTracker.sheetName}!A:C`, // Check Timestamp, Full Name, Email columns
       });
 
       const rows = response.data.values || [];
       existingRowIndex = rows.findIndex((row, index) => 
-        index > 0 && row[1] === userEmail // Skip header row, check email column
+        index > 0 && row[2] === userEmail // Skip header row, check email column (index 2)
       );
     } catch (error) {
       console.warn('Could not check for existing user:', error.message);
     }
 
-    // Prepare user data for sheets with exact headers you specified
+    // Prepare user data matching your sheet structure
     const userData = [
-      new Date().toISOString(), // Timestamp
-      userEmail, // Email
-      personalInfo.name || '', // Full Name
-      personalInfo.title || '', // Job Title/Role
-      personalInfo.bio || '', // Bio/Description
-      personalInfo.phone || '', // Phone Number
-      personalInfo.linkedin || '', // LinkedIn URL
-      personalInfo.instagram || personalInfo.twitter || personalInfo.socialHandle || '', // Social Media Handle
-      (personalInfo.skills || []).join(', '), // Skills
-      personalInfo.experience || JSON.stringify(personalInfo.experiences || []), // Experience
-      personalInfo.education || JSON.stringify(personalInfo.education || []) // Education
+      new Date().toISOString(),                     // Timestamp
+      personalInfo.name || '',                      // Full Name
+      userEmail,                                   // Email
+      personalInfo.title || '',                    // Title
+      '',                                          // Generated URL (empty initially)
+      req.headers['user-agent'] || 'Unknown',      // Browser (User Agent)
+      personalInfo.projectsUsed || 0,              // Projects Used
+      getDeviceType(req.headers['user-agent']),    // Device Type
+      personalInfo.tier || 'Free'                  // Tier
     ];
 
-    if (existingRowIndex !== -1) {
-      // Update existing row
-      const actualRowIndex = existingRowIndex + 1; // Convert to 1-based index
+    if (existingRowIndex !== null && existingRowIndex !== -1) {
+      // Update existing row (columns A-I)
+      const actualRowIndex = existingRowIndex + 1;
       await userInfoTracker.sheets.spreadsheets.values.update({
         spreadsheetId: userInfoTracker.sheetId,
-        range: `${userInfoTracker.sheetName}!A${actualRowIndex}:K${actualRowIndex}`,
+        range: `${userInfoTracker.sheetName}!A${actualRowIndex}:I${actualRowIndex}`,
         valueInputOption: 'USER_ENTERED',
         resource: {
           values: [userData],
@@ -408,7 +406,7 @@ app.post('/api/save-user-info', async (req, res) => {
       // Add new row
       await userInfoTracker.sheets.spreadsheets.values.append({
         spreadsheetId: userInfoTracker.sheetId,
-        range: `${userInfoTracker.sheetName}!A:K`,
+        range: `${userInfoTracker.sheetName}!A:I`,
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         resource: {
@@ -417,8 +415,6 @@ app.post('/api/save-user-info', async (req, res) => {
       });
     }
 
-    console.log(`Successfully saved user info for: ${userEmail}`);
-    
     res.json({
       success: true,
       message: existingRowIndex !== -1 ? 'User information updated' : 'User information saved',
@@ -434,6 +430,15 @@ app.post('/api/save-user-info', async (req, res) => {
     });
   }
 });
+
+// Helper function to determine device type
+function getDeviceType(userAgent) {
+  if (!userAgent) return 'Desktop';
+  const ua = userAgent.toLowerCase();
+  if (ua.includes('mobile')) return 'Mobile';
+  if (ua.includes('tablet')) return 'Tablet';
+  return 'Desktop';
+}
 
 app.get('/api/get-user-info', async (req, res) => {
   try {

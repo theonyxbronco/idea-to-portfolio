@@ -372,24 +372,6 @@ const ProjectsPage = () => {
             </p>
           </div>
 
-          {/* Navigation */}
-          <div className="flex justify-between items-center mb-8">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/user')}
-              className="text-sm"
-            >
-              ← Back to Personal Info
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/portfolio-builder')}
-              className="text-sm"
-            >
-              Continue to Portfolio Builder →
-            </Button>
-          </div>
-
           {/* Saved Projects List */}
           {savedProjects.length > 0 && (
             <Card className="shadow-large border-0 mb-8">
@@ -711,6 +693,25 @@ const ProjectsPage = () => {
                   </>
                 )}
               </Button>
+
+                        {/* Navigation */}
+          <div className="flex justify-between items-center mb-8">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/user')}
+              className="text-sm"
+            >
+              ← Back to Personal Info
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/portfolio-builder')}
+              className="text-sm"
+            >
+              Continue to Portfolio Builder →
+            </Button>
+          </div>
+          
             </div>
           </div>
         </div>
