@@ -105,148 +105,226 @@ const getFilesRecursively = async (dir) => {
   return files;
 };
 
-// Clean folder names for Netlify
-const cleanFolderName = (name) => {
-  return name.replace(/[^a-zA-Z0-9-]/g, '-').substring(0, 50);
-};
-
 app.post('/api/deploy-folder-to-netlify', async (req, res) => {
   const { htmlContent, netlifyToken, personName } = req.body;
   
-  // Validate inputs
   if (!htmlContent || !netlifyToken || !personName) {
     return res.status(400).json({
       success: false,
-      error: 'Missing required parameters'
+      error: 'Missing required parameters: htmlContent, netlifyToken, and personName are required'
     });
   }
 
-  let deployFolderPath;
   let siteId;
+  const startTime = Date.now();
 
   try {
-    // 1. Create deployment folder
     const timestamp = Date.now();
-    const folderName = `${cleanFolderName(personName)}_${timestamp}`;
-    deployFolderPath = path.join(__dirname, 'temp-deployments', folderName);
-    await fs.ensureDir(deployFolderPath);
+    const siteName = `${personName.replace(/[^a-zA-Z0-9-]/g, '-').substring(0, 30)}-portfolio-${timestamp}`;
+    
+    console.log(`🚀 Starting deployment for: ${personName}`);
 
-    // 2. Save HTML as index.html
-    await fs.writeFile(path.join(deployFolderPath, 'index.html'), htmlContent);
-
-    // 3. Add SPA redirects file
-    await fs.writeFile(
-      path.join(deployFolderPath, '_redirects'),
-      '/* /index.html 200'
-    );
-
-    // 4. Get all files recursively
-    const files = await getFilesRecursively(deployFolderPath);
-
-    // 5. Create file manifest with SHA hashes
-    const fileManifest = {};
-    files.forEach(file => {
-      fileManifest[file.relativePath] = calculateSha(file.content);
-    });
-
-    // 6. Create site on Netlify
+    // 1. Create new Netlify site
+    console.log('🌐 Creating Netlify site...');
     const siteResponse = await axios.post(
       'https://api.netlify.com/api/v1/sites',
-      { name: folderName },
+      { 
+        name: siteName,
+        custom_domain: null
+      },
       { 
         headers: { 
           'Authorization': `Bearer ${netlifyToken}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 30000
       }
     );
+    
     siteId = siteResponse.data.id;
+    const siteUrl = siteResponse.data.ssl_url || siteResponse.data.url;
+    console.log(`✅ Site created successfully: ${siteId}`);
 
-    // 7. Create deployment with file manifest
+    // 2. Calculate SHA1 hash for HTML content
+    const htmlSha1 = crypto.createHash('sha1').update(htmlContent, 'utf8').digest('hex');
+    console.log(`🔐 HTML SHA1 calculated: ${htmlSha1}`);
+    
+    // 3. Create deployment with proper file digest format
+    console.log('📦 Creating deployment with file digest...');
+    const deployPayload = {
+      files: {
+        "index.html": htmlSha1  // Key is filename, value is SHA1
+      },
+      draft: false
+    };
+    
     const deployResponse = await axios.post(
       `https://api.netlify.com/api/v1/sites/${siteId}/deploys`,
-      { files: fileManifest },
+      deployPayload,
       { 
         headers: { 
           'Authorization': `Bearer ${netlifyToken}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 30000
       }
     );
+    
+    const deployId = deployResponse.data.id;
+    const requiredFiles = deployResponse.data.required || [];
+    const deployState = deployResponse.data.state;
+    
+    console.log(`✅ Deployment created: ${deployId}`);
+    console.log(`📋 Initial state: ${deployState}`);
+    console.log(`📁 Required files: ${requiredFiles.length > 0 ? requiredFiles.join(', ') : 'none'}`);
 
-    // 8. Upload required files in parallel
-    const { required } = deployResponse.data;
-    if (required && typeof required === 'object') {
-      await Promise.all(
-        Object.entries(required).map(async ([filePath, uploadUrl]) => {
-          const file = files.find(f => f.relativePath === filePath);
-          if (file) {
-            await axios.put(uploadUrl, file.content, {
-              headers: { 'Content-Type': 'application/octet-stream' },
-              maxContentLength: Infinity,
-              maxBodyLength: Infinity
-            });
+    // 4. Upload HTML file if required by Netlify
+    if (requiredFiles.includes(htmlSha1)) {
+      console.log('📤 Uploading HTML file to Netlify...');
+      
+      try {
+        await axios.put(
+          `https://api.netlify.com/api/v1/deploys/${deployId}/files/index.html`,
+          htmlContent,
+          {
+            headers: {
+              'Authorization': `Bearer ${netlifyToken}`,
+              'Content-Type': 'application/octet-stream'
+            },
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
+            timeout: 60000
           }
-        })
-      );
+        );
+        console.log('✅ HTML file uploaded successfully');
+      } catch (uploadError) {
+        console.error('❌ File upload failed:', uploadError.response?.data || uploadError.message);
+        throw new Error(`File upload failed: ${uploadError.response?.data?.message || uploadError.message}`);
+      }
+    } else {
+      console.log('ℹ️ No file upload required (file already exists on Netlify)');
     }
 
-    // 9. Poll deployment status with timeout
-    const startTime = Date.now();
-    const timeoutMs = 30000;
-    let deployStatus = 'building';
+    // 5. Poll deployment status until ready
+    console.log('⏳ Waiting for deployment to complete...');
+    let currentDeployState = deployState || 'building';
+    const maxAttempts = 60; // 2 minutes max
+    let attempts = 0;
+    const statusesToWaitFor = ['building', 'processing', 'uploading', 'prepared', 'preparing'];
 
-    while (deployStatus === 'building' && Date.now() - startTime < timeoutMs) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    while (statusesToWaitFor.includes(currentDeployState) && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      attempts++;
       
-      const statusResponse = await axios.get(
-        `https://api.netlify.com/api/v1/sites/${siteId}/deploys/${deployResponse.data.id}`,
+      try {
+        const statusResponse = await axios.get(
+          `https://api.netlify.com/api/v1/sites/${siteId}/deploys/${deployId}`,
+          { 
+            headers: { 'Authorization': `Bearer ${netlifyToken}` },
+            timeout: 10000
+          }
+        );
+        
+        currentDeployState = statusResponse.data.state;
+        const progress = `(${Math.round((Date.now() - startTime) / 1000)}s elapsed)`;
+        
+        console.log(`🔄 Deploy status check ${attempts}/60: ${currentDeployState} ${progress}`);
+        
+        // Break on error states
+        if (['error', 'crashed', 'cancelled'].includes(currentDeployState)) {
+          console.error(`❌ Deploy failed with status: ${currentDeployState}`);
+          break;
+        }
+        
+      } catch (statusError) {
+        console.warn(`⚠️ Status check ${attempts} failed:`, statusError.message);
+        if (attempts >= maxAttempts - 5) break;
+      }
+    }
+
+    // 6. Get final site information
+    let finalSiteData;
+    try {
+      const finalSiteResponse = await axios.get(
+        `https://api.netlify.com/api/v1/sites/${siteId}`,
         { headers: { 'Authorization': `Bearer ${netlifyToken}` } }
       );
-      deployStatus = statusResponse.data.state;
+      finalSiteData = finalSiteResponse.data;
+    } catch (siteError) {
+      console.warn('⚠️ Could not fetch final site data:', siteError.message);
+      finalSiteData = siteResponse.data;
     }
 
-    // 10. Get final site details
-    const siteDetails = await axios.get(
-      `https://api.netlify.com/api/v1/sites/${siteId}`,
-      { headers: { 'Authorization': `Bearer ${netlifyToken}` } }
-    );
-
-    // 11. Clean up
-    await fs.remove(deployFolderPath).catch(console.error);
+    const finalUrl = finalSiteData.ssl_url || finalSiteData.url;
+    const totalTime = Math.round((Date.now() - startTime) / 1000);
+    
+    console.log(`🎉 Deployment completed in ${totalTime}s`);
+    console.log(`🌍 Live URL: ${finalUrl}`);
+    console.log(`📊 Final status: ${currentDeployState}`);
 
     return res.json({
       success: true,
       deployment: {
-        url: siteDetails.data.ssl_url || siteDetails.data.url,
-        siteId: siteDetails.data.id,
-        deployId: deployResponse.data.id,
-        status: deployStatus,
-        folderName
-      }
+        url: finalUrl,
+        siteId: siteId,
+        deployId: deployId,
+        status: currentDeployState,
+        siteName: siteName,
+        deployTime: totalTime,
+        ready: currentDeployState === 'ready'
+      },
+      message: currentDeployState === 'ready' ? 
+        'Portfolio deployed successfully!' : 
+        `Portfolio deployed with status: ${currentDeployState}`
     });
 
   } catch (error) {
-    // Cleanup on error
-    if (deployFolderPath) {
-      await fs.remove(deployFolderPath).catch(console.error);
+    const totalTime = Math.round((Date.now() - startTime) / 1000);
+    console.error(`❌ Deployment failed after ${totalTime}s:`, error.response?.data || error.message);
+    
+    // Clean up failed site
+    if (siteId) {
+      try {
+        console.log('🧹 Attempting to clean up failed site...');
+        await axios.delete(`https://api.netlify.com/api/v1/sites/${siteId}`, {
+          headers: { 'Authorization': `Bearer ${netlifyToken}` }
+        });
+        console.log('✅ Failed site cleaned up successfully');
+      } catch (cleanupError) {
+        console.warn('⚠️ Could not clean up failed site:', cleanupError.message);
+      }
     }
-
-    console.error('Deployment error:', error);
     
     const errorResponse = {
       success: false,
       error: 'Deployment failed',
-      details: error.message
+      details: error.message,
+      deployTime: totalTime
     };
 
-    if (error.response) {
-      errorResponse.error = error.response.data.error || error.response.statusText;
-      errorResponse.details = error.response.data.message;
-      console.error('Netlify API error:', error.response.data);
+    // Handle specific Netlify API error cases
+    if (error.response?.data) {
+      if (error.response.data.error) {
+        errorResponse.error = error.response.data.error;
+      }
+      if (error.response.data.message) {
+        errorResponse.details = error.response.data.message;
+      }
+      
+      if (error.response.status === 401) {
+        errorResponse.error = 'Invalid Netlify token';
+        errorResponse.details = 'Please check your Netlify Personal Access Token';
+      } else if (error.response.status === 403) {
+        errorResponse.error = 'Insufficient permissions';
+        errorResponse.details = 'Your Netlify token does not have permission to create sites';
+      } else if (error.response.status === 422) {
+        errorResponse.error = 'Invalid request data';
+        errorResponse.details = 'The HTML content or site name may be invalid';
+      }
     }
 
-    return res.status(500).json(errorResponse);
+    const statusCode = error.response?.status || 500;
+    return res.status(statusCode).json(errorResponse);
   }
 });
 
@@ -1522,121 +1600,6 @@ const ensureSheetHeaders = async () => {
 
 ensureSheetHeaders();
 
-const deployPortfolioToNetlify = async (portfolioFolder, token) => {
-  if (!token) throw new Error('Netlify access token is required');
-  if (!portfolioFolder) throw new Error('Portfolio folder is required');
-
-  const baseUrl = 'https://api.netlify.com/api/v1';
-  
-  try {
-    console.log('Starting Netlify deployment...');
-
-    // First, create an empty site
-    const siteResponse = await axios.post(`${baseUrl}/sites`, {
-      name: `portfolio-${Date.now()}`
-    }, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const site = siteResponse.data;
-    console.log('Created Netlify site:', site.name, site.id);
-
-    // Read all files from the portfolio folder
-    const files = await fs.readdir(portfolioFolder);
-    const fileUploads = {};
-
-    for (const fileName of files) {
-      const filePath = path.join(portfolioFolder, fileName);
-      const stats = await fs.stat(filePath);
-      
-      if (stats.isFile()) {
-        console.log('Processing file:', fileName);
-        const fileContent = await fs.readFile(filePath);
-        
-        // For text files, use UTF-8, for binary files use base64
-        const isTextFile = fileName.endsWith('.html') || fileName.endsWith('.css') || fileName.endsWith('.js') || fileName.endsWith('.txt');
-        
-        if (isTextFile) {
-          fileUploads[fileName] = fileContent.toString('utf8');
-        } else {
-          // Binary files (images, etc.)
-          fileUploads[fileName] = {
-            content: fileContent.toString('base64'),
-            encoding: 'base64'
-          };
-        }
-      }
-    }
-
-    console.log('Files prepared for upload:', Object.keys(fileUploads));
-
-    // Deploy the files
-    const deployResponse = await axios.post(`${baseUrl}/sites/${site.id}/deploys`, {
-      files: fileUploads
-    }, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const deployment = deployResponse.data;
-    console.log('Deployment created:', deployment.id);
-
-    // Wait for deployment to complete
-    let deploymentStatus = 'building';
-    let attempts = 0;
-    const maxAttempts = 30; // 30 seconds timeout
-
-    while (deploymentStatus === 'building' && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      attempts++;
-
-      try {
-        const statusResponse = await axios.get(`${baseUrl}/sites/${site.id}/deploys/${deployment.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        deploymentStatus = statusResponse.data.state;
-        console.log(`Deployment status (attempt ${attempts}):`, deploymentStatus);
-      } catch (statusError) {
-        console.warn('Could not check deployment status:', statusError.message);
-        break; // Continue anyway
-      }
-    }
-
-    const finalUrl = site.ssl_url || site.url || `https://${site.subdomain}.netlify.app`;
-    
-    return {
-      url: finalUrl,
-      siteId: site.id,
-      deployId: deployment.id,
-      siteName: site.name,
-      subdomain: site.subdomain,
-      platform: 'Netlify',
-      deployedAt: new Date().toISOString(),
-      status: deploymentStatus
-    };
-
-  } catch (error) {
-    console.error('Netlify deployment failed:', error);
-    
-    if (error.response) {
-      console.error('Netlify API Error:', error.response.status, error.response.data);
-      throw new Error(`Netlify API Error: ${error.response.data.message || error.response.statusText}`);
-    } else if (error.request) {
-      console.error('Network Error:', error.message);
-      throw new Error('Network error: Could not reach Netlify API');
-    } else {
-      throw new Error(`Deployment failed: ${error.message}`);
-    }
-  }
-};
-
 app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (req, res) => {
   const processingStartTime = Date.now();
   
@@ -2233,17 +2196,12 @@ app.get('/api/user-data', async (req, res) => {
 
 app.post('/api/ai-edit-portfolio', async (req, res) => {
   console.log('AI Edit Route Hit:', req.method, req.url);
-  console.log('Request body keys:', Object.keys(req.body || {}));
   
   try {
-    const { htmlContent, editRequest } = req.body;
-    
-    console.log('HTML Content received:', !!htmlContent);
-    console.log('Edit Request received:', !!editRequest);
+    const { htmlContent, editRequest, isContinuation, partialHtml } = req.body;
     
     // Validation
     if (!htmlContent || !editRequest) {
-      console.log('Missing required fields');
       return res.status(400).json({
         success: false,
         error: 'Missing required fields',
@@ -2252,7 +2210,6 @@ app.post('/api/ai-edit-portfolio', async (req, res) => {
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      console.log('Missing Anthropic API key');
       return res.status(500).json({
         success: false,
         error: 'API Configuration Error',
@@ -2260,10 +2217,23 @@ app.post('/api/ai-edit-portfolio', async (req, res) => {
       });
     }
 
-    console.log('Making request to Anthropic API...');
+    // Determine if this is a continuation request
+    const shouldContinue = isContinuation && partialHtml;
 
-    // Prepare the prompt for Claude
-    const prompt = `You are a web design assistant that helps modify HTML/CSS based on user requests.
+    let prompt;
+    if (shouldContinue) {
+      // Continuation mode
+      prompt = `Continue editing the HTML below based on the previous edit request: "${editRequest}".
+      
+Current incomplete HTML:
+\`\`\`html
+${partialHtml}
+\`\`\`
+
+Please continue editing the HTML to fulfill the original request. Respond with ONLY the complete modified HTML.`;
+    } else {
+      // Initial edit request
+      prompt = `You are a web design assistant that helps modify HTML/CSS based on user requests.
 The user has provided their current HTML and wants to make the following changes:
 "${editRequest}"
 
@@ -2274,6 +2244,7 @@ ${htmlContent}
 
 Please respond with ONLY the modified HTML that implements the requested changes.
 The HTML should be complete and valid. Do not include any explanations or markdown formatting.`;
+    }
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -2281,8 +2252,6 @@ The HTML should be complete and valid. Do not include any explanations or markdo
       temperature: 0.7,
       messages: [{ role: 'user', content: prompt }]
     });
-
-    console.log('Received response from Anthropic API');
 
     let modifiedHtml = response.content[0].text.trim();
     
@@ -2293,25 +2262,90 @@ The HTML should be complete and valid. Do not include any explanations or markdo
       modifiedHtml = modifiedHtml.replace(/^```\n/, '').replace(/\n```$/, '');
     }
 
-    console.log('Sending successful response');
+    // Merge with partial HTML if this was a continuation
+    let finalHtml = shouldContinue ? htmlValidator.mergeHtmlParts(partialHtml, modifiedHtml) : modifiedHtml;
 
-    // Ensure we're sending valid JSON
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json({
+    // Check if the generation is complete
+    const validation = htmlValidator.validateCompleteness(finalHtml);
+    if (!validation.isComplete && validation.canContinue && !shouldContinue) {
+      // If initial request is incomplete, automatically continue
+      console.log('Initial edit incomplete, automatically continuing...');
+      const continuationResponse = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8000,
+        temperature: 0.7,
+        messages: [{
+          role: 'user',
+          content: `Continue editing the HTML below based on the previous edit request: "${editRequest}".
+          
+Current incomplete HTML:
+\`\`\`html
+${finalHtml}
+\`\`\`
+
+Please continue editing the HTML to fulfill the original request. Respond with ONLY the complete modified HTML.`
+        }]
+      });
+
+      let continuedHtml = continuationResponse.content[0].text.trim();
+      if (continuedHtml.startsWith('```html')) {
+        continuedHtml = continuedHtml.replace(/^```html\n/, '').replace(/\n```$/, '');
+      } else if (continuedHtml.startsWith('```')) {
+        continuedHtml = continuedHtml.replace(/^```\n/, '').replace(/\n```$/, '');
+      }
+
+      finalHtml = htmlValidator.mergeHtmlParts(finalHtml, continuedHtml);
+      
+      // Verify completion after continuation
+      const postContinuationValidation = htmlValidator.validateCompleteness(finalHtml);
+      if (!postContinuationValidation.isComplete) {
+        return res.json({
+          success: false,
+          incomplete: true,
+          partialHtml: finalHtml,
+          completionStatus: postContinuationValidation,
+          error: 'Edit still incomplete after continuation',
+          details: 'The AI response was cut off before completion. You may need to continue generation again.',
+          metadata: {
+            estimatedCompletion: postContinuationValidation.estimatedCompletion,
+            issues: postContinuationValidation.issues,
+            canContinue: postContinuationValidation.canContinue,
+            autoContinued: true
+          }
+        });
+      }
+    } else if (!validation.isComplete && !validation.canContinue) {
+      return res.json({
+        success: false,
+        incomplete: true,
+        partialHtml: finalHtml,
+        error: 'Edit incomplete and cannot continue',
+        details: 'The AI response was cut off before completion and cannot be automatically continued.',
+        metadata: {
+          issues: validation.issues,
+          canContinue: false,
+          autoContinued: false
+        }
+      });
+    }
+
+    res.json({
       success: true,
-      modifiedHtml,
+      modifiedHtml: finalHtml,
       metadata: {
         processedAt: new Date().toISOString(),
         request: editRequest,
         originalLength: htmlContent.length,
-        modifiedLength: modifiedHtml.length
+        modifiedLength: finalHtml.length,
+        isContinuation: shouldContinue,
+        autoContinued: !shouldContinue && validation.isComplete === false,
+        isComplete: true
       }
     });
 
   } catch (error) {
     console.error('AI Edit Error:', error);
     
-    // Handle specific error types
     if (error.message && error.message.includes('rate limit')) {
       return res.status(429).json({
         success: false,
@@ -2328,9 +2362,7 @@ The HTML should be complete and valid. Do not include any explanations or markdo
       });
     }
     
-    // Ensure we're sending valid JSON even in error cases
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'AI Edit Failed',
       details: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
@@ -2642,6 +2674,174 @@ app.post('/api/create-zip', async (req, res) => {
       success: false,
       error: 'Failed to create zip file',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+app.post('/api/track-deployment', async (req, res) => {
+  try {
+    const { name, email, title, userAgent, projectCount, tier } = req.body;
+    
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name and email are required'
+      });
+    }
+
+    // Create Google Sheets tracker for deployment tracking (GOOGLE_SHEETS_ID1)
+    const deploymentTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID1,
+      sheetName: process.env.GOOGLE_SHEETS_NAME1 || 'Deployments'
+    });
+
+    if (!deploymentTracker.initialized) {
+      return res.status(500).json({
+        success: false,
+        error: 'Google Sheets integration not configured for tracking'
+      });
+    }
+
+    // Ensure headers exist with the new format
+    const headers = await deploymentTracker.getHeaders();
+    if (!headers || headers.length === 0) {
+      const defaultHeaders = [
+        'Timestamp',
+        'Full Name',
+        'Email',
+        'Title',
+        'Generated URL',
+        'Browser (User Agent)',
+        'Projects Used',
+        'Device Type',
+        'Tier (Free/Student/Pro)'
+      ];
+      
+      await deploymentTracker.sheets.spreadsheets.values.update({
+        spreadsheetId: deploymentTracker.sheetId,
+        range: `${deploymentTracker.sheetName}!1:1`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [defaultHeaders],
+        },
+      });
+    }
+
+    // Determine device type from user agent
+    let deviceType = 'Desktop';
+    const userAgentLower = (userAgent || '').toLowerCase();
+    if (userAgentLower.includes('mobile')) {
+      deviceType = 'Mobile';
+    } else if (userAgentLower.includes('tablet')) {
+      deviceType = 'Tablet';
+    }
+
+    // Prepare data for the sheet
+    const sheetData = [
+      new Date().toISOString(), // Timestamp
+      name, // Full Name
+      email, // Email
+      title || '', // Title
+      '', // Generated URL (will be empty initially)
+      userAgent || 'Unknown', // Browser (User Agent)
+      projectCount || 0, // Projects Used
+      deviceType, // Device Type
+      tier || 'Free' // Tier
+    ];
+
+    // Append the data
+    await deploymentTracker.sheets.spreadsheets.values.append({
+      spreadsheetId: deploymentTracker.sheetId,
+      range: `${deploymentTracker.sheetName}!A:I`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: [sheetData],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Deployment tracked successfully'
+    });
+
+  } catch (error) {
+    console.error('Error tracking deployment:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to track deployment',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later'
+    });
+  }
+});
+
+app.post('/api/update-deployment-url', async (req, res) => {
+  try {
+    const { email, url } = req.body;
+    
+    if (!email || !url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and URL are required'
+      });
+    }
+
+    const deploymentTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID1,
+      sheetName: process.env.GOOGLE_SHEETS_NAME1 || 'Deployments'
+    });
+
+    if (!deploymentTracker.initialized) {
+      return res.status(500).json({
+        success: false,
+        error: 'Google Sheets integration not configured for tracking'
+      });
+    }
+
+    // Find the most recent record for this email
+    const response = await deploymentTracker.sheets.spreadsheets.values.get({
+      spreadsheetId: deploymentTracker.sheetId,
+      range: `${deploymentTracker.sheetName}!A:I`,
+    });
+
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex((row, index) => 
+      index > 0 && row[2] === email && !row[4] // Email matches and URL is empty
+    );
+
+    if (rowIndex === -1) {
+      return res.json({
+        success: true,
+        message: 'No matching deployment record found to update'
+      });
+    }
+
+    // Update the URL column (column E, index 4)
+    const updateRange = `${deploymentTracker.sheetName}!E${rowIndex + 1}`;
+    await deploymentTracker.sheets.spreadsheets.values.update({
+      spreadsheetId: deploymentTracker.sheetId,
+      range: updateRange,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[url]],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Deployment URL updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating deployment URL:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update deployment URL',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later'
     });
   }
 });

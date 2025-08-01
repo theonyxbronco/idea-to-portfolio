@@ -1,4 +1,4 @@
-// src/pages/Deployment.tsx - Updated with viral sharing
+// src/pages/Deployment.tsx
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,25 +29,7 @@ const Deployment = () => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  // Update the default deploymentData to include all required properties
-  const deploymentData = location.state || {
-    portfolioData: { 
-      personalInfo: { 
-        name: 'Sample Project',
-        title: 'Developer', // Added default title
-        bio: 'Sample bio'  // Added default bio
-      },
-      projects: [], // Ensure projects array exists
-      skills: [],   // Ensure skills array exists
-      experience: [] // Ensure experience array exists
-    },
-    deploymentUrl: 'https://amazing-portfolio-xyz.netlify.app',
-    platform: 'Netlify',
-    deployedAt: new Date().toISOString(),
-    generatedPortfolio: '' // Add default for generatedPortfolio
-  };
-
-  // Destructure with defaults
+  // Get deployment data from location state
   const { 
     portfolioData = {
       personalInfo: { name: '', title: '' },
@@ -56,8 +38,9 @@ const Deployment = () => {
     deploymentUrl = '', 
     platform = '', 
     deployedAt = new Date().toISOString(),
-    generatedPortfolio = ''
-  } = deploymentData;
+    generatedPortfolio = '',
+    metadata = {}
+  } = location.state || {};
 
   // Optional: Add validation before rendering ViralSharing
   const canRenderViralSharing = portfolioData?.personalInfo?.name && portfolioData?.personalInfo?.title;
@@ -108,7 +91,7 @@ const Deployment = () => {
       state: { 
         portfolioData, 
         generatedPortfolio,
-        metadata: location.state?.metadata 
+        metadata 
       } 
     });
   };
@@ -125,26 +108,40 @@ const Deployment = () => {
     <div className="min-h-screen bg-gradient-subtle">
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          {/* Header with Flow Progress */}
-          <div className="text-center mb-12">
-            {/* Flow Progress Indicator */}
-            <div className="flex justify-center items-center space-x-2 text-sm mb-6">
-              <div className="flex items-center space-x-1 text-green-600">
-                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span>Generated</span>
-              </div>
-              <div className="w-8 h-px bg-green-600"></div>
-              <div className="flex items-center space-x-1 text-green-600">
-                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span>Previewed</span>
-              </div>
-              <div className="w-8 h-px bg-green-600"></div>
-              <div className="flex items-center space-x-1 text-green-600">
-                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span>Deployed</span>
-              </div>
-            </div>
+          {/* Header with Action Buttons at the Top */}
+          <div className="flex justify-between items-center mb-8">
+            <Button
+              variant="outline"
+              onClick={handleBackToPreview}
+              className="shadow-soft"
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Back to Preview
+            </Button>
+            
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
+                onClick={() => window.open(deploymentUrl, '_blank')}
+                className="shadow-soft"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Live Site
+              </Button>
 
+              <Button
+                variant="build"
+                onClick={handleStartNew}
+                className="shadow-medium"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Create New Portfolio
+              </Button>
+            </div>
+          </div>
+
+          {/* Success Header */}
+          <div className="text-center mb-12">
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 bg-gradient-accent rounded-full flex items-center justify-center shadow-large">
                 <CheckCircle className="h-10 w-10 text-white" />
@@ -252,36 +249,6 @@ const Deployment = () => {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Navigation Options */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
-              <Button
-                variant="outline"
-                onClick={handleBackToPreview}
-                className="shadow-soft"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Back to Preview
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => window.open(deploymentUrl, '_blank')}
-                className="shadow-soft"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View Live Site
-              </Button>
-
-              <Button
-                variant="build"
-                onClick={handleStartNew}
-                className="shadow-medium"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Create New Portfolio
-              </Button>
-            </div>
 
             {/* Pro Features Teaser */}
             <Card className="shadow-medium border-0 bg-gradient-to-r from-purple-50 to-blue-50">

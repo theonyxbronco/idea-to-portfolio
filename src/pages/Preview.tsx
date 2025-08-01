@@ -6,21 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { 
-  ArrowLeft, Rocket, Download, Eye, Edit3, Check, X, 
+  ArrowLeft, Rocket, Eye, Edit3, Check, X, 
   Smartphone, Tablet, Monitor, Crown, Lock, Lightbulb,
   Type, Palette, Layout, Zap, AlertCircle, Save,
   Sparkles, ChevronRight, ExternalLink, Undo2, FileArchive
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 
 interface EditableRegion {
   id: string;
@@ -28,16 +20,6 @@ interface EditableRegion {
   content: string;
   selector: string;
   bounds: { top: number; left: number; width: number; height: number };
-}
-
-interface Suggestion {
-  id: string;
-  title: string;
-  description: string;
-  type: 'text' | 'style' | 'layout';
-  confidence: number;
-  action: () => void;
-  previewText?: string;
 }
 
 type ViewportSize = 'mobile' | 'tablet' | 'desktop';
@@ -54,14 +36,9 @@ const FreemiumEditPreview = () => {
   const [editingText, setEditingText] = useState('');
   const [htmlContent, setHtmlContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const { portfolioData, generatedPortfolio, metadata, isIncomplete } = location.state || {}; 
-  const [aiChatOpen, setAiChatOpen] = useState(false);
   const [aiRequest, setAiRequest] = useState('');
   const [isProcessingAiRequest, setIsProcessingAiRequest] = useState(false);
-  const [aiChatHistory, setAiChatHistory] = useState<Array<{request: string; timestamp: string}>>([]);
-  const [isDownloading, setIsDownloading] = useState(false);
   const originalHtml = typeof generatedPortfolio === 'string' 
     ? generatedPortfolio 
     : generatedPortfolio?.html || '';
@@ -90,103 +67,6 @@ const FreemiumEditPreview = () => {
     });
   }, [originalHtml, toast]);
 
-  // Generate suggestions based on content
-  const generateSuggestions = useCallback(() => {
-    const newSuggestions: Suggestion[] = [
-      {
-        id: 'improve-readability',
-        title: 'Improve Text Readability',
-        description: 'Increase line spacing and font size for better readability',
-        type: 'style',
-        confidence: 0.8,
-        action: () => {
-          const updatedHtml = htmlContent.replace(
-            /<style>/,
-            '<style>\nbody { line-height: 1.6; font-size: 16px; }'
-          );
-          setHtmlContent(updatedHtml);
-          setHasChanges(true);
-          toast({ title: "Style Updated", description: "Text readability improved" });
-        }
-      },
-      {
-        id: 'add-contact-button',
-        title: 'Add Contact Call-to-Action',
-        description: 'Make it easier for visitors to contact you',
-        type: 'text',
-        confidence: 0.9,
-        action: () => {
-          if (portfolioData.personalInfo.email) {
-            const contactButton = `<div style="text-align: center; margin: 2rem 0;"><a href="mailto:${portfolioData.personalInfo.email}" style="background: #3b82f6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Get In Touch</a></div>`;
-            const updatedHtml = htmlContent.replace('</body>', contactButton + '</body>');
-            setHtmlContent(updatedHtml);
-            setHasChanges(true);
-            toast({ title: "Contact Button Added", description: "Visitors can now easily reach out to you" });
-          }
-        },
-        previewText: 'Get In Touch'
-      },
-      {
-        id: 'improve-spacing',
-        title: 'Better Visual Spacing',
-        description: 'Add consistent spacing between sections',
-        type: 'layout',
-        confidence: 0.7,
-        action: () => {
-          const updatedHtml = htmlContent.replace(
-            /<style>/,
-            '<style>\n.section { margin-bottom: 3rem; } h1, h2, h3 { margin-top: 2rem; margin-bottom: 1rem; }'
-          );
-          setHtmlContent(updatedHtml);
-          setHasChanges(true);
-          toast({ title: "Spacing Improved", description: "Better visual hierarchy added" });
-        }
-      },
-      {
-        id: 'enhance-colors',
-        title: 'Enhance Color Contrast',
-        description: 'Improve accessibility with better color contrast',
-        type: 'style',
-        confidence: 0.6,
-        action: () => {
-          const updatedHtml = htmlContent.replace(
-            /<style>/,
-            '<style>\nbody { color: #1f2937; } h1, h2, h3 { color: #111827; }'
-          );
-          setHtmlContent(updatedHtml);
-          setHasChanges(true);
-          toast({ title: "Colors Enhanced", description: "Better contrast for accessibility" });
-        }
-      },
-      {
-        id: 'mobile-responsive',
-        title: 'Improve Mobile Experience',
-        description: 'Add responsive design improvements for mobile devices',
-        type: 'layout',
-        confidence: 0.8,
-        action: () => {
-          const mobileCSS = `
-@media (max-width: 768px) {
-  body { padding: 1rem; font-size: 14px; }
-  h1 { font-size: 1.8rem; }
-  h2 { font-size: 1.4rem; }
-  .container { max-width: 100%; }
-}`;
-          const updatedHtml = htmlContent.replace('</style>', mobileCSS + '</style>');
-          setHtmlContent(updatedHtml);
-          setHasChanges(true);
-          toast({ title: "Mobile Improved", description: "Better experience on small screens" });
-        }
-      }
-    ];
-    
-    setSuggestions(newSuggestions);
-  }, [htmlContent, portfolioData, toast]);
-
-  useEffect(() => {
-    generateSuggestions();
-  }, [generateSuggestions]);
-
   // Parse editable regions from HTML
   const parseEditableRegions = useCallback(() => {
     if (!iframeRef.current?.contentDocument) return;
@@ -194,13 +74,11 @@ const FreemiumEditPreview = () => {
     const doc = iframeRef.current.contentDocument;
     const regions: EditableRegion[] = [];
     
-    // Find text elements that can be edited
     const selectors = [
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', // Headings
-      'p', // Paragraphs
-      '.bio', '.about', '.description', // Common bio sections
-      '.project-title', '.project-description', // Project content
-      'button', '.btn', '.button' // Buttons
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'p', '.bio', '.about', '.description',
+      '.project-title', '.project-description',
+      'button', '.btn', '.button'
     ];
     
     selectors.forEach(selector => {
@@ -235,7 +113,6 @@ const FreemiumEditPreview = () => {
   const handleIframeLoad = useCallback(() => {
     if (!iframeRef.current?.contentDocument) return;
     
-    // Add hover styles for editable regions
     const style = iframeRef.current.contentDocument.createElement('style');
     style.textContent = `
       .freemium-editable {
@@ -272,7 +149,6 @@ const FreemiumEditPreview = () => {
     `;
     iframeRef.current.contentDocument.head.appendChild(style);
     
-    // Add click handlers to editable elements
     const addEditableHandlers = () => {
       const doc = iframeRef.current?.contentDocument;
       if (!doc) return;
@@ -286,13 +162,11 @@ const FreemiumEditPreview = () => {
           if (textContent && textContent.length > 3) {
             element.classList.add('freemium-editable');
             
-            // Add edit indicator
             const indicator = doc.createElement('div');
             indicator.className = 'freemium-edit-indicator';
             indicator.innerHTML = '✎';
             element.appendChild(indicator);
             
-            // Add click handler
             element.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -311,60 +185,39 @@ const FreemiumEditPreview = () => {
   }, [parseEditableRegions]);
 
   // Apply text edit
-const applyTextEdit = useCallback((regionId: string, newText: string) => {
-  if (!iframeRef.current?.contentDocument) return;
-  
-  const region = editableRegions.find(r => r.id === regionId);
-  if (!region) return;
-  
-  try {
-    const element = iframeRef.current.contentDocument.querySelector(region.selector);
-    if (element) {
-      element.textContent = newText;
-      
-      // Get the complete updated HTML
-      const newHtml = iframeRef.current.contentDocument.documentElement.outerHTML;
-      setHtmlContent(newHtml);
-      setHasChanges(true);
-      
-      // Update the region in our state
-      setEditableRegions(prev => 
-        prev.map(r => r.id === regionId ? { ...r, content: newText } : r)
-      );
-      
+  const applyTextEdit = useCallback((regionId: string, newText: string) => {
+    if (!iframeRef.current?.contentDocument) return;
+    
+    const region = editableRegions.find(r => r.id === regionId);
+    if (!region) return;
+    
+    try {
+      const element = iframeRef.current.contentDocument.querySelector(region.selector);
+      if (element) {
+        element.textContent = newText;
+        
+        const newHtml = iframeRef.current.contentDocument.documentElement.outerHTML;
+        setHtmlContent(newHtml);
+        setHasChanges(true);
+        
+        setEditableRegions(prev => 
+          prev.map(r => r.id === regionId ? { ...r, content: newText } : r)
+        );
+        
+        toast({
+          title: "Text Updated",
+          description: "Your changes have been applied",
+        });
+      }
+    } catch (error) {
+      console.error('Failed to apply text edit:', error);
       toast({
-        title: "Text Updated",
-        description: "Your changes have been applied",
+        title: "Update Failed",
+        description: "Could not apply the text change",
+        variant: "destructive",
       });
     }
-  } catch (error) {
-    console.error('Failed to apply text edit:', error);
-    toast({
-      title: "Update Failed",
-      description: "Could not apply the text change",
-      variant: "destructive",
-    });
-  }
-}, [editableRegions, toast]);
-
-useEffect(() => {
-  // Show disclaimer toast when preview loads if there are images
-  const hasImages = metadata?.imagesProcessed && 
-    (metadata.imagesProcessed.final > 0 || metadata.imagesProcessed.process > 0 || metadata.imagesProcessed.moodboard > 0);
-  
-  if (hasImages) {
-    const timer = setTimeout(() => {
-      toast({
-        title: "📸 Preview Note",
-        description: "Images may not display in this preview due to browser security. Your images will appear correctly when downloaded or deployed to the web.",
-        duration: 8000, // Show for 8 seconds
-        className: "border-blue-200 bg-blue-50 text-blue-900",
-      });
-    }, 1500); // Show after 1.5 seconds to let page settle
-
-    return () => clearTimeout(timer);
-  }
-}, [metadata, toast]);
+  }, [editableRegions, toast]);
 
   const handleSaveEdit = () => {
     if (activeEdit && editingText.trim()) {
@@ -392,178 +245,40 @@ useEffect(() => {
     }
   };
 
-  const handleDeploy = async () => {
-    if (isIncomplete) {
-      toast({
-        title: "Cannot Deploy Incomplete Portfolio",
-        description: "Please complete the generation first",
-        variant: "destructive",
-      });
-      return;
-    }
-  
+  const cleanHtmlForExport = (html: string): string => {
+    if (!html) return '';
+    
     try {
-      setIsDeploying(true);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
       
-      // Get Netlify token
-      let netlifyToken = import.meta.env.VITE_NETLIFY_TOKEN || 
-                        localStorage.getItem('netlifyToken');
-  
-      if (!netlifyToken) {
-        netlifyToken = prompt(
-          "Please enter your Netlify Personal Access Token:\n\n" +
-          "1. Go to netlify.com → User Settings → Applications\n" +
-          "2. Click 'New access token'\n" +
-          "3. Copy and paste it here"
-        );
-      }
-  
-      if (!netlifyToken?.trim()) {
-        toast({
-          title: "Netlify Token Required",
-          description: "You need a Netlify Personal Access Token to deploy",
-          variant: "destructive",
-        });
-        return;
-      }
-  
-      localStorage.setItem('netlifyToken', netlifyToken.trim());
-      toast({ title: "Preparing deployment..." });
-  
-      // Get current HTML and clean it
-      const currentHtml = iframeRef.current?.contentDocument?.documentElement.outerHTML || htmlContent;
-      const cleanedHtml = cleanHtmlForExport(currentHtml);
-  
-      // Deploy folder with HTML to Netlify
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/deploy-folder-to-netlify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          htmlContent: cleanedHtml,
-          netlifyToken: netlifyToken.trim(),
-          personName: portfolioData.personalInfo.name,
-          siteName: `${portfolioData.personalInfo.name.replace(/\s+/g, '-')}-portfolio`
-        }),
+      const editableElements = doc.querySelectorAll('.freemium-editable');
+      editableElements.forEach(el => {
+        el.classList.remove('freemium-editable');
       });
-  
-      const result = await response.json();
-  
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || `Deployment failed with status ${response.status}`);
-      }
-  
-      const { url } = result.deployment;
-  
-      // Save deployment info
-      const deploymentInfo = {
-        url,
-        deployedAt: new Date().toISOString(),
-        portfolioId: metadata?.portfolioId,
-        folderName: result.deployment.folderName
-      };
       
-      localStorage.setItem('lastDeployment', JSON.stringify(deploymentInfo));
-  
-      // Open deployed site after a short delay
-      setTimeout(() => {
-        window.open(url, '_blank');
-      }, 1500);
-  
-      toast({
-        title: "🚀 Portfolio Deployed!",
-        description: `Live at: ${url}`,
+      const indicators = doc.querySelectorAll('.freemium-edit-indicator');
+      indicators.forEach(el => el.remove());
+      
+      const styleTags = doc.querySelectorAll('style');
+      styleTags.forEach(styleTag => {
+        if (styleTag.textContent?.includes('freemium-editable') || 
+            styleTag.textContent?.includes('edit-indicator')) {
+          styleTag.remove();
+        }
       });
-  
+      
+      let cleanedHtml = doc.documentElement.outerHTML;
+      
+      if (!cleanedHtml.includes('<!DOCTYPE')) {
+        cleanedHtml = '<!DOCTYPE html>\n' + cleanedHtml;
+      }
+      
+      return cleanedHtml;
     } catch (error) {
-      console.error('Deployment error:', error);
-      toast({
-        variant: "destructive",
-        title: "Deployment Failed",
-        description: error instanceof Error ? error.message : 'Could not deploy portfolio',
-      });
-    } finally {
-      setIsDeploying(false);
+      console.warn('HTML cleaning failed, using original:', error);
+      return html;
     }
-  };
-
-  const cleanHtmlForExport = (html: string) => {
-    // Create a temporary DOM element to parse the HTML
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    
-    // Remove all elements with freemium-editable class
-    const editableElements = doc.querySelectorAll('.freemium-editable');
-    editableElements.forEach(el => {
-      el.classList.remove('freemium-editable');
-    });
-    
-    // Remove all edit indicators
-    const indicators = doc.querySelectorAll('.freemium-edit-indicator');
-    indicators.forEach(el => el.remove());
-    
-    // Remove our injected style tag (but keep others)
-    const styleTags = doc.querySelectorAll('style');
-    styleTags.forEach(styleTag => {
-      if (styleTag.textContent?.includes('freemium-editable')) {
-        styleTag.remove();
-      }
-    });
-    
-    // Return the cleaned HTML
-    return doc.documentElement.outerHTML;
-  };
-
-  const handleDownload = async () => {
-    try {
-      // Get the current HTML from the iframe
-      const currentHtml = iframeRef.current?.contentDocument?.documentElement.outerHTML || htmlContent;
-      
-      // Clean the HTML before saving
-      const cleanedHtml = cleanHtmlForExport(currentHtml);
-      
-      // Create a blob with the cleaned HTML
-      const blob = new Blob([cleanedHtml], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      
-      // Create download link
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${portfolioData.personalInfo.name.replace(/\s+/g, '_')}_portfolio.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-  
-      toast({
-        title: "Portfolio Downloaded",
-        description: "HTML file downloaded with all current edits",
-      });
-  
-    } catch (error) {
-      console.error('Download error:', error);
-      toast({
-        title: "Download Failed",
-        description: error instanceof Error ? error.message : 'Could not download portfolio',
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getSuggestionIcon = (type: string) => {
-    switch (type) {
-      case 'text': return Type;
-      case 'style': return Palette;
-      case 'layout': return Layout;
-      default: return Lightbulb;
-    }
-  };
-
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600 bg-green-100';
-    if (confidence >= 0.6) return 'text-blue-600 bg-blue-100';
-    return 'text-orange-600 bg-orange-100';
   };
 
   const handleAiEditRequest = async () => {
@@ -583,26 +298,15 @@ useEffect(() => {
         }),
       });
   
-      // First check if the response is OK
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
   
-      // Then try to parse the JSON
       const data = await response.json();
       
       if (data.success) {
         setHtmlContent(data.modifiedHtml);
         setHasChanges(true);
-        
-        // Update the chat history
-        setAiChatHistory(prev => [
-          ...prev,
-          {
-            request: aiRequest,
-            timestamp: new Date().toLocaleTimeString(),
-          }
-        ]);
         
         toast({
           title: "AI Edit Applied",
@@ -621,6 +325,235 @@ useEffect(() => {
     } finally {
       setIsProcessingAiRequest(false);
       setAiRequest('');
+    }
+  };
+
+  const handleDeploy = async () => {
+    if (isIncomplete) {
+      toast({
+        title: "Cannot Deploy Incomplete Portfolio",
+        description: "Please complete the generation first",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    try {
+      setIsDeploying(true);
+      
+      // Add tracking call here
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/track-deployment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: portfolioData.personalInfo.name,
+            email: portfolioData.personalInfo.email,
+            title: portfolioData.personalInfo.title,
+            userAgent: navigator.userAgent,
+            projectCount: portfolioData.projects.length,
+            tier: 'Free' // Default to Free tier
+          }),
+        });
+      } catch (trackingError) {
+        console.warn('Tracking failed:', trackingError);
+      }
+  
+      let netlifyToken = import.meta.env.VITE_NETLIFY_TOKEN || 
+                        localStorage.getItem('netlifyToken');
+  
+      if (!netlifyToken) {
+        netlifyToken = prompt(
+          "Please enter your Netlify Personal Access Token:\n\n" +
+          "1. Go to netlify.com → User Settings → Applications\n" +
+          "2. Click 'New access token'\n" +
+          "3. Give it a descriptive name (e.g., 'Portfolio Generator')\n" +
+          "4. Set expiration (recommended: 1 year)\n" +
+          "5. Copy and paste the token here"
+        );
+      }
+  
+      if (!netlifyToken?.trim()) {
+        toast({
+          title: "Netlify Token Required",
+          description: "You need a Netlify Personal Access Token to deploy",
+          variant: "destructive",
+        });
+        return;
+      }
+  
+      if (!netlifyToken.trim().match(/^[a-zA-Z0-9_-]+$/)) {
+        toast({
+          title: "Invalid Token Format",
+          description: "The token appears to be invalid. Please check and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+  
+      localStorage.setItem('netlifyToken', netlifyToken.trim());
+      
+      toast({ 
+        title: "Starting Deployment...",
+        description: "Preparing your portfolio for deployment",
+      });
+  
+      const currentHtml = iframeRef.current?.contentDocument?.documentElement.outerHTML || htmlContent;
+      const cleanedHtml = cleanHtmlForExport(currentHtml);
+  
+      if (!cleanedHtml || cleanedHtml.length < 100) {
+        throw new Error('Invalid HTML content - portfolio appears to be empty');
+      }
+  
+      if (!cleanedHtml.includes('<html') && !cleanedHtml.includes('<!DOCTYPE')) {
+        throw new Error('Invalid HTML structure - missing HTML document structure');
+      }
+  
+      const deployStartTime = Date.now();
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/deploy-folder-to-netlify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          htmlContent: cleanedHtml,
+          netlifyToken: netlifyToken.trim(),
+          personName: portfolioData.personalInfo.name || 'Portfolio',
+          metadata: {
+            generatedAt: new Date().toISOString(),
+            projectCount: (portfolioData.projects || []).length,
+            hasCustomizations: hasChanges
+          }
+        }),
+      });
+  
+      if (!response.ok) {
+        let errorMessage = `Deployment failed with status ${response.status}`;
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.details || errorData.error || errorMessage;
+          
+          if (response.status === 401) {
+            localStorage.removeItem('netlifyToken');
+            errorMessage = 'Invalid Netlify token. Please check your token and try again.';
+          } else if (response.status === 403) {
+            errorMessage = 'Insufficient permissions. Your Netlify token may not have site creation permissions.';
+          } else if (response.status === 429) {
+            errorMessage = 'Rate limit exceeded. Please wait a few minutes before trying again.';
+          } else if (response.status === 422) {
+            errorMessage = 'Invalid request data. Please try regenerating your portfolio.';
+          }
+          
+          console.error('Deployment API Error:', errorData);
+        } catch (parseError) {
+          console.error('Could not parse error response:', parseError);
+        }
+        
+        throw new Error(errorMessage);
+      }
+  
+      const result = await response.json();
+  
+      if (!result.success) {
+        throw new Error(result.error || result.details || 'Deployment failed for unknown reason');
+      }
+  
+      if (result.success) {
+        const { deployment } = result;
+        const deployTime = Math.round((Date.now() - deployStartTime) / 1000);
+  
+        // Update tracking with the deployment URL
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/update-deployment-url`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: portfolioData.personalInfo.email,
+              url: deployment.url
+            }),
+          });
+        } catch (updateError) {
+          console.warn('Failed to update deployment URL:', updateError);
+        }
+  
+        navigate('/deployment', {
+          state: {
+            portfolioData,
+            generatedPortfolio: cleanedHtml,
+            metadata: {
+              generatedAt: new Date().toISOString(),
+              projectCount: (portfolioData.projects || []).length,
+              hasCustomizations: hasChanges,
+              deployTime,
+              deployedAt: new Date().toISOString(),
+            },
+            deploymentUrl: deployment.url,
+            platform: 'Netlify',
+            isDeployed: true,
+          },
+        });
+  
+        return;
+      }
+  
+    } catch (error) {
+      console.error('Deployment error:', error);
+      
+      let userFriendlyMessage = 'An unexpected error occurred during deployment.';
+      let suggestions = 'Please try again in a few moments.';
+  
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        
+        if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          userFriendlyMessage = 'Network connection error during deployment.';
+          suggestions = 'Please check your internet connection and try again.';
+        } else if (errorMessage.includes('token') || errorMessage.includes('auth')) {
+          userFriendlyMessage = 'Authentication failed with Netlify.';
+          suggestions = 'Please check your Netlify token and try again.';
+          localStorage.removeItem('netlifyToken');
+        } else if (errorMessage.includes('rate limit')) {
+          userFriendlyMessage = 'Too many deployment requests.';
+          suggestions = 'Please wait a few minutes before trying again.';
+        } else if (errorMessage.includes('html') || errorMessage.includes('content')) {
+          userFriendlyMessage = 'Invalid portfolio content detected.';
+          suggestions = 'Try regenerating your portfolio and then deploy again.';
+        } else if (errorMessage.includes('permission')) {
+          userFriendlyMessage = 'Insufficient permissions for deployment.';
+          suggestions = 'Make sure your Netlify token has site creation permissions.';
+        } else {
+          userFriendlyMessage = error.message;
+        }
+      }
+  
+      toast({
+        variant: "destructive",
+        title: "Deployment Failed",
+        description: `${userFriendlyMessage} ${suggestions}`,
+        duration: 10000,
+      });
+  
+      console.group('🔍 Deployment Error Details');
+      console.log('Error:', error);
+      console.log('Portfolio Data:', {
+        name: portfolioData.personalInfo?.name,
+        htmlLength: htmlContent?.length,
+        hasProjects: (portfolioData.projects || []).length > 0,
+        hasChanges
+      });
+      console.log('Environment:', {
+        apiUrl: import.meta.env.VITE_API_URL,
+        hasStoredToken: !!localStorage.getItem('netlifyToken')
+      });
+      console.groupEnd();
+  
+    } finally {
+      setIsDeploying(false);
     }
   };
 
@@ -661,103 +594,6 @@ useEffect(() => {
                   Reset Changes
                 </Button>
               )}
-              
-              {/* AI Chat Dialog */}
-              <Dialog open={aiChatOpen} onOpenChange={setAiChatOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="shadow-soft">
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    AI Edit Assistant
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px]">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center">
-                      <Sparkles className="h-5 w-5 mr-2" />
-                      AI Edit Assistant
-                    </DialogTitle>
-                    <DialogDescription>
-                      Describe the changes you'd like to make to your portfolio
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <div className="space-y-4">
-                    {aiChatHistory.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium">Previous Requests</h4>
-                        <div className="border rounded-lg p-3 max-h-40 overflow-y-auto">
-                          {aiChatHistory.map((item, index) => (
-                            <div key={index} className="text-sm mb-2 last:mb-0">
-                              <div className="flex justify-between">
-                                <span className="font-medium">{item.request}</span>
-                                <span className="text-muted-foreground text-xs">{item.timestamp}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    <Textarea
-                      value={aiRequest}
-                      onChange={(e) => setAiRequest(e.target.value)}
-                      placeholder="Example: I want to make the header smaller and all the text varying shades of blue"
-                      className="min-h-[120px]"
-                      disabled={isProcessingAiRequest}
-                    />
-                    
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setAiChatOpen(false)}
-                        disabled={isProcessingAiRequest}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleAiEditRequest}
-                        disabled={isProcessingAiRequest || !aiRequest.trim()}
-                      >
-                        {isProcessingAiRequest ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-4 w-4 mr-2" />
-                            Apply Changes
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    
-                    <div className="text-xs text-muted-foreground flex items-center">
-                      <Lock className="h-3 w-3 mr-1" />
-                      Note: Only one AI edit is allowed per session
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Button
-  variant="outline"
-  size="sm"
-  onClick={handleDownload}
-  disabled={isDownloading}
->
-  {isDownloading ? (
-    <>
-      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-      Preparing...
-    </>
-  ) : (
-    <>
-      <Download className="h-4 w-4 mr-2" />
-      Download HTML
-    </>
-  )}
-</Button>
               
               <Button
                 onClick={handleDeploy}
@@ -909,87 +745,74 @@ useEffect(() => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Quick Suggestions */}
+              {/* Pro Upgrade */}
+              <Card className="shadow-medium border-0 bg-gradient-to-br from-purple-50 to-blue-50">
+                <CardContent className="p-4">
+                  <div className="text-center space-y-3">
+                    <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto">
+                      <Crown className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900">Unlock Pro Features</h3>
+                    <p className="text-xs text-gray-600">
+                      Upgrade for advanced visual editing, custom styling, and unlimited suggestions
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-1 text-xs text-gray-500">
+                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Visual Editor</span>
+                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Custom CSS</span>
+                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Advanced Layouts</span>
+                    </div>
+                    <Button 
+                      size="sm"
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-xs h-8"
+                      onClick={() => navigate('/pro-waitlist')}
+                    >
+                      <Crown className="h-3 w-3 mr-1" />
+                      Upgrade to Pro
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* AI Assistant */}
               <Card className="shadow-medium border-0">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    <span className="flex items-center">
-                      <Sparkles className="h-5 w-5 mr-2" />
-                      Quick Improvements
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowSuggestions(!showSuggestions)}
-                    >
-                      <ChevronRight className={cn(
-                        "h-4 w-4 transition-transform",
-                        showSuggestions && "rotate-90"
-                      )} />
-                    </Button>
+                  <CardTitle className="text-lg flex items-center">
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    AI Edit Assistant
                   </CardTitle>
                 </CardHeader>
-                
-                {showSuggestions && (
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {suggestions.slice(0, 3).map((suggestion) => {
-                        const Icon = getSuggestionIcon(suggestion.type);
-                        return (
-                          <div
-                            key={suggestion.id}
-                            className="p-3 border border-border rounded-lg hover:shadow-soft transition-shadow cursor-pointer"
-                            onClick={suggestion.action}
-                          >
-                            <div className="flex items-start space-x-3">
-                              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                                <Icon className="h-4 w-4 text-accent" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <h4 className="text-sm font-medium truncate">
-                                    {suggestion.title}
-                                  </h4>
-                                  <Badge 
-                                    variant="secondary" 
-                                    className={cn("text-xs", getConfidenceColor(suggestion.confidence))}
-                                  >
-                                    {Math.round(suggestion.confidence * 100)}%
-                                  </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground line-clamp-2">
-                                  {suggestion.description}
-                                </p>
-                                {suggestion.previewText && (
-                                  <p className="text-xs text-accent mt-1 font-mono">
-                                    Preview: "{suggestion.previewText}"
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                <CardContent className="pt-0">
+                  <div className="space-y-3">
+                    <Textarea
+                      value={aiRequest}
+                      onChange={(e) => setAiRequest(e.target.value)}
+                      placeholder="Describe changes you'd like to make..."
+                      className="min-h-[100px]"
+                      disabled={isProcessingAiRequest}
+                    />
+                    <Button
+                      onClick={handleAiEditRequest}
+                      disabled={isProcessingAiRequest || !aiRequest.trim()}
+                      className="w-full"
+                    >
+                      {isProcessingAiRequest ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Apply AI Changes
+                        </>
+                      )}
+                    </Button>
+                    <div className="text-xs text-muted-foreground flex items-center">
+                      <Lightbulb className="h-3 w-3 mr-1" />
+                      Example: "Make the header smaller and use blue colors"
                     </div>
-                    
-                    {suggestions.length > 3 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full mt-3 text-xs"
-                        onClick={() => {
-                          toast({
-                            title: "More Suggestions Available",
-                            description: "Upgrade to Pro for advanced suggestions and editing",
-                          });
-                        }}
-                      >
-                        View {suggestions.length - 3} More Suggestions
-                        <Crown className="h-3 w-3 ml-1" />
-                      </Button>
-                    )}
-                  </CardContent>
-                )}
+                  </div>
+                </CardContent>
               </Card>
 
               {/* Editing Instructions */}
@@ -1019,9 +842,9 @@ useEffect(() => {
                         <span className="text-xs font-bold text-green-600">2</span>
                       </div>
                       <div>
-                        <p className="font-medium">Apply Suggestions</p>
+                        <p className="font-medium">Use AI Assistant</p>
                         <p className="text-muted-foreground text-xs">
-                          Use quick improvements to enhance your portfolio
+                          Describe changes you want to make
                         </p>
                       </div>
                     </div>
@@ -1040,78 +863,6 @@ useEffect(() => {
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Pro Upgrade */}
-              <Card className="shadow-medium border-0 bg-gradient-to-br from-purple-50 to-blue-50">
-                <CardContent className="p-4">
-                  <div className="text-center space-y-3">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto">
-                      <Crown className="h-6 w-6 text-white" />
-                    </div>
-                    <h3 className="font-semibold text-gray-900">Want More Control?</h3>
-                    <p className="text-xs text-gray-600">
-                      Upgrade to Pro for advanced visual editing, custom styling, and unlimited suggestions
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-1 text-xs text-gray-500">
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Visual Editor</span>
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Custom CSS</span>
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Advanced Layouts</span>
-                    </div>
-                    <Button 
-                      size="sm"
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-xs h-8"
-                      onClick={() => navigate('/pro-waitlist')}
-                    >
-                      <Crown className="h-3 w-3 mr-1" />
-                      Upgrade to Pro
-                  </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Current Editable Elements */}
-              {editableRegions.length > 0 && (
-                <Card className="shadow-medium border-0">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">
-                      Editable Elements
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        {editableRegions.length}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {editableRegions.slice(0, 8).map((region) => (
-                        <div
-                          key={region.id}
-                          className="p-2 border border-border rounded text-xs hover:bg-accent/5 cursor-pointer transition-colors"
-                          onClick={() => {
-                            setActiveEdit(region.id);
-                            setEditingText(region.content);
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="capitalize text-muted-foreground">
-                              {region.type.replace('-', ' ')}
-                            </span>
-                            <Edit3 className="h-3 w-3 text-accent" />
-                          </div>
-                          <p className="font-medium line-clamp-1 text-foreground">
-                            {region.content}
-                          </p>
-                        </div>
-                      ))}
-                      
-                      {editableRegions.length > 8 && (
-                        <p className="text-xs text-muted-foreground text-center py-2">
-                          +{editableRegions.length - 8} more elements available
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </div>
 
@@ -1173,9 +924,9 @@ useEffect(() => {
                     <Sparkles className="h-4 w-4 text-green-600" />
                   </div>
                   <div>
-                    <p className="font-medium">AI Suggestions</p>
+                    <p className="font-medium">AI Assistant</p>
                     <p className="text-muted-foreground text-xs">
-                      Apply intelligent improvements to enhance your portfolio
+                      Describe changes you want to make to your portfolio
                     </p>
                   </div>
                 </div>
