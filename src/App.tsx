@@ -25,7 +25,7 @@ import Features from "@/pages/Features";
 import Pricing from "@/pages/Pricing";
 
 // New Modular Pages
-import UserPage from "@/pages/User";
+import UserPage from "@/pages/user";
 import ProjectsPage from "@/pages/projects";
 
 // Updated Components
