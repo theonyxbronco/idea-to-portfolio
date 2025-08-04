@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.local
+.env.development
+.git/
+.gitignore
+README.md
+*.log
+.DS_Store
+uploads/
+temp/
+test/
+.nyc_output/
+coverage/
