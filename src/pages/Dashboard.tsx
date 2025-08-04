@@ -20,10 +20,10 @@ import {
   FolderOpen,
   Edit,
   Trash2,
-  ImageIcon
+  ImageIcon,
+  Edit3
 } from 'lucide-react';
 import { API_BASE_URL } from '@/services/api';
-
 
 interface Portfolio {
   id: string;
@@ -33,6 +33,15 @@ interface Portfolio {
   deployUrl?: string;
   thumbnail?: string;
   lastModified: string;
+}
+
+interface Draft {
+  id: string;
+  name: string;
+  htmlContent: string;
+  createdAt: string;
+  lastModified: string;
+  status: 'draft';
 }
 
 interface Project {
@@ -55,12 +64,14 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userTags, setUserTags] = useState<string[]>([]);
   const [tier, setTier] = useState<string>('Free');
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [previewDraft, setPreviewDraft] = useState<Draft | null>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -77,6 +88,15 @@ const Dashboard = () => {
             setPortfolios(portfolioData.data.portfolios || []);
             setUserTags(portfolioData.data.tags || []);
             setTier(portfolioData.data.tier || 'Free');
+          }
+        }
+
+        // Fetch drafts
+        const draftsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/get-drafts?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);
+        if (draftsResponse.ok) {
+          const draftsData = await draftsResponse.json();
+          if (draftsData.success) {
+            setDrafts(draftsData.data || []);
           }
         }
 
@@ -126,7 +146,6 @@ const Dashboard = () => {
 
   const handleCreateNewPortfolio = () => {
     if (projects.length === 0) {
-      // If no projects, redirect to create projects first
       navigate('/create');
       return;
     }
@@ -144,7 +163,6 @@ const Dashboard = () => {
   const handleProceedToPortfolioBuilder = () => {
     if (selectedProjects.length === 0) return;
     
-    // Navigate to portfolio builder with selected projects
     navigate('/portfolio-builder', { 
       state: { 
         selectedProjectIds: selectedProjects,
@@ -157,6 +175,34 @@ const Dashboard = () => {
 
   const handleEditProjects = () => {
     navigate('/projects');
+  };
+
+  const handleLoadDraft = (draft: Draft) => {
+    navigate('/preview', {
+      state: {
+        portfolioData: {
+          personalInfo: {
+            name: 'Draft Portfolio',
+            email: 'draft@example.com' // You may need to store this in your draft
+          }
+        },
+        generatedPortfolio: {
+          html: draft.htmlContent
+        },
+        metadata: {
+          isDraft: true,
+          generatedAt: draft.createdAt,
+          lastModified: draft.lastModified,
+          title: draft.name
+        },
+        isDraft: true,
+        draftHtml: draft.htmlContent
+      }
+    });
+  };
+
+  const handlePreviewDraft = (draft: Draft) => {
+    setPreviewDraft(draft);
   };
 
   if (isLoading) {
@@ -215,7 +261,7 @@ const Dashboard = () => {
                     <FileText className="h-6 w-6 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{portfolios.length}</p>
+                    <p className="text-2xl font-bold">{portfolios.length + drafts.length}</p>
                     <p className="text-sm text-muted-foreground">Portfolios</p>
                   </div>
                 </div>
@@ -364,7 +410,7 @@ const Dashboard = () => {
           </div>
 
           {/* Portfolios Grid */}
-          {portfolios.length === 0 ? (
+          {portfolios.length === 0 && drafts.length === 0 ? (
             <Card className="shadow-large border-0">
               <CardContent className="p-12 text-center">
                 <div className="w-24 h-24 bg-gradient-accent rounded-full flex items-center justify-center mx-auto mb-6">
@@ -382,6 +428,62 @@ const Dashboard = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Render drafts first */}
+              {drafts.map((draft) => (
+                <Card key={draft.id} className="shadow-medium border-0 hover:shadow-large transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg truncate">{draft.name}</CardTitle>
+                      <Badge className="bg-yellow-100 text-yellow-800">
+                        <span className="flex items-center space-x-1">
+                          <FileText className="h-3 w-3" />
+                          <span className="capitalize">Draft</span>
+                        </span>
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    {/* Draft Preview */}
+                    <div 
+                      className="aspect-video bg-gradient-accent/10 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gradient-accent/20"
+                      onClick={() => handlePreviewDraft(draft)}
+                    >
+                      <div className="text-center">
+                        <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">Click to Preview Draft</p>
+                      </div>
+                    </div>
+
+                    {/* Draft Info */}
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center text-muted-foreground">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Created {new Date(draft.createdAt).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center text-muted-foreground">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Modified {new Date(draft.lastModified).toLocaleDateString()}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => handleLoadDraft(draft)}
+                      >
+                        <Edit3 className="h-4 w-4 mr-1" />
+                        Continue Editing
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {/* Render regular portfolios */}
               {portfolios.map((portfolio) => (
                 <Card key={portfolio.id} className="shadow-medium border-0 hover:shadow-large transition-shadow">
                   <CardHeader className="pb-3">
@@ -510,6 +612,45 @@ const Dashboard = () => {
             </DialogContent>
           </Dialog>
 
+          {/* Draft Preview Modal */}
+          <Dialog open={!!previewDraft} onOpenChange={(open) => !open && setPreviewDraft(null)}>
+            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Preview: {previewDraft?.name}</DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  This is a preview of your draft portfolio
+                </p>
+              </DialogHeader>
+              <div className="flex-1 overflow-hidden">
+                {previewDraft && (
+                  <iframe 
+                    srcDoc={previewDraft.htmlContent}
+                    className="w-full h-full border rounded-lg"
+                    sandbox="allow-same-origin"
+                    title="Draft Preview"
+                  />
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPreviewDraft(null)}>
+                  Close
+                </Button>
+                <Button 
+                  variant="build"
+                  onClick={() => {
+                    if (previewDraft) {
+                      handleLoadDraft(previewDraft);
+                      setPreviewDraft(null);
+                    }
+                  }}
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  Continue Editing
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Recent Activity Section */}
           <Card className="shadow-medium border-0 mt-8">
             <CardHeader>
@@ -517,12 +658,28 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {portfolios.length > 0 && (
+                {(portfolios.length > 0 || drafts.length > 0) && (
                   <>
                     <div className="flex items-center text-sm">
                       <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                       <span>
-                        Last portfolio: <strong>{portfolios[0].name}</strong> on {new Date(portfolios[0].lastModified).toLocaleDateString()}
+                        Last modified: <strong>{
+                          drafts.length > 0 && portfolios.length > 0 
+                            ? new Date(drafts[0].lastModified) > new Date(portfolios[0].lastModified)
+                              ? `Draft "${drafts[0].name}"`
+                              : `Portfolio "${portfolios[0].name}"`
+                            : drafts.length > 0
+                              ? `Draft "${drafts[0].name}"`
+                              : `Portfolio "${portfolios[0].name}"`
+                        }</strong> on {
+                          drafts.length > 0 && portfolios.length > 0 
+                            ? new Date(drafts[0].lastModified) > new Date(portfolios[0].lastModified)
+                              ? new Date(drafts[0].lastModified).toLocaleDateString()
+                              : new Date(portfolios[0].lastModified).toLocaleDateString()
+                            : drafts.length > 0
+                              ? new Date(drafts[0].lastModified).toLocaleDateString()
+                              : new Date(portfolios[0].lastModified).toLocaleDateString()
+                        }
                       </span>
                     </div>
                   </>

@@ -15,7 +15,7 @@ interface Project {
   id?: string;
   title: string;
   subtitle: string;
-  description: string;
+  overview: string; // Changed from description to overview
   category: string;
   customCategory: string;
   tags: string[];
@@ -59,7 +59,7 @@ const ProjectsPage = () => {
   const [currentProjects, setCurrentProjects] = useState<Project[]>([{
     title: '',
     subtitle: '',
-    description: '',
+    overview: '', // Changed from description to overview
     category: '',
     customCategory: '',
     tags: [],
@@ -111,7 +111,7 @@ const ProjectsPage = () => {
     setCurrentProjects(prev => [...prev, {
       title: '',
       subtitle: '',
-      description: '',
+      overview: '',
       category: '',
       customCategory: '',
       tags: [],
@@ -235,7 +235,8 @@ const ProjectsPage = () => {
         ...project,
         processImages: [], // Remove file objects for JSON
         finalProductImage: null,
-        userEmail: user?.primaryEmailAddress?.emailAddress
+        userEmail: user?.primaryEmailAddress?.emailAddress,
+        overview: project.overview 
       }));
       
       formData.append('projectsData', JSON.stringify(projectsData));
@@ -268,7 +269,7 @@ const ProjectsPage = () => {
         setCurrentProjects([{
           title: '',
           subtitle: '',
-          description: '',
+          overview: '',
           category: '',
           customCategory: '',
           tags: [],
@@ -389,7 +390,7 @@ const ProjectsPage = () => {
                       <CardContent className="p-4">
                         <h3 className="font-semibold text-lg mb-2 truncate">{project.title}</h3>
                         <p className="text-sm text-muted-foreground mb-2 truncate">{project.subtitle}</p>
-                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{project.description}</p>
+                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{project.overview}</p>
                         <div className="flex flex-wrap gap-1 mb-3">
                           <Badge variant="outline" className="text-xs">{project.category || project.customCategory}</Badge>
                           {project.tags.slice(0, 2).map((tag, idx) => (
@@ -510,8 +511,8 @@ const ProjectsPage = () => {
                   <div className="space-y-2">
                     <Label>Project Description</Label>
                     <Textarea
-                      value={project.description}
-                      onChange={(e) => updateProject(projectIndex, 'description', e.target.value)}
+                      value={project.overview}
+                      onChange={(e) => updateProject(projectIndex, 'overview', e.target.value)}
                       placeholder="Describe your project, process, and results..."
                       className="min-h-[100px] shadow-soft border-0 focus:ring-2 focus:ring-accent resize-none"
                     />

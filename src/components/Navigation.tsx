@@ -22,7 +22,7 @@ const Navigation = () => {
     <nav className="bg-[#FAFAFA]/80 backdrop-blur-[10px] shadow-md rounded-lg sticky top-[20px] z-50 w-auto m-[20px] py-5 px-10 border border-gray-200">
       <div className=" flex items-center justify-between">
         <Link to="/" className="text-2xl font-bold bg-primary bg-clip-text text-transparent">
-          PRODUCT
+          Prism
         </Link>
         
         <div className="hidden md:flex items-center space-x-20">

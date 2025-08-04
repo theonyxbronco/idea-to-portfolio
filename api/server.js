@@ -889,7 +889,6 @@ app.post('/api/update-project', upload.any(), async (req, res) => {
       });
     }
 
-    // Create Google Sheets tracker for projects
     const projectsTracker = new GoogleSheetsTracker({
       clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
       privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
@@ -904,10 +903,10 @@ app.post('/api/update-project', upload.any(), async (req, res) => {
       });
     }
 
-    // Find the existing project row
+    // Get all rows to find the exact row to update
     const response = await projectsTracker.sheets.spreadsheets.values.get({
       spreadsheetId: projectsTracker.sheetId,
-      range: `${projectsTracker.sheetName}!A:P`,
+      range: `${projectsTracker.sheetName}!A:Z`, // Get all columns
     });
 
     const rows = response.data.values || [];
@@ -922,6 +921,17 @@ app.post('/api/update-project', upload.any(), async (req, res) => {
       });
     }
 
+    // Get existing image metadata
+    let existingImageData = {};
+    try {
+      const existingMetadata = rows[projectRowIndex][11]; // Column L contains image metadata
+      if (existingMetadata) {
+        existingImageData = JSON.parse(existingMetadata);
+      }
+    } catch (error) {
+      console.warn('Could not parse existing image metadata');
+    }
+
     // Handle image updates if new files provided
     let savedImages = null;
     const projectFolder = path.join(tempDir, 'projects', projectData.id);
@@ -929,10 +939,8 @@ app.post('/api/update-project', upload.any(), async (req, res) => {
     if (files.length > 0) {
       try {
         if (cloudinaryUploader.initialized) {
-          console.log('🌩️ Uploading updated project images to Cloudinary...');
           savedImages = await cloudinaryUploader.uploadProjectImages(files, projectData.id, projectData.userEmail);
         } else {
-          console.log('⚠️ Cloudinary not configured, using local storage for updates');
           await fs.ensureDir(projectFolder);
           
           savedImages = {
@@ -941,7 +949,6 @@ app.post('/api/update-project', upload.any(), async (req, res) => {
             projectFolder: projectFolder
           };
 
-          // Process uploaded files
           for (const file of files) {
             const fieldName = file.fieldname || '';
             
@@ -982,21 +989,9 @@ app.post('/api/update-project', upload.any(), async (req, res) => {
       }
     }
 
-    // Get existing image metadata or create new
-    let existingImageData = {};
-    try {
-      const existingMetadata = rows[projectRowIndex][11]; // Column L contains image metadata
-      if (existingMetadata) {
-        existingImageData = JSON.parse(existingMetadata);
-      }
-    } catch (error) {
-      console.warn('Could not parse existing image metadata');
-    }
-
     // Merge existing and new image data
     let imageMetadata = {};
     if (cloudinaryUploader.initialized && savedImages) {
-      // Cloudinary format - use Cloudinary URLs
       imageMetadata = {
         processImages: [
           ...(existingImageData.processImages || []).filter(img => 
@@ -1031,12 +1026,11 @@ app.post('/api/update-project', upload.any(), async (req, res) => {
               height: savedImages.final.height,
               format: savedImages.final.format
             }]
-)] : (existingImageData.finalImages || []),
+          )] : (existingImageData.finalImages || []),
         folder: `portfolio${projectData.id}`,
         storageType: 'cloudinary'
       };
     } else {
-      // Local storage format
       imageMetadata = {
         processImages: [
           ...(existingImageData.processImages || []),
@@ -1055,23 +1049,23 @@ app.post('/api/update-project', upload.any(), async (req, res) => {
     }
 
     const updatedData = [
-      new Date().toISOString(), // Updated timestamp
-      projectData.userEmail, // Email (referral ID)
-      projectData.id, // Project ID
-      projectData.title || '',
-      projectData.subtitle || '',
-      projectData.overview || '',
-      projectData.category || projectData.customCategory || '',
-      projectData.customCategory || '',
-      (projectData.tags || []).join(', '),
-      imageMetadata.processImages.length, // Number of process images
-      imageMetadata.finalImages.length, // Number of final images
-      JSON.stringify(imageMetadata), // Image metadata JSON
-      'active' // Status
+      new Date().toISOString(), // Updated timestamp (A)
+      projectData.userEmail, // Email (B)
+      projectData.id, // Project ID (C)
+      projectData.title || '', // Title (D)
+      projectData.subtitle || '', // Subtitle (E)
+      projectData.overview || '', // Overview (F) - This was missing!
+      projectData.category || projectData.customCategory || '', // Category (G)
+      projectData.customCategory || '', // Custom Category (H)
+      (projectData.tags || []).join(', '), // Tags (I)
+      imageMetadata.processImages.length, // Process images count (J)
+      imageMetadata.finalImages.length, // Final images count (K)
+      JSON.stringify(imageMetadata), // Image metadata (L)
+      'active' // Status (M)
     ];
-    
-    // Update the row in Google Sheets
-    const actualRowIndex = projectRowIndex + 1;
+
+    // Update the specific row
+    const actualRowIndex = projectRowIndex + 1; // Convert to 1-based index
     await projectsTracker.sheets.spreadsheets.values.update({
       spreadsheetId: projectsTracker.sheetId,
       range: `${projectsTracker.sheetName}!A${actualRowIndex}:M${actualRowIndex}`,
@@ -1192,7 +1186,6 @@ app.delete('/api/delete-project', async (req, res) => {
       });
     }
 
-    // Create Google Sheets tracker for projects
     const projectsTracker = new GoogleSheetsTracker({
       clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
       privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
@@ -1207,10 +1200,10 @@ app.delete('/api/delete-project', async (req, res) => {
       });
     }
 
-    // Find the project row
+    // Get all rows to find the exact row to delete
     const response = await projectsTracker.sheets.spreadsheets.values.get({
       spreadsheetId: projectsTracker.sheetId,
-      range: `${projectsTracker.sheetName}!A:P`,
+      range: `${projectsTracker.sheetName}!A:Z`,
     });
 
     const rows = response.data.values || [];
@@ -1229,7 +1222,7 @@ app.delete('/api/delete-project', async (req, res) => {
     const actualRowIndex = projectRowIndex + 1; // Convert to 1-based index
     await projectsTracker.sheets.spreadsheets.values.update({
       spreadsheetId: projectsTracker.sheetId,
-      range: `${projectsTracker.sheetName}!P${actualRowIndex}`,
+      range: `${projectsTracker.sheetName}!M${actualRowIndex}`, // Status column
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [['deleted']],
@@ -1239,7 +1232,33 @@ app.delete('/api/delete-project', async (req, res) => {
     // Clean up project files
     const projectFolder = path.join(tempDir, 'projects', projectId);
     if (await fs.pathExists(projectFolder)) {
-      await fs.remove(projectFolder);
+      await fs.remove(projectFolder).catch(() => {});
+    }
+
+    if (cloudinaryUploader.initialized) {
+      try {
+        // Get image metadata to delete from Cloudinary
+        const imageMetadata = rows[projectRowIndex][11]; // Column L
+        if (imageMetadata) {
+          const parsedMetadata = JSON.parse(imageMetadata);
+          if (parsedMetadata.storageType === 'cloudinary') {
+            // Delete process images
+            if (parsedMetadata.processImages) {
+              await Promise.all(parsedMetadata.processImages.map(img => 
+                cloudinaryUploader.deleteImage(img.publicId).catch(() => {})
+              ));
+            }
+            // Delete final images
+            if (parsedMetadata.finalImages) {
+              await Promise.all(parsedMetadata.finalImages.map(img => 
+                cloudinaryUploader.deleteImage(img.publicId).catch(() => {})
+              ));
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error cleaning up Cloudinary images:', error);
+      }
     }
 
     console.log(`Successfully deleted project ${projectId} for: ${userEmail}`);
@@ -1602,6 +1621,132 @@ app.post('/api/save-multiple-projects', upload.any(), async (req, res) => {
   }
 });
 
+app.post('/api/save-draft', async (req, res) => {
+  try {
+    const { email, htmlContent } = req.body;
+    
+    if (!email || !htmlContent) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and HTML content are required'
+      });
+    }
+
+    // Create Google Sheets tracker for drafts
+    const draftsTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID3,
+      sheetName: process.env.GOOGLE_SHEETS_NAME4 || 'Portfolio Drafts'
+    });
+
+    if (!draftsTracker.initialized) {
+      return res.status(500).json({
+        success: false,
+        error: 'Google Sheets integration not configured for drafts'
+      });
+    }
+
+    // Prepare data for the sheet
+    const sheetData = [
+      new Date().toISOString(), // Timestamp
+      email,                    // Email
+      htmlContent               // HTML content
+    ];
+
+    // Append the data
+    await draftsTracker.sheets.spreadsheets.values.append({
+      spreadsheetId: draftsTracker.sheetId,
+      range: `${draftsTracker.sheetName}!A:C`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: [sheetData],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Draft saved successfully',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error saving draft:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save draft',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later'
+    });
+  }
+});
+
+app.get('/api/get-drafts', async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    const draftsTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID3,
+      sheetName: process.env.GOOGLE_SHEETS_NAME4 || 'Portfolio Drafts'
+    });
+
+    if (!draftsTracker.initialized) {
+      return res.status(500).json({
+        success: false,
+        error: 'Google Sheets integration not configured'
+      });
+    }
+
+    const response = await draftsTracker.sheets.spreadsheets.values.get({
+      spreadsheetId: draftsTracker.sheetId,
+      range: `${draftsTracker.sheetName}!A:C`,
+    });
+
+    const rows = response.data.values || [];
+    if (rows.length <= 1) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    // Filter drafts for this user (email in column B, index 1)
+    const userDrafts = rows
+      .slice(1) // Skip header row
+      .filter(row => row[1] === email)
+      .map(row => ({
+        id: `draft_${row[0]?.replace(/[^a-zA-Z0-9]/g, '_') || Date.now()}`,
+        name: `Draft from ${new Date(row[0]).toLocaleDateString()}`,
+        htmlContent: row[2] || '',
+        createdAt: row[0] || new Date().toISOString(),
+        lastModified: row[0] || new Date().toISOString(),
+        status: 'draft'
+      }));
+
+    res.json({
+      success: true,
+      data: userDrafts
+    });
+
+  } catch (error) {
+    console.error('Error fetching drafts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch drafts',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later'
+    });
+  }
+});
+
 const ensureSheetHeaders = async () => {
   try {
     // Ensure User Info sheet headers (GOOGLE_SHEETS_ID3/GOOGLE_SHEETS_NAME2)
@@ -1611,6 +1756,35 @@ const ensureSheetHeaders = async () => {
       sheetId: process.env.GOOGLE_SHEETS_ID3,
       sheetName: process.env.GOOGLE_SHEETS_NAME2 || 'User Info'
     });
+
+    const draftsTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID3,
+      sheetName: process.env.GOOGLE_SHEETS_NAME4 || 'Portfolio Drafts'
+    });
+
+if (draftsTracker.initialized) {
+  const draftsHeaders = await draftsTracker.getHeaders();
+  if (!draftsHeaders || draftsHeaders.length === 0) {
+    const defaultDraftHeaders = [
+      'Timestamp',
+      'Email',
+      'HTML content'
+    ];
+    
+    await draftsTracker.sheets.spreadsheets.values.update({
+      spreadsheetId: draftsTracker.sheetId,
+      range: `${draftsTracker.sheetName}!1:1`,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [defaultDraftHeaders],
+      },
+    });
+    
+    console.log('Portfolio Drafts sheet headers created');
+  }
+}
 
     if (userInfoTracker.initialized) {
       const userHeaders = await userInfoTracker.getHeaders();
@@ -2001,7 +2175,7 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
         html: validatedHTML,
         metadata: {
           title: `${portfolioData.personalInfo.name} - Portfolio`,
-          description: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
+          overvier: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
           generatedAt: new Date().toISOString(),
           processingTime: processingTimeMs,
           designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'intelligent'),
@@ -2810,7 +2984,7 @@ app.get('/api/info', (req, res) => {
   res.json({
     name: 'Portfolio Generator API',
     version: '1.0.0',
-    description: 'AI-powered portfolio generation using Anthropic Claude with computer vision image analysis',
+    overview: 'AI-powered portfolio generation using Anthropic Claude with computer vision image analysis',
     endpoints: {
       'POST /api/generate-portfolio': 'Generate portfolio from user data and images with AI analysis',
       'POST /api/download-portfolio': 'Download portfolio as ZIP file',

@@ -36,12 +36,11 @@ const FreemiumEditPreview = () => {
   const [editingText, setEditingText] = useState('');
   const [htmlContent, setHtmlContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
-  const { portfolioData, generatedPortfolio, metadata, isIncomplete } = location.state || {}; 
+  const { portfolioData, generatedPortfolio, metadata, isIncomplete, isDraft, draftHtml } = location.state || {}; 
   const [aiRequest, setAiRequest] = useState('');
   const [isProcessingAiRequest, setIsProcessingAiRequest] = useState(false);
-  const originalHtml = typeof generatedPortfolio === 'string' 
-    ? generatedPortfolio 
-    : generatedPortfolio?.html || '';
+  const originalHtml = isDraft ? draftHtml : 
+    (typeof generatedPortfolio === 'string' ? generatedPortfolio : generatedPortfolio?.html || '');
 
   if (!portfolioData || !generatedPortfolio) {
     React.useEffect(() => {
@@ -49,6 +48,8 @@ const FreemiumEditPreview = () => {
     }, [navigate]);
     return null;
   }
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [lastSavedDraft, setLastSavedDraft] = useState<string | null>(null);
 
   // Initialize HTML content
   useEffect(() => {
@@ -79,8 +80,7 @@ const FreemiumEditPreview = () => {
       'p', '.bio', '.about', '.description',
       '.project-title', '.project-description',
       'button', '.btn', '.button'
-    ];
-    
+    ];    
     selectors.forEach(selector => {
       const elements = doc.querySelectorAll(selector);
       elements.forEach((element, index) => {
@@ -230,6 +230,60 @@ const FreemiumEditPreview = () => {
   const handleCancelEdit = () => {
     setActiveEdit(null);
     setEditingText('');
+  };
+
+  const handleSaveDraft = async () => {
+    if (!portfolioData?.personalInfo?.email) {
+      toast({
+        title: "Cannot Save Draft",
+        description: "No user email found in portfolio data",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    setIsSavingDraft(true);
+  
+    try {
+      const currentHtml = iframeRef.current?.contentDocument?.documentElement.outerHTML || htmlContent;
+      const cleanedHtml = cleanHtmlForExport(currentHtml);
+  
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/save-draft`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: portfolioData.personalInfo.email,
+          htmlContent: cleanedHtml
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      
+      if (data.success) {
+        setLastSavedDraft(new Date().toISOString());
+        toast({
+          title: "Draft Saved",
+          description: "Your portfolio has been saved as a draft",
+        });
+      } else {
+        throw new Error(data.error || 'Failed to save draft');
+      }
+    } catch (error) {
+      console.error('Draft Save Error:', error);
+      toast({
+        variant: "destructive",
+        title: "Failed to Save Draft",
+        description: error.message || 'Could not save your draft',
+      });
+    } finally {
+      setIsSavingDraft(false);
+    }
   };
 
   const getViewportClasses = () => {
@@ -570,7 +624,7 @@ const FreemiumEditPreview = () => {
                 className="shadow-soft"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Preview
+                Back to Dashboard
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-foreground flex items-center">
@@ -594,7 +648,24 @@ const FreemiumEditPreview = () => {
                   Reset Changes
                 </Button>
               )}
-              
+              <Button
+                variant="outline"
+                onClick={handleSaveDraft}
+                disabled={isSavingDraft}
+                className="flex items-center"
+              >
+                {isSavingDraft ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save as Draft
+                  </>
+                )}
+              </Button>
               <Button
                 onClick={handleDeploy}
                 variant="build"
