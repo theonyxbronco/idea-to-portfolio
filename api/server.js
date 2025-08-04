@@ -383,10 +383,9 @@ app.post('/api/deploy-folder-to-netlify', async (req, res) => {
   }
 });
 
-
 app.post('/api/save-user-info', async (req, res) => {
   try {
-    const { personalInfo, userEmail } = req.body;
+    const { personalInfo, userEmail, tier } = req.body;
     
     if (!personalInfo || !userEmail) {
       return res.status(400).json({
@@ -423,7 +422,7 @@ app.post('/api/save-user-info', async (req, res) => {
     try {
       const response = await userInfoTracker.sheets.spreadsheets.values.get({
         spreadsheetId: userInfoTracker.sheetId,
-        range: `${userInfoTracker.sheetName}!A:N`, // Covers all columns A-N
+        range: `${userInfoTracker.sheetName}!A:L`, // Updated to include Tier column (L)
       });
 
       const rows = response.data.values || [];
@@ -453,7 +452,7 @@ app.post('/api/save-user-info', async (req, res) => {
     };
 
     // Prepare user data matching User Info sheet structure:
-    // Timestamp | Email | Name | Title | Bio | Phone | LinkedIn | Instagram | Skills | Experiences | Education
+    // Timestamp | Email | Name | Title | Bio | Phone | LinkedIn | Instagram | Skills | Experiences | Education | Tier
     const userData = [
       new Date().toISOString(),                          // A: Timestamp
       userEmail,                                         // B: Email
@@ -465,15 +464,16 @@ app.post('/api/save-user-info', async (req, res) => {
       personalInfo.instagram || '',                      // H: Instagram
       skillsToString(personalInfo.skills),               // I: Skills (comma-separated)
       arrayToJson(personalInfo.experiences),             // J: Experiences (JSON array)
-      arrayToJson(personalInfo.education)                // K: Education (JSON array)
+      arrayToJson(personalInfo.education),               // K: Education (JSON array)
+      tier || 'Free'                                     // L: Tier (default to Free)
     ];
 
     if (existingRowIndex !== null && existingRowIndex !== -1) {
-      // Update existing row (columns A-K)
+      // Update existing row (columns A-L)
       const actualRowIndex = existingRowIndex + 1;
       await userInfoTracker.sheets.spreadsheets.values.update({
         spreadsheetId: userInfoTracker.sheetId,
-        range: `${userInfoTracker.sheetName}!A${actualRowIndex}:K${actualRowIndex}`,
+        range: `${userInfoTracker.sheetName}!A${actualRowIndex}:L${actualRowIndex}`,
         valueInputOption: 'USER_ENTERED',
         resource: {
           values: [userData],
@@ -485,7 +485,7 @@ app.post('/api/save-user-info', async (req, res) => {
       // Add new row
       await userInfoTracker.sheets.spreadsheets.values.append({
         spreadsheetId: userInfoTracker.sheetId,
-        range: `${userInfoTracker.sheetName}!A:K`,
+        range: `${userInfoTracker.sheetName}!A:L`,
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         resource: {
@@ -500,6 +500,7 @@ app.post('/api/save-user-info', async (req, res) => {
       success: true,
       message: existingRowIndex !== -1 ? 'User information updated' : 'User information saved',
       timestamp: new Date().toISOString(),
+      tier: tier || 'Free',
       sheetUsed: `${process.env.GOOGLE_SHEETS_ID3}/${process.env.GOOGLE_SHEETS_NAME2 || 'User Info'}`
     });
 
@@ -542,7 +543,7 @@ app.get('/api/get-user-info', async (req, res) => {
     // Get all data from the sheet
     const response = await userInfoTracker.sheets.spreadsheets.values.get({
       spreadsheetId: userInfoTracker.sheetId,
-      range: `${userInfoTracker.sheetName}!A:K`,
+      range: `${userInfoTracker.sheetName}!A:L`, // Updated to include Tier column
     });
 
     const rows = response.data.values || [];
@@ -603,7 +604,10 @@ app.get('/api/get-user-info', async (req, res) => {
       
       // Keep original fields for backward compatibility
       experience: userRow[9] || '',
-      educationText: userRow[10] || ''
+      educationText: userRow[10] || '',
+      
+      // NEW: Include tier information
+      tier: userRow[11] || 'Free' // L: Tier column
     };
 
     res.json({
@@ -621,6 +625,7 @@ app.get('/api/get-user-info', async (req, res) => {
   }
 });
 
+
 const ensureUserInfoSheetHeaders = async () => {
   try {
     // Ensure User Info sheet headers with correct configuration
@@ -633,8 +638,8 @@ const ensureUserInfoSheetHeaders = async () => {
 
     if (userInfoTracker.initialized) {
       const userHeaders = await userInfoTracker.getHeaders();
-      if (!userHeaders || userHeaders.length === 0) {
-        // Headers that match the save-user-info endpoint structure
+      if (!userHeaders || userHeaders.length === 0 || !userHeaders.includes('Tier (Free, Student, Pro)')) {
+        // Headers that match the save-user-info endpoint structure + Tier
         const defaultUserHeaders = [
           'Timestamp',              // A
           'Email',                  // B 
@@ -646,7 +651,8 @@ const ensureUserInfoSheetHeaders = async () => {
           'Instagram',              // H
           'Skills',                 // I
           'Experiences',            // J
-          'Education'               // K
+          'Education',              // K
+          'Tier (Free, Student, Pro)' // L - NEW COLUMN
         ];
         
         await userInfoTracker.sheets.spreadsheets.values.update({
@@ -658,7 +664,7 @@ const ensureUserInfoSheetHeaders = async () => {
           },
         });
         
-        console.log(`User Info sheet headers created in ${process.env.GOOGLE_SHEETS_ID3}/${process.env.GOOGLE_SHEETS_NAME2 || 'User Info'}`);
+        console.log(`User Info sheet headers updated with Tier column in ${process.env.GOOGLE_SHEETS_ID3}/${process.env.GOOGLE_SHEETS_NAME2 || 'User Info'}`);
       } else {
         console.log(`User Info sheet headers already exist in ${process.env.GOOGLE_SHEETS_ID3}/${process.env.GOOGLE_SHEETS_NAME2 || 'User Info'}`);
       }
@@ -1764,31 +1770,31 @@ const ensureSheetHeaders = async () => {
       sheetName: process.env.GOOGLE_SHEETS_NAME4 || 'Portfolio Drafts'
     });
 
-if (draftsTracker.initialized) {
-  const draftsHeaders = await draftsTracker.getHeaders();
-  if (!draftsHeaders || draftsHeaders.length === 0) {
-    const defaultDraftHeaders = [
-      'Timestamp',
-      'Email',
-      'HTML content'
-    ];
-    
-    await draftsTracker.sheets.spreadsheets.values.update({
-      spreadsheetId: draftsTracker.sheetId,
-      range: `${draftsTracker.sheetName}!1:1`,
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [defaultDraftHeaders],
-      },
-    });
-    
-    console.log('Portfolio Drafts sheet headers created');
-  }
-}
+    if (draftsTracker.initialized) {
+      const draftsHeaders = await draftsTracker.getHeaders();
+      if (!draftsHeaders || draftsHeaders.length === 0) {
+        const defaultDraftHeaders = [
+          'Timestamp',
+          'Email',
+          'HTML content'
+        ];
+        
+        await draftsTracker.sheets.spreadsheets.values.update({
+          spreadsheetId: draftsTracker.sheetId,
+          range: `${draftsTracker.sheetName}!1:1`,
+          valueInputOption: 'USER_ENTERED',
+          resource: {
+            values: [defaultDraftHeaders],
+          },
+        });
+        
+        console.log('Portfolio Drafts sheet headers created');
+      }
+    }
 
     if (userInfoTracker.initialized) {
       const userHeaders = await userInfoTracker.getHeaders();
-      if (!userHeaders || userHeaders.length === 0) {
+      if (!userHeaders || userHeaders.length === 0 || !userHeaders.includes('Tier (Free, Student, Pro)')) {
         const defaultUserHeaders = [
           'Timestamp',              // A
           'Email',                  // B 
@@ -1800,7 +1806,8 @@ if (draftsTracker.initialized) {
           'Instagram',              // H
           'Skills',                 // I
           'Experiences',            // J
-          'Education'               // K
+          'Education',              // K
+          'Tier (Free, Student, Pro)' // L - NEW COLUMN
         ];
         
         await userInfoTracker.sheets.spreadsheets.values.update({
@@ -1812,7 +1819,7 @@ if (draftsTracker.initialized) {
           },
         });
         
-        console.log('User Info sheet headers created');
+        console.log('User Info sheet headers created with Tier column');
       }
     }
 
