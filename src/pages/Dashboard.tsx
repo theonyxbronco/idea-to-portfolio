@@ -313,6 +313,49 @@ const Dashboard = () => {
             </Card>
           </div>
 
+                    {/* SHOWROOM CTA SECTION */}
+                    <Card className="shadow-large border-0 mb-12 bg-gradient-to-r from-purple-50 via-blue-50 to-indigo-50">
+            <CardContent className="p-8">
+              <div className="text-center space-y-4">
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+                    <Eye className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                
+                <h2 className="text-2xl font-bold text-gray-900">
+                  🌟 Discover Amazing Portfolios
+                </h2>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Get inspired by portfolios created with Prism. See what other creatives are building 
+                  and discover new talent from around the world.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
+                  <Button
+                    onClick={() => navigate('/showroom')}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold px-8 py-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                    size="lg"
+                  >
+                    <Eye className="h-5 w-5 mr-2" />
+                    Explore Portfolio Showroom
+                  </Button>
+                  
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      <span>Live Portfolios</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                      <span>AI Generated</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Your Projects Section */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">Your Projects</h2>

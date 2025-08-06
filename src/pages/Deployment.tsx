@@ -1,4 +1,3 @@
-// src/pages/Deployment.tsx
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +15,7 @@ import {
   Eye,
   Crown,
   Lock,
-  Share2,
+  Sparkles,
   TrendingUp
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -213,16 +212,85 @@ const Deployment = () => {
                 </div>
               </CardContent>
             </Card>
+            
+{/* SHOWROOM CTA - Very Important */}
+<Card className="shadow-large border-0 bg-gradient-to-r from-orange-50 via-red-50 to-pink-50">
+              <CardContent className="p-8">
+                <div className="text-center space-y-6">
+                  <div className="flex justify-center">
+                    <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-pink-600 rounded-full flex items-center justify-center animate-pulse">
+                      <TrendingUp className="h-10 w-10 text-white" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h2 className="text-3xl font-bold text-gray-900 flex items-center justify-center">
+                      🚀 Ready for More Opportunities?
+                    </h2>
+                    <p className="text-xl text-gray-700 font-medium">
+                      Want recruiters, friends, and family to discover your amazing work?
+                    </p>
+                    <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                      Showcase your portfolio in our <strong>public showroom</strong> where hiring managers, 
+                      potential clients, and fellow creatives browse for talent daily!
+                    </p>
+                  </div>
 
-            {/* VIRAL SHARING SECTION */}
-            {canRenderViralSharing && (
-              <ViralSharing 
-                portfolioData={portfolioData}
-                deploymentUrl={deploymentUrl}
-                isDeployed={true}
-                variant="deployed"
-              />
-            )}
+                  <div className="bg-white/60 rounded-lg p-6 max-w-md mx-auto">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">500+</div>
+                        <div className="text-gray-600">Daily Visitors</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-pink-600">Exclusive</div>
+                        <div className="text-gray-600">Recruitment Partners</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                    <Button
+                      onClick={() => {
+                        // For now, just navigate to showroom - you'll implement submission logic later
+                        window.open('/showroom', '_blank');
+                        toast({
+                          title: "🎉 Portfolio Submitted!",
+                          description: "Your portfolio will appear in our showroom within 24 hours after review.",
+                        });
+                      }}
+                      className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-bold text-lg px-8 py-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                      size="lg"
+                    >
+                      <Sparkles className="h-5 w-5 mr-2" />
+                      Add to Showroom - Get Noticed! 
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open('/showroom', '_blank')}
+                      className="border-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Browse Showroom First
+                    </Button>
+                  </div>
+
+                  <div className="text-xs text-gray-500 max-w-lg mx-auto">
+                    <strong>Note:</strong> Only high-quality portfolios are accepted. 
+                    Your portfolio will be reviewed within 24 hours before going live.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* VIRAL SHARING SECTION - Always show this! */}
+            <ViralSharing 
+              portfolioData={portfolioData}
+              deploymentUrl={deploymentUrl}
+              isDeployed={true}
+              variant="deployed"
+            />
 
             {/* Success Stats */}
             <Card className="shadow-medium border-0 bg-gradient-to-r from-green-50 to-blue-50">
@@ -321,7 +389,7 @@ const Deployment = () => {
                         <span className="text-xs font-bold text-orange-600">4</span>
                       </div>
                       <div>
-                        <p className="font-medium">Help Others Discover Moodi</p>
+                        <p className="font-medium">Help Others Discover Prism</p>
                         <p className="text-muted-foreground">Share your experience and help fellow creators find this tool</p>
                       </div>
                     </div>

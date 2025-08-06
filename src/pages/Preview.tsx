@@ -306,6 +306,7 @@ const FreemiumEditPreview = () => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
       
+      // Remove existing editable classes (existing code)
       const editableElements = doc.querySelectorAll('.freemium-editable');
       editableElements.forEach(el => {
         el.classList.remove('freemium-editable');
@@ -322,8 +323,48 @@ const FreemiumEditPreview = () => {
         }
       });
       
+      // 🚨 NEW: Fix navigation and emoji issues
       let cleanedHtml = doc.documentElement.outerHTML;
       
+      // Fix problematic navigation links
+      const navigationFixes = [
+        { pattern: /href=["']\/dashboard["']/gi, replacement: 'href="#about"' },
+        { pattern: /href=["']\/works["']/gi, replacement: 'href="#projects"' },
+        { pattern: /href=["']\/projects["']/gi, replacement: 'href="#projects"' },
+        { pattern: /href=["']\/portfolio["']/gi, replacement: 'href="#projects"' },
+        { pattern: /href=["']\#dashboard["']/gi, replacement: 'href="#about"' },
+        { pattern: /href=["']\#works["']/gi, replacement: 'href="#projects"' }
+      ];
+      
+      navigationFixes.forEach(({ pattern, replacement }) => {
+        cleanedHtml = cleanedHtml.replace(pattern, replacement);
+      });
+      
+      // Remove floating emoji animations
+      const emojiPatterns = [
+        /@keyframes\s+[^{]*emoji[^}]*\{[^}]+\}/gi,
+        /animation[^;]*emoji[^;]*;/gi,
+        /\.floating-emoji[^}]*\{[^}]+\}/gi,
+        /\.emoji-rain[^}]*\{[^}]+\}/gi,
+        /<div[^>]*class="[^"]*floating[^"]*emoji[^"]*"[^>]*>.*?<\/div>/gi
+      ];
+      
+      emojiPatterns.forEach(pattern => {
+        cleanedHtml = cleanedHtml.replace(pattern, '');
+      });
+      
+      // Remove problematic JavaScript
+      cleanedHtml = cleanedHtml.replace(
+        /window\.location\s*=\s*["'][^"']*["']/gi, 
+        '// navigation disabled for deployment'
+      );
+      
+      cleanedHtml = cleanedHtml.replace(
+        /location\.href\s*=\s*["'][^"']*["']/gi, 
+        '// navigation disabled for deployment'
+      );
+      
+      // Ensure proper DOCTYPE
       if (!cleanedHtml.includes('<!DOCTYPE')) {
         cleanedHtml = '<!DOCTYPE html>\n' + cleanedHtml;
       }
@@ -465,6 +506,14 @@ const FreemiumEditPreview = () => {
         throw new Error('Invalid HTML structure - missing HTML document structure');
       }
   
+      // 🆕 Extract project IDs from portfolioData
+      const projectIds = portfolioData.projects ? 
+        portfolioData.projects.map(project => project.id || `project_${Math.random().toString(36).substr(2, 9)}`) : 
+        [];
+  
+      console.log('📋 Deploying with project IDs:', projectIds);
+      console.log('👤 Deploying for user:', portfolioData.personalInfo.email);
+  
       const deployStartTime = Date.now();
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/deploy-folder-to-netlify`, {
         method: 'POST',
@@ -475,6 +524,8 @@ const FreemiumEditPreview = () => {
           htmlContent: cleanedHtml,
           netlifyToken: netlifyToken.trim(),
           personName: portfolioData.personalInfo.name || 'Portfolio',
+          userEmail: portfolioData.personalInfo.email, // 🆕 Add user email for tracking
+          projectIds: projectIds, // 🆕 Add project IDs array for tracking
           metadata: {
             generatedAt: new Date().toISOString(),
             projectCount: (portfolioData.projects || []).length,
@@ -545,6 +596,7 @@ const FreemiumEditPreview = () => {
               hasCustomizations: hasChanges,
               deployTime,
               deployedAt: new Date().toISOString(),
+              projectIds: projectIds, // 🆕 Pass project IDs to deployment page
             },
             deploymentUrl: deployment.url,
             platform: 'Netlify',
@@ -596,8 +648,10 @@ const FreemiumEditPreview = () => {
       console.log('Error:', error);
       console.log('Portfolio Data:', {
         name: portfolioData.personalInfo?.name,
+        email: portfolioData.personalInfo?.email,
         htmlLength: htmlContent?.length,
         hasProjects: (portfolioData.projects || []).length > 0,
+        projectIds: portfolioData.projects?.map(p => p.id || 'no-id'),
         hasChanges
       });
       console.log('Environment:', {
@@ -620,7 +674,7 @@ const FreemiumEditPreview = () => {
             <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
-                onClick={() => navigate('/preview', { state: location.state })}
+                onClick={() => navigate('/', { state: location.state })}
                 className="shadow-soft"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -941,10 +995,10 @@ const FreemiumEditPreview = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8 mt-8 border-t border-border">
             <Button
               variant="outline"
-              onClick={() => navigate('/preview', { state: location.state })}
+              onClick={() => navigate('/', { state: location.state })}
             >
               <Eye className="h-4 w-4 mr-2" />
-              Back to Preview
+              Back to Dashboard
             </Button>
             <Button
               variant="outline"

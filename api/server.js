@@ -38,6 +38,18 @@ const crypto = require('crypto');
 const imageParser = new ImageParser(anthropic);
 const promptGenerator = new PromptGenerator();
 
+const isValidCloudinaryUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  
+  // Check if it's a valid Cloudinary URL format
+  const cloudinaryRegex = /^https:\/\/res\.cloudinary\.com\/[a-zA-Z0-9_-]+\/image\/upload\/[a-zA-Z0-9\/_.-]+$/;
+  const isValid = cloudinaryRegex.test(url);
+  
+  // Additional check: ensure no nested URLs
+  const hasNestedUrls = (url.match(/https:\/\//g) || []).length > 1;
+  
+  return isValid && !hasNestedUrls;
+};
 
 app.use(securityHeaders);
 app.use(requestLogger);
@@ -139,7 +151,6 @@ const calculateSha = (content) => {
   return crypto.createHash('sha1').update(content).digest('hex');
 };
 
-// Recursively get all files with their paths and content
 const getFilesRecursively = async (dir) => {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const files = [];
@@ -161,7 +172,7 @@ const getFilesRecursively = async (dir) => {
 };
 
 app.post('/api/deploy-folder-to-netlify', async (req, res) => {
-  const { htmlContent, netlifyToken, personName } = req.body;
+  const { htmlContent, netlifyToken, personName, userEmail, projectIds } = req.body;
   
   if (!htmlContent || !netlifyToken || !personName) {
     return res.status(400).json({
@@ -317,6 +328,87 @@ app.post('/api/deploy-folder-to-netlify', async (req, res) => {
     console.log(`🌍 Live URL: ${finalUrl}`);
     console.log(`📊 Final status: ${currentDeployState}`);
 
+    // 🆕 TRACK DEPLOYMENT IN GOOGLE SHEETS (Portfolio Details)
+    if (userEmail && finalUrl && currentDeployState === 'ready') {
+      try {
+        console.log('📝 Tracking deployment in Portfolio Details sheet...');
+        
+        // Create Google Sheets tracker for Portfolio Details
+        const portfolioDetailsTracker = new GoogleSheetsTracker({
+          clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+          privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+          sheetId: process.env.GOOGLE_SHEETS_ID3, // Using GOOGLE_SHEETS_ID3
+          sheetName: process.env.GOOGLE_SHEETS_NAME5 || 'Portfolio Details' // Using GOOGLE_SHEETS_NAME5
+        });
+
+        if (portfolioDetailsTracker.initialized) {
+          // Ensure headers exist
+          const headers = await portfolioDetailsTracker.getHeaders();
+          if (!headers || headers.length === 0) {
+            const defaultHeaders = [
+              'Timestamp',
+              'Email', 
+              'Project ID(s)',
+              'Portfolio URL'
+            ];
+            
+            await portfolioDetailsTracker.sheets.spreadsheets.values.update({
+              spreadsheetId: portfolioDetailsTracker.sheetId,
+              range: `${portfolioDetailsTracker.sheetName}!1:1`,
+              valueInputOption: 'USER_ENTERED',
+              resource: {
+                values: [defaultHeaders],
+              },
+            });
+            
+            console.log('✅ Portfolio Details sheet headers created');
+          }
+
+          // Format project IDs as JSON object {"1":"ID_NAME", "2":"ID_NAME"}
+          let formattedProjectIds = '';
+          if (projectIds && Array.isArray(projectIds) && projectIds.length > 0) {
+            const projectIdObject = {};
+            projectIds.forEach((id, index) => {
+              projectIdObject[(index + 1).toString()] = id;
+            });
+            formattedProjectIds = JSON.stringify(projectIdObject);
+          } else if (typeof projectIds === 'string') {
+            // If single project ID passed as string
+            formattedProjectIds = JSON.stringify({"1": projectIds});
+          } else {
+            // Fallback if no project IDs provided
+            formattedProjectIds = JSON.stringify({"1": "unknown"});
+          }
+
+          // Prepare data for the sheet
+          const sheetData = [
+            new Date().toISOString(), // Timestamp
+            userEmail,                 // Email
+            formattedProjectIds,       // Project ID(s) as JSON
+            finalUrl                  // Portfolio URL
+          ];
+
+          // Append to sheet
+          await portfolioDetailsTracker.sheets.spreadsheets.values.append({
+            spreadsheetId: portfolioDetailsTracker.sheetId,
+            range: `${portfolioDetailsTracker.sheetName}!A:D`,
+            valueInputOption: 'USER_ENTERED',
+            insertDataOption: 'INSERT_ROWS',
+            resource: {
+              values: [sheetData],
+            },
+          });
+
+          console.log(`✅ Portfolio deployment tracked successfully for: ${userEmail}`);
+        } else {
+          console.warn('⚠️ Portfolio Details sheet tracker not initialized');
+        }
+      } catch (trackingError) {
+        console.error('❌ Error tracking portfolio deployment:', trackingError);
+        // Don't fail the entire deployment if tracking fails
+      }
+    }
+
     return res.json({
       success: true,
       deployment: {
@@ -380,6 +472,230 @@ app.post('/api/deploy-folder-to-netlify', async (req, res) => {
 
     const statusCode = error.response?.status || 500;
     return res.status(statusCode).json(errorResponse);
+  }
+});
+
+app.get('/api/get-showroom-portfolios', async (req, res) => {
+  try {
+    console.log('🎭 Starting showroom data fetch...');
+
+    // Create Google Sheets trackers for all three sheets
+    const portfolioDetailsTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID3,
+      sheetName: process.env.GOOGLE_SHEETS_NAME5 || 'Portfolio Details' // Deployment records
+    });
+
+    const userInfoTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID3,
+      sheetName: process.env.GOOGLE_SHEETS_NAME2 || 'User Info' // User information
+    });
+
+    const projectsTracker = new GoogleSheetsTracker({
+      clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+      privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
+      sheetId: process.env.GOOGLE_SHEETS_ID3,
+      sheetName: process.env.GOOGLE_SHEETS_NAME3 || 'Project Info' // Project details
+    });
+
+    // Check if all trackers are initialized
+    if (!portfolioDetailsTracker.initialized || !userInfoTracker.initialized || !projectsTracker.initialized) {
+      console.error('❌ One or more Google Sheets trackers not initialized');
+      return res.status(500).json({
+        success: false,
+        error: 'Google Sheets integration not configured properly'
+      });
+    }
+
+    console.log('✅ All Google Sheets trackers initialized');
+
+    // Fetch all data in parallel
+    const [portfolioDetailsResponse, userInfoResponse, projectsResponse] = await Promise.all([
+      portfolioDetailsTracker.sheets.spreadsheets.values.get({
+        spreadsheetId: portfolioDetailsTracker.sheetId,
+        range: `${portfolioDetailsTracker.sheetName}!A:D`, // Timestamp, Email, Project ID(s), Portfolio URL
+      }),
+      userInfoTracker.sheets.spreadsheets.values.get({
+        spreadsheetId: userInfoTracker.sheetId,
+        range: `${userInfoTracker.sheetName}!A:L`, // All user info columns
+      }),
+      projectsTracker.sheets.spreadsheets.values.get({
+        spreadsheetId: projectsTracker.sheetId,
+        range: `${projectsTracker.sheetName}!A:M`, // All project columns
+      })
+    ]);
+
+    console.log('📊 Data fetched from all sheets');
+
+    // Parse the data
+    const portfolioDetailsRows = portfolioDetailsResponse.data.values || [];
+    const userInfoRows = userInfoResponse.data.values || [];
+    const projectsRows = projectsResponse.data.values || [];
+
+    console.log(`📋 Found ${portfolioDetailsRows.length - 1} deployment records`);
+    console.log(`👥 Found ${userInfoRows.length - 1} user records`);
+    console.log(`📁 Found ${projectsRows.length - 1} project records`);
+
+    // Skip header rows and process deployment records
+    const deploymentRecords = portfolioDetailsRows.slice(1);
+    const userRecords = userInfoRows.slice(1);
+    const projectRecords = projectsRows.slice(1);
+
+    // Create lookup maps for efficient data matching
+    const userInfoMap = new Map();
+    userRecords.forEach(row => {
+      const email = row[1]; // Email is in column B (index 1)
+      if (email) {
+        userInfoMap.set(email, {
+          name: row[2] || '',           // C: Name
+          title: row[3] || '',          // D: Title  
+          bio: row[4] || '',            // E: Bio
+          phone: row[5] || '',          // F: Phone
+          linkedin: row[6] || '',       // G: LinkedIn
+          instagram: row[7] || '',      // H: Instagram
+          skills: row[8] ? row[8].split(',').map(s => s.trim()).filter(Boolean) : [], // I: Skills
+          experiences: row[9] || '',    // J: Experiences
+          education: row[10] || '',     // K: Education
+        });
+      }
+    });
+
+    const projectInfoMap = new Map();
+    projectRecords.forEach(row => {
+      const projectId = row[2]; // Project ID is in column C (index 2)
+      const status = row[12]; // Status is in column M (index 12)
+      
+      if (projectId && status === 'active') {
+        projectInfoMap.set(projectId, {
+          id: projectId,
+          title: row[3] || '',          // D: Title
+          subtitle: row[4] || '',       // E: Subtitle
+          overview: row[5] || '',       // F: Overview
+          category: row[6] || '',       // G: Category
+          customCategory: row[7] || '', // H: Custom Category
+          tags: row[8] ? row[8].split(',').map(t => t.trim()).filter(Boolean) : [], // I: Tags
+          createdAt: row[0] || '',      // A: Timestamp
+          processImagesCount: parseInt(row[9]) || 0, // J: Process Images Count
+          finalImagesCount: parseInt(row[10]) || 0,  // K: Final Images Count
+          imageMetadata: row[11] || '', // L: Image Metadata
+        });
+      }
+    });
+
+    console.log(`🗺️ Created lookup maps: ${userInfoMap.size} users, ${projectInfoMap.size} active projects`);
+
+    // Process deployment records and build portfolio data
+    const portfolios = [];
+    
+    for (const deploymentRow of deploymentRecords) {
+      try {
+        const timestamp = deploymentRow[0];     // A: Timestamp
+        const email = deploymentRow[1];         // B: Email
+        const projectIdsJson = deploymentRow[2]; // C: Project ID(s)
+        const portfolioUrl = deploymentRow[3];   // D: Portfolio URL
+
+        // Skip if missing essential data
+        if (!email || !portfolioUrl || !projectIdsJson) {
+          console.warn(`⚠️ Skipping incomplete deployment record: ${email}`);
+          continue;
+        }
+
+        // Get user info
+        const userInfo = userInfoMap.get(email);
+        if (!userInfo || !userInfo.name) {
+          console.warn(`⚠️ No user info found for: ${email}`);
+          continue;
+        }
+
+        // Parse project IDs from JSON
+        let projectIds = [];
+        try {
+          const parsedProjectIds = JSON.parse(projectIdsJson);
+          projectIds = Object.values(parsedProjectIds); // Extract values from {"1":"id1", "2":"id2"}
+        } catch (parseError) {
+          console.warn(`⚠️ Could not parse project IDs for ${email}:`, projectIdsJson);
+          continue;
+        }
+
+        // Get project details
+        const projects = [];
+        for (const projectId of projectIds) {
+          const projectInfo = projectInfoMap.get(projectId);
+          if (projectInfo) {
+            projects.push(projectInfo);
+          } else {
+            console.warn(`⚠️ Project not found: ${projectId}`);
+          }
+        }
+
+        // Only include portfolios that have at least one project
+        if (projects.length === 0) {
+          console.warn(`⚠️ No valid projects found for portfolio: ${email}`);
+          continue;
+        }
+
+        // Build complete portfolio object
+        const portfolio = {
+          id: `portfolio_${email.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}`,
+          personName: userInfo.name,
+          title: userInfo.title,
+          email: email,
+          phone: userInfo.phone,
+          linkedin: userInfo.linkedin,
+          instagram: userInfo.instagram,
+          bio: userInfo.bio,
+          portfolioUrl: portfolioUrl,
+          deployedAt: timestamp,
+          projects: projects,
+          skills: userInfo.skills,
+          experiences: userInfo.experiences,
+          education: userInfo.education,
+          totalProjects: projects.length,
+          totalImages: projects.reduce((sum, p) => sum + p.processImagesCount + p.finalImagesCount, 0)
+        };
+
+        portfolios.push(portfolio);
+        console.log(`✅ Added portfolio for ${userInfo.name} (${projects.length} projects, ${portfolio.totalImages} images)`);
+
+      } catch (recordError) {
+        console.error(`❌ Error processing deployment record:`, recordError);
+        continue;
+      }
+    }
+
+    // Sort portfolios by deployment date (newest first)
+    portfolios.sort((a, b) => new Date(b.deployedAt).getTime() - new Date(a.deployedAt).getTime());
+
+    console.log(`🎭 Showroom ready with ${portfolios.length} portfolios`);
+
+    // Return success response
+    return res.json({
+      success: true,
+      data: portfolios,
+      metadata: {
+        totalPortfolios: portfolios.length,
+        totalProjects: portfolios.reduce((sum, p) => sum + p.totalProjects, 0),
+        totalImages: portfolios.reduce((sum, p) => sum + p.totalImages, 0),
+        lastUpdated: new Date().toISOString(),
+        dataSources: {
+          deployments: `${process.env.GOOGLE_SHEETS_ID3}/${process.env.GOOGLE_SHEETS_NAME5}`,
+          users: `${process.env.GOOGLE_SHEETS_ID3}/${process.env.GOOGLE_SHEETS_NAME2}`,
+          projects: `${process.env.GOOGLE_SHEETS_ID3}/${process.env.GOOGLE_SHEETS_NAME3}`
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Showroom API error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch showroom data',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -2361,6 +2677,23 @@ const getProjectImagesFromSheets = async (userEmail) => {
   }
 };
 
+const cleanCloudinaryUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  
+  // If it's already a clean Cloudinary URL, return as-is
+  if (url.startsWith('https://res.cloudinary.com/') && !url.includes('https://res.cloudinary.com/')) {
+    return url;
+  }
+  
+  // If it contains nested URLs, extract the first valid one
+  const cloudinaryMatch = url.match(/https:\/\/res\.cloudinary\.com\/[^"'\s]+/);
+  if (cloudinaryMatch) {
+    return cloudinaryMatch[0];
+  }
+  
+  return url;
+};
+
 const updateHtmlWithProjectImages = (html, completeProjectData) => {
   let updatedHtml = html;
   
@@ -2372,172 +2705,221 @@ const updateHtmlWithProjectImages = (html, completeProjectData) => {
   const projects = completeProjectData.projectImages;
   console.log(`🔄 Updating HTML with ${projects.length} projects containing ${completeProjectData.totalImages || 0} images`);
 
-  // Create comprehensive replacement mappings
-  const replacements = [];
+  // 🚨 CRITICAL FIX: Clean up navigation and emoji issues FIRST (existing code)
+  try {
+    // Navigation fixes (keep existing code)
+    const problematicPatterns = [
+      /href=["']\/dashboard["']/gi,
+      /href=["']\/works["']/gi,
+      /href=["']\/projects["']/gi,
+      /href=["']\/portfolio["']/gi,
+      /href=["']\/about["']/gi,
+      /href=["']\/contact["']/gi,
+      /href=["']\#dashboard["']/gi,
+      /href=["']\#works["']/gi
+    ];
+    
+    problematicPatterns.forEach(pattern => {
+      updatedHtml = updatedHtml.replace(pattern, 'href="#projects"');
+    });
+    
+    // Remove floating emoji animations (keep existing code)
+    const emojiPatterns = [
+      /@keyframes\s+[^{]*emoji[^}]*\{[^}]+\}/gi,
+      /animation[^;]*emoji[^;]*;/gi,
+      /\.floating-emoji[^}]*\{[^}]+\}/gi,
+      /\.emoji-rain[^}]*\{[^}]+\}/gi,
+      /<div[^>]*class="[^"]*floating[^"]*emoji[^"]*"[^>]*>.*?<\/div>/gi
+    ];
+    
+    emojiPatterns.forEach(pattern => {
+      updatedHtml = updatedHtml.replace(pattern, '');
+    });
+    
+    // JavaScript fixes (keep existing code)
+    updatedHtml = updatedHtml.replace(
+      /window\.location\s*=\s*["'][^"']*["']/gi, 
+      '// navigation disabled'
+    );
+    
+    updatedHtml = updatedHtml.replace(
+      /location\.href\s*=\s*["'][^"']*["']/gi, 
+      '// navigation disabled'
+    );
+    
+    // Add base target (keep existing code)
+    if (!updatedHtml.includes('<base') && updatedHtml.includes('<head>')) {
+      updatedHtml = updatedHtml.replace(
+        '<head>', 
+        '<head>\n<base target="_parent">'
+      );
+    }
+    
+    console.log('✅ Applied navigation and emoji fixes');
+  } catch (error) {
+    console.warn('⚠️ Failed to apply navigation/emoji fixes:', error);
+  }
+
+  // 🚨 COMPLETELY REWRITTEN IMAGE REPLACEMENT SYSTEM
+  const imageReplacements = new Map();
+  let replacementCount = 0;
   
+  // Step 1: Build comprehensive replacement map
   projects.forEach((project, projectIndex) => {
     console.log(`📝 Processing project ${projectIndex + 1}: "${project.title}"`);
     console.log(`   Overview: ${project.overview ? 'Present ✅' : 'Missing ❌'}`);
-    console.log(`   Images: ${project.finalImageCount} final + ${project.processImageCount} process`);
+    console.log(`   Images: ${project.finalImageCount || 0} final + ${project.processImageCount || 0} process`);
     
-    // === FINAL IMAGES REPLACEMENTS ===
-    project.finalImages.forEach((image, imageIndex) => {
-      const cleanUrl = image.url;
-      
-      // Multiple patterns to catch different placeholder formats
-      const patterns = [
-        // Standard patterns
-        new RegExp(`(?:\\./)?(uploads/|temp/)?final_${imageIndex + 1}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
-        new RegExp(`placeholder_final_${imageIndex + 1}`, 'gi'),
-        new RegExp(`project_${projectIndex + 1}_final_${imageIndex + 1}`, 'gi'),
+    // === FINAL IMAGES ===
+    if (project.finalImages && project.finalImages.length > 0) {
+      project.finalImages.forEach((image, imageIndex) => {
+        if (!image.url) return;
         
-        // Project-specific patterns
-        new RegExp(`${project.projectId}_final_${imageIndex + 1}`, 'gi'),
-        new RegExp(`final_image_${projectIndex + 1}_${imageIndex + 1}`, 'gi'),
+        // Clean the URL to ensure it's properly formatted
+        const cleanUrl = image.url.trim();
+        console.log(`🖼️ Final image ${imageIndex + 1}: ${cleanUrl}`);
         
-        // Generic patterns that might be used
-        new RegExp(`final_${projectIndex + 1}_${imageIndex + 1}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
-        new RegExp(`project${projectIndex + 1}_final${imageIndex + 1}`, 'gi')
-      ];
-      
-      patterns.forEach(pattern => {
-        replacements.push({
-          pattern,
-          replacement: cleanUrl,
-          type: 'final',
-          project: project.title,
-          imageIndex: imageIndex + 1
-        });
-      });
-    });
-
-    // === PROCESS IMAGES REPLACEMENTS ===
-    project.processImages.forEach((image, imageIndex) => {
-      const cleanUrl = image.url;
-      
-      const patterns = [
-        // Standard patterns
-        new RegExp(`(?:\\./)?(uploads/|temp/)?process_${imageIndex + 1}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
-        new RegExp(`placeholder_process_${imageIndex + 1}`, 'gi'),
-        new RegExp(`project_${projectIndex + 1}_process_${imageIndex + 1}`, 'gi'),
+        // Create SPECIFIC, NON-OVERLAPPING patterns for this exact image
+        const specificPatterns = [
+          // Project-specific patterns with exact indices
+          `project_${projectIndex + 1}_final_${imageIndex + 1}`,
+          `${project.projectId}_final_${imageIndex + 1}`,
+          `final_${projectIndex + 1}_${imageIndex + 1}`,
+          `project${projectIndex + 1}_final${imageIndex + 1}`,
+          
+          // Generic patterns that should ONLY match placeholders, not existing URLs
+          `final_${imageIndex + 1}.jpg`,
+          `final_${imageIndex + 1}.png`,
+          `final_${imageIndex + 1}.jpeg`,
+          `final_${imageIndex + 1}.webp`,
+          `final_${imageIndex + 1}.gif`,
+          
+          // Placeholder patterns
+          `placeholder_final_${imageIndex + 1}`,
+          `FINAL_IMAGE_${imageIndex + 1}`,
+          `[FINAL_${imageIndex + 1}]`
+        ];
         
-        // Project-specific patterns
-        new RegExp(`${project.projectId}_process_${imageIndex + 1}`, 'gi'),
-        new RegExp(`process_image_${projectIndex + 1}_${imageIndex + 1}`, 'gi'),
-        
-        // Generic patterns
-        new RegExp(`process_${projectIndex + 1}_${imageIndex + 1}\\.(jpg|jpeg|png|gif|webp)`, 'gi'),
-        new RegExp(`project${projectIndex + 1}_process${imageIndex + 1}`, 'gi')
-      ];
-      
-      patterns.forEach(pattern => {
-        replacements.push({
-          pattern,
-          replacement: cleanUrl,
-          type: 'process',
-          project: project.title,
-          imageIndex: imageIndex + 1
-        });
-      });
-    });
-
-    // === PROJECT OVERVIEW REPLACEMENTS ===
-    if (project.overview && project.overview.trim()) {
-      const overviewPatterns = [
-        new RegExp(`\\[PROJECT_${projectIndex + 1}_OVERVIEW\\]`, 'gi'),
-        new RegExp(`{{project_${projectIndex + 1}_overview}}`, 'gi'),
-        new RegExp(`PROJECT_OVERVIEW_${projectIndex + 1}`, 'gi'),
-        new RegExp(`\\[${project.title.toUpperCase().replace(/\s+/g, '_')}_OVERVIEW\\]`, 'gi')
-      ];
-      
-      overviewPatterns.forEach(pattern => {
-        replacements.push({
-          pattern,
-          replacement: project.overview,
-          type: 'overview',
-          project: project.title
+        specificPatterns.forEach(pattern => {
+          imageReplacements.set(pattern, {
+            url: cleanUrl,
+            type: 'final',
+            project: project.title,
+            imageIndex: imageIndex + 1,
+            projectIndex: projectIndex + 1
+          });
         });
       });
     }
-
+    
+    // === PROCESS IMAGES ===
+    if (project.processImages && project.processImages.length > 0) {
+      project.processImages.forEach((image, imageIndex) => {
+        if (!image.url) return;
+        
+        const cleanUrl = image.url.trim();
+        console.log(`📷 Process image ${imageIndex + 1}: ${cleanUrl}`);
+        
+        const specificPatterns = [
+          `project_${projectIndex + 1}_process_${imageIndex + 1}`,
+          `${project.projectId}_process_${imageIndex + 1}`,
+          `process_${projectIndex + 1}_${imageIndex + 1}`,
+          `project${projectIndex + 1}_process${imageIndex + 1}`,
+          
+          `process_${imageIndex + 1}.jpg`,
+          `process_${imageIndex + 1}.png`,
+          `process_${imageIndex + 1}.jpeg`,
+          `process_${imageIndex + 1}.webp`,
+          `process_${imageIndex + 1}.gif`,
+          
+          `placeholder_process_${imageIndex + 1}`,
+          `PROCESS_IMAGE_${imageIndex + 1}`,
+          `[PROCESS_${imageIndex + 1}]`
+        ];
+        
+        specificPatterns.forEach(pattern => {
+          imageReplacements.set(pattern, {
+            url: cleanUrl,
+            type: 'process',
+            project: project.title,
+            imageIndex: imageIndex + 1,
+            projectIndex: projectIndex + 1
+          });
+        });
+      });
+    }
+    
     // === PROJECT METADATA REPLACEMENTS ===
     const metadataReplacements = [
       {
-        patterns: [
-          new RegExp(`\\[PROJECT_${projectIndex + 1}_TITLE\\]`, 'gi'),
-          new RegExp(`{{project_${projectIndex + 1}_title}}`, 'gi')
-        ],
+        pattern: `[PROJECT_${projectIndex + 1}_TITLE]`,
         replacement: project.title,
         type: 'title'
       },
       {
-        patterns: [
-          new RegExp(`\\[PROJECT_${projectIndex + 1}_SUBTITLE\\]`, 'gi'),
-          new RegExp(`{{project_${projectIndex + 1}_subtitle}}`, 'gi')
-        ],
+        pattern: `[PROJECT_${projectIndex + 1}_SUBTITLE]`,
         replacement: project.subtitle || '',
         type: 'subtitle'
       },
       {
-        patterns: [
-          new RegExp(`\\[PROJECT_${projectIndex + 1}_CATEGORY\\]`, 'gi'),
-          new RegExp(`{{project_${projectIndex + 1}_category}}`, 'gi')
-        ],
+        pattern: `[PROJECT_${projectIndex + 1}_OVERVIEW]`,
+        replacement: project.overview || 'This project showcases creative work and innovative solutions.',
+        type: 'overview'
+      },
+      {
+        pattern: `[PROJECT_${projectIndex + 1}_CATEGORY]`,
         replacement: project.category || project.customCategory || '',
         type: 'category'
       },
       {
-        patterns: [
-          new RegExp(`\\[PROJECT_${projectIndex + 1}_TAGS\\]`, 'gi'),
-          new RegExp(`{{project_${projectIndex + 1}_tags}}`, 'gi')
-        ],
+        pattern: `[PROJECT_${projectIndex + 1}_TAGS]`,
         replacement: project.tags ? project.tags.join(', ') : '',
         type: 'tags'
       }
     ];
-
+    
     metadataReplacements.forEach(meta => {
-      meta.patterns.forEach(pattern => {
-        replacements.push({
-          pattern,
-          replacement: meta.replacement,
-          type: meta.type,
-          project: project.title
-        });
+      imageReplacements.set(meta.pattern, {
+        url: meta.replacement,
+        type: meta.type,
+        project: project.title,
+        projectIndex: projectIndex + 1
       });
     });
   });
-
-  // Apply all replacements with logging
-  let replacementCount = 0;
-  replacements.forEach(({pattern, replacement, type, project, imageIndex}) => {
+  
+  // Step 2: Apply replacements using EXACT string matching (not regex)
+  console.log(`🔄 Applying ${imageReplacements.size} specific replacements...`);
+  
+  imageReplacements.forEach((replacement, pattern) => {
     const beforeLength = updatedHtml.length;
-    updatedHtml = updatedHtml.replace(pattern, replacement);
-    const afterLength = updatedHtml.length;
     
-    if (beforeLength !== afterLength) {
-      replacementCount++;
-      console.log(`✅ Replaced ${type} for "${project}"${imageIndex ? ` (image ${imageIndex})` : ''}`);
+    // Use simple string replacement for exact matches only
+    if (updatedHtml.includes(pattern)) {
+      updatedHtml = updatedHtml.split(pattern).join(replacement.url);
+      const afterLength = updatedHtml.length;
+      
+      if (beforeLength !== afterLength) {
+        replacementCount++;
+        console.log(`✅ Replaced ${replacement.type} for "${replacement.project}" (${pattern} → URL)`);
+      }
     }
   });
-
-  console.log(`🔄 Applied ${replacementCount} replacements total`);
-
-  // === ADDITIONAL SAFETY REPLACEMENTS ===
-  // Handle any remaining generic placeholders
+  
+  // Step 3: Safety replacements for any remaining placeholders
   const safetyReplacements = [
-    // Remove any remaining broken image references
     {
-      pattern: /src=["'](?:\.\/)?uploads\/[^"']*\.(?:jpg|jpeg|png|gif|webp)["']/gi,
+      // Remove any remaining file path references that might cause issues
+      pattern: /src=["'](?:\.\/)?(?:uploads\/|temp\/)[^"']*\.(?:jpg|jpeg|png|gif|webp)["']/gi,
       replacement: 'src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'300\' viewBox=\'0 0 400 300\'%3E%3Crect fill=\'%23f0f0f0\' width=\'400\' height=\'300\'/%3E%3Ctext fill=\'%23999\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\'%3EProject Image%3C/text%3E%3C/svg%3E"'
     },
-    // Handle placeholder text that wasn't replaced
     {
+      // Clean up any remaining project overview placeholders
       pattern: /\[PROJECT_\d+_OVERVIEW\]/gi,
       replacement: 'This project showcases creative work and innovative solutions.'
     },
-    // Handle missing alt attributes with better descriptions
     {
+      // Fix generic alt text
       pattern: /alt=["']Project Image["']/gi,
       replacement: 'alt="Creative project showcase"'
     }
@@ -2553,11 +2935,23 @@ const updateHtmlWithProjectImages = (html, completeProjectData) => {
     }
   });
 
-  // === VALIDATION AND SUMMARY ===
-  const finalImageCount = (updatedHtml.match(/src="https:\/\/res\.cloudinary\.com/gi) || []).length;
+  // Step 4: Validation and logging
+  const finalImageCount = (updatedHtml.match(/https:\/\/res\.cloudinary\.com/gi) || []).length;
   console.log(`📊 Final HTML contains ${finalImageCount} Cloudinary image references`);
+  console.log(`🔄 Applied ${replacementCount} total replacements`);
   
-  // Log project overview integration
+  // Check for any corrupted URLs (nested cloudinary URLs)
+  const corruptedUrls = updatedHtml.match(/https:\/\/res\.cloudinary\.com[^"']*https:\/\/res\.cloudinary\.com/gi);
+  if (corruptedUrls && corruptedUrls.length > 0) {
+    console.error(`❌ DETECTED ${corruptedUrls.length} CORRUPTED NESTED URLS!`);
+    corruptedUrls.forEach((url, index) => {
+      console.error(`   ${index + 1}. ${url.substring(0, 100)}...`);
+    });
+  } else {
+    console.log('✅ No corrupted nested URLs detected');
+  }
+  
+  // Verify project overviews are integrated
   projects.forEach((project, index) => {
     if (project.overview) {
       const overviewExists = updatedHtml.includes(project.overview.substring(0, 50));

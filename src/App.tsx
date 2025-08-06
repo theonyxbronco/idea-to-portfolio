@@ -24,6 +24,7 @@ import Navigation from "./components/Navigation";
 import Home from "@/pages/Home";
 import Features from "@/pages/Features";
 import Pricing from "@/pages/Pricing";
+import Showroom from "@/pages/Showroom"; // New Showroom page
 
 // New Modular Pages
 import UserPage from "@/pages/user";
@@ -84,6 +85,7 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/features" element={<Features />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/showroom" element={<Showroom />} />
           
           {/* Public Routes */}
           <Route path="/sign-in/*" element={<SignInPage />} />
