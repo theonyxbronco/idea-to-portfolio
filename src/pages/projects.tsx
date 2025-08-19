@@ -5,7 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FolderOpen, Plus, X, Loader2, Save, Edit, Trash2, ImageIcon, Upload, Copy } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { FolderOpen, Plus, X, Loader2, Save, Edit, Trash2, ImageIcon, Upload, Copy, Crown, Lock, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@clerk/clerk-react';
@@ -15,7 +16,7 @@ interface Project {
   id?: string;
   title: string;
   subtitle: string;
-  overview: string; // Changed from description to overview
+  overview: string;
   category: string;
   customCategory: string;
   tags: string[];
@@ -23,6 +24,25 @@ interface Project {
   finalProductImage: File | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+interface UserLimits {
+  tier: 'Free' | 'Student' | 'Pro';
+  limits: {
+    maxProjects: number;
+    maxPortfolios: number;
+    maxDrafts: number;
+  };
+  usage: {
+    projects: number;
+    portfolios: number;
+    drafts: number;
+  };
+  canCreate: {
+    projects: boolean;
+    portfolios: boolean;
+    drafts: boolean;
+  };
 }
 
 const CREATIVE_CATEGORIES = [
@@ -59,7 +79,7 @@ const ProjectsPage = () => {
   const [currentProjects, setCurrentProjects] = useState<Project[]>([{
     title: '',
     subtitle: '',
-    overview: '', // Changed from description to overview
+    overview: '',
     category: '',
     customCategory: '',
     tags: [],
@@ -70,15 +90,17 @@ const ProjectsPage = () => {
   const [isSaving, setSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [userLimits, setUserLimits] = useState<UserLimits | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  // Load user's projects when component mounts
+  // Load user's projects and limits when component mounts
   useEffect(() => {
     if (isLoaded && isSignedIn && user?.primaryEmailAddress?.emailAddress) {
-      loadUserProjects();
+      loadUserProjectsAndLimits();
     }
   }, [isLoaded, isSignedIn, user]);
 
-  const loadUserProjects = async () => {
+  const loadUserProjectsAndLimits = async () => {
     try {
       setIsLoading(true);
       const userEmail = user?.primaryEmailAddress?.emailAddress;
@@ -92,6 +114,16 @@ const ProjectsPage = () => {
         return;
       }
 
+      // Load user limits first
+      const limitsResponse = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/check-user-limits?email=${encodeURIComponent(userEmail)}`);
+      if (limitsResponse.ok) {
+        const limitsResult = await limitsResponse.json();
+        if (limitsResult.success) {
+          setUserLimits(limitsResult.data);
+        }
+      }
+
+      // Load projects
       const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-projects?email=${encodeURIComponent(userEmail)}`);
       
       if (response.ok) {
@@ -107,7 +139,23 @@ const ProjectsPage = () => {
     }
   };
 
+  const canAddMoreProjects = () => {
+    if (!userLimits) return true;
+    return userLimits.canCreate.projects;
+  };
+
+  const getProjectsRemaining = () => {
+    if (!userLimits) return 0;
+    return Math.max(0, userLimits.limits.maxProjects - userLimits.usage.projects);
+  };
+
   const addNewProject = () => {
+    // Check if user can add more projects
+    if (!canAddMoreProjects()) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     setCurrentProjects(prev => [...prev, {
       title: '',
       subtitle: '',
@@ -127,11 +175,17 @@ const ProjectsPage = () => {
   };
 
   const duplicateProject = (index: number) => {
+    // Check if user can add more projects
+    if (!canAddMoreProjects()) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     const projectToDuplicate = currentProjects[index];
     const duplicatedProject = {
       ...projectToDuplicate,
       title: `${projectToDuplicate.title} (Copy)`,
-      id: undefined // Remove ID so it's treated as new
+      id: undefined
     };
     setCurrentProjects(prev => [...prev, duplicatedProject]);
   };
@@ -211,7 +265,7 @@ const ProjectsPage = () => {
   };
 
   const handleSaveAllProjects = async () => {
-    // Validation
+    // Check project limits before saving
     const validProjects = currentProjects.filter(project => 
       project.title.trim() && (project.category || project.customCategory)
     );
@@ -225,15 +279,25 @@ const ProjectsPage = () => {
       return;
     }
 
+    // Check if saving would exceed limits
+    if (userLimits && !userLimits.canCreate.projects && validProjects.length > 0) {
+      toast({
+        title: "Project Limit Reached",
+        description: `${userLimits.tier} users can only have ${userLimits.limits.maxProjects} projects. Please upgrade to Pro.`,
+        variant: "destructive",
+      });
+      setShowUpgradeModal(true);
+      return;
+    }
+
     setSaving(true);
 
     try {
       const formData = new FormData();
       
-      // Add all projects data
       const projectsData = validProjects.map(project => ({
         ...project,
-        processImages: [], // Remove file objects for JSON
+        processImages: [],
         finalProductImage: null,
         userEmail: user?.primaryEmailAddress?.emailAddress,
         overview: project.overview 
@@ -241,7 +305,6 @@ const ProjectsPage = () => {
       
       formData.append('projectsData', JSON.stringify(projectsData));
 
-      // Add all images with project index prefix
       validProjects.forEach((project, projectIndex) => {
         project.processImages.forEach((image, imageIndex) => {
           formData.append(`project_${projectIndex}_process_${imageIndex}`, image);
@@ -258,6 +321,19 @@ const ProjectsPage = () => {
       });
 
       const result = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 403 && result.error === 'Project limit reached') {
+          toast({
+            title: "Project Limit Reached",
+            description: result.details,
+            variant: "destructive",
+          });
+          setShowUpgradeModal(true);
+          return;
+        }
+        throw new Error(result.error || 'Failed to save projects');
+      }
 
       if (result.success) {
         toast({
@@ -277,8 +353,8 @@ const ProjectsPage = () => {
           finalProductImage: null
         }]);
         
-        // Reload saved projects
-        await loadUserProjects();
+        // Reload saved projects and limits
+        await loadUserProjectsAndLimits();
       } else {
         throw new Error(result.error || 'Failed to save projects');
       }
@@ -319,7 +395,7 @@ const ProjectsPage = () => {
           description: "Your project has been deleted successfully",
         });
         
-        await loadUserProjects();
+        await loadUserProjectsAndLimits();
       } else {
         throw new Error(result.error || 'Failed to delete project');
       }
@@ -372,15 +448,48 @@ const ProjectsPage = () => {
             <p className="text-xl text-muted-foreground">
               Add multiple projects at once to showcase your creative work
             </p>
+            
+            {/* Usage Information */}
+            {userLimits && (
+              <div className="mt-4 p-4 bg-card rounded-lg border max-w-md mx-auto">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Project Usage:</span>
+                  <div className="flex items-center space-x-2">
+                    <span className={userLimits.usage.projects >= userLimits.limits.maxProjects ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                      {userLimits.usage.projects}/{userLimits.limits.maxProjects === Infinity ? '∞' : userLimits.limits.maxProjects}
+                    </span>
+                    <Badge variant={userLimits.tier === 'Free' ? 'secondary' : 'default'} className="text-xs">
+                      {userLimits.tier}
+                    </Badge>
+                  </div>
+                </div>
+                
+                {userLimits.tier === 'Free' && userLimits.usage.projects >= userLimits.limits.maxProjects && (
+                  <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                    <p className="text-xs text-red-600 flex items-center">
+                      <Lock className="h-3 w-3 mr-1" />
+                      You've reached the limit of {userLimits.limits.maxProjects} projects for free users
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Saved Projects List */}
           {savedProjects.length > 0 && (
             <Card className="shadow-large border-0 mb-8">
               <CardHeader className="bg-gradient-secondary text-secondary-foreground rounded-t-lg">
-                <CardTitle className="text-xl font-semibold flex items-center">
-                  <FolderOpen className="h-5 w-5 mr-3" />
-                  Your Saved Projects ({savedProjects.length})
+                <CardTitle className="text-xl font-semibold flex items-center justify-between">
+                  <div className="flex items-center">
+                    <FolderOpen className="h-5 w-5 mr-3" />
+                    Your Saved Projects ({savedProjects.length})
+                  </div>
+                  {userLimits && userLimits.tier === 'Free' && (
+                    <div className="text-sm">
+                      {getProjectsRemaining()} remaining
+                    </div>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -440,9 +549,11 @@ const ProjectsPage = () => {
                         variant="secondary"
                         size="sm"
                         className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                        disabled={!canAddMoreProjects()}
                       >
                         <Copy className="h-4 w-4 mr-1" />
                         Duplicate
+                        {!canAddMoreProjects() && <Lock className="h-4 w-4 ml-1" />}
                       </Button>
                       {currentProjects.length > 1 && (
                         <Button 
@@ -580,7 +691,7 @@ const ProjectsPage = () => {
                     </div>
                   </div>
 
-                  {/* Images - Larger Layout (80% increase) */}
+                  {/* Images */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Process Images */}
                     <div className="space-y-3">
@@ -668,10 +779,21 @@ const ProjectsPage = () => {
                 onClick={addNewProject}
                 variant="outline"
                 className="px-8"
+                disabled={!canAddMoreProjects()}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Another Project
+                {!canAddMoreProjects() && <Lock className="h-4 w-4 ml-2" />}
               </Button>
+              
+              {!canAddMoreProjects() && userLimits && (
+                <p className="text-sm text-red-600 mt-2">
+                  {userLimits.tier} users can only have {userLimits.limits.maxProjects} projects. 
+                  <Button variant="link" className="p-0 h-auto ml-1 text-red-600" onClick={() => setShowUpgradeModal(true)}>
+                    Upgrade to Pro
+                  </Button>
+                </p>
+              )}
             </div>
 
             {/* Save All Projects Button */}
@@ -696,26 +818,87 @@ const ProjectsPage = () => {
                 )}
               </Button>
 
-                        {/* Navigation */}
-          <div className="flex justify-between items-center mb-8">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/user')}
-              className="text-sm"
-            >
-              ← Back to Personal Info
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/portfolio-builder')}
-              className="text-sm"
-            >
-              Continue to Portfolio Builder →
-            </Button>
-          </div>
-          
+              {/* Navigation */}
+              <div className="flex justify-between items-center mt-8">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/user')}
+                  className="text-sm"
+                >
+                  ← Back to Personal Info
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/portfolio-builder')}
+                  className="text-sm"
+                >
+                  Continue to Portfolio Builder →
+                </Button>
+              </div>
             </div>
           </div>
+
+          {/* Upgrade Modal */}
+          <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center">
+                  <Crown className="h-6 w-6 mr-2 text-yellow-500" />
+                  Upgrade to Pro
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="flex items-center space-x-3 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <AlertTriangle className="h-8 w-8 text-red-600 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-red-800">Project Limit Reached</h3>
+                    <p className="text-sm text-red-600">
+                      Free users can only have {userLimits?.limits.maxProjects} projects. Upgrade to Pro for unlimited projects.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-semibold">Pro Plan Includes:</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center">
+                      <Crown className="h-4 w-4 mr-2 text-yellow-500" />
+                      Unlimited projects and portfolios
+                    </li>
+                    <li className="flex items-center">
+                      <Crown className="h-4 w-4 mr-2 text-yellow-500" />
+                      Advanced AI editing features
+                    </li>
+                    <li className="flex items-center">
+                      <Crown className="h-4 w-4 mr-2 text-yellow-500" />
+                      Custom domains and analytics
+                    </li>
+                    <li className="flex items-center">
+                      <Crown className="h-4 w-4 mr-2 text-yellow-500" />
+                      Priority support
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowUpgradeModal(false);
+                    navigate('/pro-waitlist');
+                  }}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  <Crown className="h-4 w-4 mr-2" />
+                  Upgrade to Pro
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>

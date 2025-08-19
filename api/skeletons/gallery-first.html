@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[USER_NAME] - Visual Artist</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000; /* MOODBOARD_PRIMARY_COLOR */
+            color: #fff; /* MOODBOARD_TEXT_COLOR */
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+
+        /* Project Detail Modal */
+        .project-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95); /* MOODBOARD_MODAL_BG */
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .project-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .project-modal-content {
+            max-width: 90vw;
+            max-height: 90vh;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .project-modal-image {
+            width: 100%;
+            max-width: 800px;
+            height: 600px;
+            object-fit: cover;
+            border-radius: 15px;
+        }
+
+        .project-modal-info {
+            background: rgba(20, 20, 20, 0.95); /* MOODBOARD_MODAL_INFO_BG */
+            padding: 2rem;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1); /* MOODBOARD_MODAL_BORDER */
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .project-modal-close {
+            position: absolute;
+            top: -3rem;
+            right: 0;
+            background: none;
+            border: none;
+            color: #fff; /* MOODBOARD_MODAL_CLOSE_COLOR */
+            font-size: 2rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .project-modal-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #fff; /* MOODBOARD_MODAL_TITLE_COLOR */
+        }
+
+        .project-modal-subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7); /* MOODBOARD_MODAL_SUBTITLE_COLOR */
+            margin-bottom: 1.5rem;
+        }
+
+        .project-modal-category {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1); /* MOODBOARD_CATEGORY_BG */
+            color: #fff; /* MOODBOARD_CATEGORY_TEXT */
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .project-modal-overview {
+            color: rgba(255, 255, 255, 0.8); /* MOODBOARD_MODAL_TEXT_COLOR */
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .project-modal-tags {
+            margin-bottom: 2rem;
+        }
+
+        .project-modal-tags h4 {
+            color: #fff; /* MOODBOARD_TAGS_HEADER_COLOR */
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .project-modal-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1); /* MOODBOARD_TAG_BG */
+            color: rgba(255, 255, 255, 0.8); /* MOODBOARD_TAG_TEXT */
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            margin: 0.2rem 0.3rem 0.2rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.1); /* MOODBOARD_TAG_BORDER */
+        }
+
+        .project-modal-date {
+            color: rgba(255, 255, 255, 0.5); /* MOODBOARD_MODAL_DATE_COLOR */
+            font-size: 0.8rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1); /* MOODBOARD_MODAL_DIVIDER */
+        }
+
+        /* Navigation - Minimal overlay */
+        .nav-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%); /* MOODBOARD_NAV_GRADIENT */
+            padding: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #fff; /* MOODBOARD_LOGO_COLOR */
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-menu a {
+            color: #fff; /* MOODBOARD_NAV_LINK_COLOR */
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 400;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-menu a:hover {
+            opacity: 1;
+        }
+
+        /* Hero Section - Full screen gallery preview */
+        .hero {
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-gallery {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            height: 100%;
+            gap: 1px;
+        }
+
+        .hero-image {
+            background: linear-gradient(45deg, #333, #666, #999); /* MOODBOARD_HERO_GRADIENT */
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.6s ease;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-image:hover {
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .hero-image::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3); /* MOODBOARD_HERO_OVERLAY */
+            transition: opacity 0.3s ease;
+        }
+
+        .hero-image:hover::after {
+            opacity: 0;
+        }
+
+        .hero-image:nth-child(1) {
+            grid-column: 1 / 2;
+            grid-row: 1 / 3;
+            background-image: url('[HERO_IMAGE_1]');
+        }
+
+        .hero-image:nth-child(2) {
+            background-image: url('[HERO_IMAGE_2]');
+        }
+
+        .hero-image:nth-child(3) {
+            background-image: url('[HERO_IMAGE_3]');
+        }
+
+        .hero-image:nth-child(4) {
+            background-image: url('[HERO_IMAGE_4]');
+        }
+
+        .hero-image:nth-child(5) {
+            background-image: url('[HERO_IMAGE_5]');
+        }
+
+        .hero-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+            background: rgba(0,0,0,0.7); /* MOODBOARD_HERO_TITLE_BG */
+            padding: 3rem 4rem;
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 300;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+            color: #fff; /* MOODBOARD_HERO_TITLE_COLOR */
+        }
+
+        .hero-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            font-weight: 300;
+            margin-bottom: 2rem;
+            color: rgba(255, 255, 255, 0.8); /* MOODBOARD_HERO_SUBTITLE_COLOR */
+        }
+
+        .hero-cta {
+            background: transparent;
+            border: 1px solid #fff; /* MOODBOARD_CTA_BORDER */
+            color: #fff; /* MOODBOARD_CTA_TEXT */
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .hero-cta:hover {
+            background: #fff; /* MOODBOARD_CTA_HOVER_BG */
+            color: #000; /* MOODBOARD_CTA_HOVER_TEXT */
+        }
+
+        /* Main Gallery */
+        .gallery-section {
+            padding: 5rem 2rem;
+        }
+
+        .gallery-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .gallery-title {
+            font-size: 3rem;
+            font-weight: 300;
+            margin-bottom: 1rem;
+            color: #fff; /* MOODBOARD_GALLERY_TITLE_COLOR */
+        }
+
+        .gallery-description {
+            font-size: 1.1rem;
+            opacity: 0.7;
+            max-width: 600px;
+            margin: 0 auto;
+            color: rgba(255, 255, 255, 0.7); /* MOODBOARD_GALLERY_DESC_COLOR */
+        }
+
+        /* Filter Tags */
+        .filter-tags {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 4rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3); /* MOODBOARD_FILTER_BORDER */
+            color: #fff; /* MOODBOARD_FILTER_TEXT */
+            padding: 0.5rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .filter-tag:hover,
+        .filter-tag.active {
+            background: #fff; /* MOODBOARD_FILTER_ACTIVE_BG */
+            color: #000; /* MOODBOARD_FILTER_ACTIVE_TEXT */
+        }
+
+        /* Masonry Gallery */
+        .masonry-gallery {
+            columns: 4;
+            column-gap: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .gallery-item {
+            break-inside: avoid;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-10px);
+        }
+
+        .gallery-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.6s ease;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:hover .gallery-image {
+            transform: scale(1.05);
+        }
+
+        .gallery-item::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5); /* MOODBOARD_GALLERY_OVERLAY */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .gallery-item:hover::after {
+            opacity: 1;
+        }
+
+        .gallery-overlay {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 1.5rem;
+            right: 1.5rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .gallery-item:hover .gallery-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .gallery-overlay h3 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #fff; /* MOODBOARD_GALLERY_OVERLAY_TITLE */
+        }
+
+        .gallery-overlay p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            color: rgba(255, 255, 255, 0.8); /* MOODBOARD_GALLERY_OVERLAY_TEXT */
+        }
+
+        /* Different heights for masonry effect */
+        .gallery-item:nth-child(3n+1) .gallery-image {
+            aspect-ratio: 3/4;
+            object-fit: cover;
+        }
+
+        .gallery-item:nth-child(3n+2) .gallery-image {
+            aspect-ratio: 4/5;
+            object-fit: cover;
+        }
+
+        .gallery-item:nth-child(3n+3) .gallery-image {
+            aspect-ratio: 1/1;
+            object-fit: cover;
+        }
+
+        /* About Section - Minimal */
+        .about-section {
+            padding: 8rem 2rem;
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .about-title {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 2rem;
+            color: #fff; /* MOODBOARD_ABOUT_TITLE_COLOR */
+        }
+
+        .about-text {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            opacity: 0.8;
+            margin-bottom: 3rem;
+            color: rgba(255, 255, 255, 0.8); /* MOODBOARD_ABOUT_TEXT_COLOR */
+        }
+
+        .about-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .about-link {
+            color: #fff; /* MOODBOARD_ABOUT_LINK_COLOR */
+            text-decoration: none;
+            padding: 1rem 2rem;
+            border: 1px solid rgba(255,255,255,0.3); /* MOODBOARD_ABOUT_LINK_BORDER */
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+
+        .about-link:hover {
+            background: #fff; /* MOODBOARD_ABOUT_LINK_HOVER_BG */
+            color: #000; /* MOODBOARD_ABOUT_LINK_HOVER_TEXT */
+        }
+
+        /* Contact Footer */
+        .contact-footer {
+            padding: 6rem 2rem 4rem;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1); /* MOODBOARD_FOOTER_BORDER */
+        }
+
+        .contact-title {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 1rem;
+            color: #fff; /* MOODBOARD_CONTACT_TITLE_COLOR */
+        }
+
+        .contact-email {
+            font-size: 1.1rem;
+            color: #fff; /* MOODBOARD_CONTACT_EMAIL_COLOR */
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .contact-email:hover {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .masonry-gallery {
+                columns: 3;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .masonry-gallery {
+                columns: 2;
+            }
+
+            .hero-gallery {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
+            }
+
+            .hero-image:nth-child(1) {
+                grid-column: 1 / 3;
+                grid-row: 1 / 2;
+            }
+
+            .filter-tags {
+                justify-content: flex-start;
+                overflow-x: auto;
+                padding-bottom: 1rem;
+            }
+
+            .about-links {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .nav-menu {
+                display: none;
+            }
+
+            .project-modal-content {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                margin: 2rem;
+            }
+
+            .project-modal-image {
+                height: 300px;
+            }
+
+            .project-modal-info {
+                max-height: 400px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .masonry-gallery {
+                columns: 1;
+            }
+
+            .hero-overlay {
+                padding: 2rem;
+            }
+        }
+
+        /* Loading Animation */
+        .gallery-item {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .gallery-item:nth-child(1) { animation-delay: 0.1s; }
+        .gallery-item:nth-child(2) { animation-delay: 0.2s; }
+        .gallery-item:nth-child(3) { animation-delay: 0.3s; }
+        .gallery-item:nth-child(4) { animation-delay: 0.4s; }
+        .gallery-item:nth-child(5) { animation-delay: 0.5s; }
+        .gallery-item:nth-child(6) { animation-delay: 0.6s; }
+        .gallery-item:nth-child(7) { animation-delay: 0.7s; }
+        .gallery-item:nth-child(8) { animation-delay: 0.8s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-overlay">
+        <div class="logo">[USER_NAME]</div>
+        <ul class="nav-menu">
+            <li><a href="#gallery">Gallery</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-gallery">
+            <div class="hero-image"></div>
+            <div class="hero-image"></div>
+            <div class="hero-image"></div>
+            <div class="hero-image"></div>
+            <div class="hero-image"></div>
+        </div>
+        <div class="hero-overlay">
+            <h1 class="hero-title">[USER_NAME]</h1>
+            <p class="hero-subtitle">[USER_TITLE]</p>
+            <a href="#gallery" class="hero-cta">Explore My Work</a>
+        </div>
+    </section>
+
+    <!-- Main Gallery -->
+    <section id="gallery" class="gallery-section">
+        <div class="gallery-header">
+            <h2 class="gallery-title">Portfolio</h2>
+            <p class="gallery-description">[PORTFOLIO_DESCRIPTION]</p>
+        </div>
+
+        <!-- Filter Tags -->
+        <div class="filter-tags">
+            <div class="filter-tag active" data-filter="all">All</div>
+            [FILTER_CATEGORIES]
+        </div>
+
+        <!-- Masonry Gallery -->
+        <div class="masonry-gallery">
+            <!-- PROJECT_1_START -->
+            <div class="gallery-item" data-category="[PROJECT_1_CATEGORY_FILTER]">
+                <div class="gallery-image" style="background-image: url('[PROJECT_1_FINAL_IMAGE_1]'); aspect-ratio: 3/4;"></div>
+                <div class="gallery-overlay">
+                    <h3>[PROJECT_1_TITLE]</h3>
+                    <p>[PROJECT_1_CATEGORY] • [PROJECT_1_DATE]</p>
+                </div>
+            </div>
+            <!-- PROJECT_1_END -->
+
+            <!-- PROJECT_2_START -->
+            <div class="gallery-item" data-category="[PROJECT_2_CATEGORY_FILTER]">
+                <div class="gallery-image" style="background-image: url('[PROJECT_2_FINAL_IMAGE_1]'); aspect-ratio: 4/5;"></div>
+                <div class="gallery-overlay">
+                    <h3>[PROJECT_2_TITLE]</h3>
+                    <p>[PROJECT_2_CATEGORY] • [PROJECT_2_DATE]</p>
+                </div>
+            </div>
+            <!-- PROJECT_2_END -->
+
+            <!-- PROJECT_3_START -->
+            <div class="gallery-item" data-category="[PROJECT_3_CATEGORY_FILTER]">
+                <div class="gallery-image" style="background-image: url('[PROJECT_3_FINAL_IMAGE_1]'); aspect-ratio: 1/1;"></div>
+                <div class="gallery-overlay">
+                    <h3>[PROJECT_3_TITLE]</h3>
+                    <p>[PROJECT_3_CATEGORY] • [PROJECT_3_DATE]</p>
+                </div>
+            </div>
+            <!-- PROJECT_3_END -->
+
+            <!-- PROJECT_4_START -->
+            <div class="gallery-item" data-category="[PROJECT_4_CATEGORY_FILTER]">
+                <div class="gallery-image" style="background-image: url('[PROJECT_4_FINAL_IMAGE_1]'); aspect-ratio: 3/4;"></div>
+                <div class="gallery-overlay">
+                    <h3>[PROJECT_4_TITLE]</h3>
+                    <p>[PROJECT_4_CATEGORY] • [PROJECT_4_DATE]</p>
+                </div>
+            </div>
+            <!-- PROJECT_4_END -->
+
+            <!-- PROJECT_5_START -->
+            <div class="gallery-item" data-category="[PROJECT_5_CATEGORY_FILTER]">
+                <div class="gallery-image" style="background-image: url('[PROJECT_5_FINAL_IMAGE_1]'); aspect-ratio: 4/5;"></div>
+                <div class="gallery-overlay">
+                    <h3>[PROJECT_5_TITLE]</h3>
+                    <p>[PROJECT_5_CATEGORY] • [PROJECT_5_DATE]</p>
+                </div>
+            </div>
+            <!-- PROJECT_5_END -->
+
+            <!-- PROJECT_6_START -->
+            <div class="gallery-item" data-category="[PROJECT_6_CATEGORY_FILTER]">
+                <div class="gallery-image" style="background-image: url('[PROJECT_6_FINAL_IMAGE_1]'); aspect-ratio: 1/1;"></div>
+                <div class="gallery-overlay">
+                    <h3>[PROJECT_6_TITLE]</h3>
+                    <p>[PROJECT_6_CATEGORY] • [PROJECT_6_DATE]</p>
+                </div>
+            </div>
+            <!-- PROJECT_6_END -->
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about-section">
+        <h2 class="about-title">About [USER_FIRST_NAME]</h2>
+        <p class="about-text">[USER_ABOUT_TEXT]</p>
+        <div class="about-links">
+            <a href="[USER_INSTAGRAM]" class="about-link">Instagram</a>
+            <a href="[USER_LINKEDIN]" class="about-link">Portfolio</a>
+            <a href="mailto:[USER_EMAIL]" class="about-link">Contact</a>
+        </div>
+    </section>
+
+    <!-- Contact Footer -->
+    <footer id="contact" class="contact-footer">
+        <h2 class="contact-title">Let's Create Together</h2>
+        <a href="mailto:[USER_EMAIL]" class="contact-email">[USER_EMAIL]</a>
+        <p style="margin-top: 2rem; opacity: 0.6; font-size: 0.9rem;">[CONTACT_AVAILABILITY_TEXT]</p>
+    </footer>
+
+    <!-- Project Detail Modal -->
+    <div class="project-modal">
+        <div class="project-modal-content">
+            <button class="project-modal-close">&times;</button>
+            <div class="project-modal-image-container">
+                <img class="project-modal-image" src="" alt="Project detail">
+            </div>
+            <div class="project-modal-info">
+                <div class="project-modal-category"></div>
+                <h2 class="project-modal-title"></h2>
+                <p class="project-modal-subtitle"></p>
+                <p class="project-modal-overview"></p>
+                <div class="project-modal-tags">
+                    <h4>Project Tags</h4>
+                    <div class="project-modal-tags-list"></div>
+                </div>
+                <div class="project-modal-date"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Project data structure - Will be populated with real project data
+        const projectData = [PROJECT_DATA_JSON];
+
+        // Filter functionality
+        const filterTags = document.querySelectorAll('.filter-tag');
+        const galleryItems = document.querySelectorAll('.gallery-item');
+
+        filterTags.forEach(tag => {
+            tag.addEventListener('click', () => {
+                // Remove active class from all tags
+                filterTags.forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tag
+                tag.classList.add('active');
+
+                const filter = tag.dataset.filter;
+
+                galleryItems.forEach(item => {
+                    if (filter === 'all' || item.dataset.category === filter) {
+                        item.style.display = 'block';
+                        item.style.animation = 'fadeInUp 0.6s ease forwards';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // Project modal functionality
+        const projectModal = document.querySelector('.project-modal');
+        const projectModalClose = document.querySelector('.project-modal-close');
+        const projectModalImage = document.querySelector('.project-modal-image');
+        const projectModalTitle = document.querySelector('.project-modal-title');
+        const projectModalSubtitle = document.querySelector('.project-modal-subtitle');
+        const projectModalCategory = document.querySelector('.project-modal-category');
+        const projectModalOverview = document.querySelector('.project-modal-overview');
+        const projectModalTagsList = document.querySelector('.project-modal-tags-list');
+        const projectModalDate = document.querySelector('.project-modal-date');
+
+        // Add click listeners to gallery items for project modal
+        galleryItems.forEach((item, index) => {
+            item.addEventListener('click', () => {
+                const projectKeys = Object.keys(projectData);
+                const projectKey = projectKeys[index % projectKeys.length];
+                const project = projectData[projectKey];
+                
+                if (project) {
+                    openProjectModal(project);
+                }
+            });
+        });
+
+        function openProjectModal(project) {
+            projectModalImage.src = project.image || project.finalImages?.[0]?.url || '';
+            projectModalTitle.textContent = project.title;
+            projectModalSubtitle.textContent = project.subtitle || '';
+            projectModalCategory.textContent = project.category || project.customCategory || '';
+            projectModalOverview.textContent = project.overview || project.description || '';
+            projectModalDate.textContent = project.date || project.createdAt || '';
+            
+            // Clear and populate tags
+            projectModalTagsList.innerHTML = '';
+            if (project.tags && Array.isArray(project.tags)) {
+                project.tags.forEach(tag => {
+                    const tagElement = document.createElement('span');
+                    tagElement.className = 'project-modal-tag';
+                    tagElement.textContent = tag;
+                    projectModalTagsList.appendChild(tagElement);
+                });
+            }
+            
+            projectModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeProjectModal() {
+            projectModal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        projectModalClose.addEventListener('click', closeProjectModal);
+
+        // Close modal on escape key or background click
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeProjectModal();
+        });
+
+        projectModal.addEventListener('click', (e) => {
+            if (e.target === projectModal) closeProjectModal();
+        });
+
+        // Smooth scrolling for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Hero gallery hover effects
+        const heroImages = document.querySelectorAll('.hero-image');
+        heroImages.forEach(image => {
+            image.addEventListener('mouseenter', () => {
+                heroImages.forEach(img => {
+                    if (img !== image) {
+                        img.style.opacity = '0.7';
+                        img.style.transform = 'scale(0.98)';
+                    }
+                });
+            });
+            
+            image.addEventListener('mouseleave', () => {
+                heroImages.forEach(img => {
+                    img.style.opacity = '1';
+                    img.style.transform = 'scale(1)';
+                });
+            });
+        });
+
+        // Scroll-based animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe sections for scroll animations
+        document.querySelectorAll('.gallery-header, .about-section, .contact-footer').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'all 0.8s ease';
+            observer.observe(el);
+        });
+
+        // Parallax effect for hero
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const heroGallery = document.querySelector('.hero-gallery');
+            const heroOverlay = document.querySelector('.hero-overlay');
+            
+            if (heroGallery) {
+                heroGallery.style.transform = `translateY(${scrolled * 0.5}px)`;
+                heroOverlay.style.transform = `translate(-50%, -50%) translateY(${scrolled * 0.3}px)`;
+            }
+        });
+
+        // Initialize gallery on load
+        window.addEventListener('load', () => {
+            // Trigger initial animation
+            galleryItems.forEach((item, index) => {
+                setTimeout(() => {
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>

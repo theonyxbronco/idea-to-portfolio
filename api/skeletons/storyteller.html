@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PERSON_NAME}} - Documentary Filmmaker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: #fafaf9;
+            color: #2c2c2c;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* Typography */
+        .serif { font-family: 'Georgia', 'Times New Roman', serif; }
+        .sans { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+        /* Navigation - Minimal and Fixed */
+        .nav-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(250, 250, 249, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(44, 44, 44, 0.1);
+            padding: 1rem 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c2c2c;
+            text-decoration: none;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .nav-menu a {
+            color: #2c2c2c;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 400;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-menu a:hover {
+            opacity: 1;
+        }
+
+        /* Hero Section - Full height introduction */
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            background: linear-gradient(135deg, #fafaf9 0%, #f5f5f4 100%);
+            overflow: hidden;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            color: #8b5cf6;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .hero-title {
+            font-size: clamp(3rem, 8vw, 5rem);
+            font-weight: 400;
+            line-height: 1.1;
+            margin-bottom: 2rem;
+            color: #2c2c2c;
+        }
+
+        .hero-description {
+            font-size: 1.3rem;
+            line-height: 1.6;
+            color: #6b7280;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-cta {
+            font-family: 'Inter', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            background: #2c2c2c;
+            color: #fafaf9;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .hero-cta:hover {
+            background: #1f1f1f;
+            transform: translateY(-2px);
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            animation: bounce 2s infinite;
+        }
+
+        /* Chapter Navigation */
+        .chapter-nav {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .chapter-nav-item {
+            display: block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(44, 44, 44, 0.3);
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .chapter-nav-item.active {
+            background: #8b5cf6;
+            transform: scale(1.2);
+        }
+
+        .chapter-nav-item:hover::after {
+            content: attr(data-title);
+            position: absolute;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #2c2c2c;
+            color: #fafaf9;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        /* Story Sections */
+        .story-section {
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .story-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 6rem 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Chapter Headers */
+        .chapter-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .chapter-number {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            color: #8b5cf6;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .chapter-title {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 400;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            color: #2c2c2c;
+        }
+
+        .chapter-subtitle {
+            font-size: 1.2rem;
+            color: #6b7280;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Project Layouts - Dynamic based on count */
+        
+        /* Full Width Image + Text Overlay */
+        .project-fullwidth {
+            position: relative;
+            height: 100vh;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .project-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .project-overlay-content {
+            text-align: center;
+            color: white;
+            max-width: 800px;
+            padding: 2rem;
+        }
+
+        .project-overlay-title {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            margin-bottom: 1rem;
+            font-weight: 400;
+        }
+
+        .project-overlay-text {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        /* Split Layout */
+        .project-split {
+            min-height: 100vh;
+            align-items: center;
+        }
+
+        /* Dynamic split layout based on project count */
+        .projects-container.count-1 .project-split,
+        .projects-container.count-2 .project-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .projects-container.count-3 .project-split,
+        .projects-container.count-4 .project-split {
+            display: grid;
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
+
+        .projects-container.count-many .project-split {
+            display: grid;
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
+
+        .project-split-image {
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .project-split-content {
+            padding: 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #f8fafc;
+        }
+
+        /* Smaller content for more projects */
+        .projects-container.count-many .project-split-content {
+            padding: 2rem;
+        }
+
+        .project-split-content h3 {
+            margin-bottom: 1.5rem;
+            color: #2c2c2c;
+            font-weight: 400;
+        }
+
+        /* Dynamic title sizing */
+        .projects-container.count-1 .project-split-content h3,
+        .projects-container.count-2 .project-split-content h3 {
+            font-size: 2.5rem;
+        }
+
+        .projects-container.count-3 .project-split-content h3,
+        .projects-container.count-4 .project-split-content h3 {
+            font-size: 2rem;
+        }
+
+        .projects-container.count-many .project-split-content h3 {
+            font-size: 1.5rem;
+        }
+
+        .project-split-content p {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: #4b5563;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Text with Floating Images */
+        .project-narrative {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .narrative-text {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            color: #374151;
+            margin-bottom: 2rem;
+            text-align: justify;
+        }
+
+        .narrative-text::first-letter {
+            float: left;
+            font-size: 4rem;
+            line-height: 3rem;
+            margin: 0.2rem 0.5rem 0 0;
+            color: #8b5cf6;
+            font-weight: 400;
+        }
+
+        .floating-image {
+            position: relative;
+            float: right;
+            width: 300px;
+            height: 200px;
+            margin: 0 0 2rem 2rem;
+            border-radius: 8px;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .floating-image.left {
+            float: left;
+            margin: 0 2rem 2rem 0;
+        }
+
+        /* Smaller floating images for more projects */
+        .projects-container.count-many .floating-image {
+            width: 200px;
+            height: 133px;
+        }
+
+        /* Stats/Metrics Section */
+        .project-metrics {
+            background: #1f2937;
+            color: white;
+            padding: 6rem 2rem;
+            text-align: center;
+        }
+
+        /* Smaller metrics for more projects */
+        .projects-container.count-many .project-metrics {
+            padding: 3rem 2rem;
+        }
+
+        .metrics-grid {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            gap: 3rem;
+        }
+
+        /* Dynamic metrics grid */
+        .projects-container.count-1 .metrics-grid,
+        .projects-container.count-2 .metrics-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .projects-container.count-3 .metrics-grid,
+        .projects-container.count-4 .metrics-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .projects-container.count-many .metrics-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .metric-item {
+            padding: 2rem;
+        }
+
+        .metric-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #8b5cf6;
+            margin-bottom: 0.5rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Smaller metrics for more projects */
+        .projects-container.count-many .metric-number {
+            font-size: 2rem;
+        }
+
+        .metric-label {
+            font-size: 1rem;
+            color: #d1d5db;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Video Section */
+        .video-section {
+            background: #000;
+            padding: 4rem 0;
+            text-align: center;
+        }
+
+        .video-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+            padding: 0 2rem;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 500px;
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Smaller video for more projects */
+        .projects-container.count-many .video-placeholder {
+            height: 300px;
+        }
+
+        .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(139, 92, 246, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .play-button:hover {
+            background: rgba(139, 92, 246, 1);
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .play-icon {
+            width: 0;
+            height: 0;
+            border-left: 20px solid white;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            margin-left: 4px;
+        }
+
+        .video-caption {
+            color: #9ca3af;
+            font-size: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Timeline Section */
+        .timeline-section {
+            padding: 6rem 2rem;
+            background: #f9fafb;
+        }
+
+        /* Smaller timeline for more projects */
+        .projects-container.count-many .timeline-section {
+            padding: 3rem 2rem;
+        }
+
+        .timeline {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background: #8b5cf6;
+            transform: translateX(-50%);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 4rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        /* Smaller timeline items for more projects */
+        .projects-container.count-many .timeline-item {
+            margin-bottom: 2rem;
+            gap: 2rem;
+        }
+
+        .timeline-item:nth-child(even) .timeline-content {
+            order: 2;
+        }
+
+        .timeline-item:nth-child(even) .timeline-image {
+            order: 1;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background: #8b5cf6;
+            border: 4px solid #fafaf9;
+            border-radius: 50%;
+            z-index: 10;
+        }
+
+        .timeline-content {
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* Smaller timeline content for more projects */
+        .projects-container.count-many .timeline-content {
+            padding: 1.5rem;
+        }
+
+        .timeline-date {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            color: #8b5cf6;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .timeline-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #2c2c2c;
+        }
+
+        /* Smaller timeline titles for more projects */
+        .projects-container.count-many .timeline-title {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .timeline-text {
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .timeline-image {
+            height: 250px;
+            border-radius: 8px;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* Smaller timeline images for more projects */
+        .projects-container.count-many .timeline-image {
+            height: 150px;
+        }
+
+        /* Contact/About Section */
+        .about-section {
+            padding: 8rem 2rem;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .about-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .about-title {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+
+        .about-text {
+            font-size: 1.2rem;
+            line-height: 1.7;
+            margin-bottom: 3rem;
+            opacity: 0.9;
+        }
+
+        .about-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .about-link {
+            font-family: 'Inter', sans-serif;
+            color: white;
+            text-decoration: none;
+            padding: 1rem 2rem;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .about-link:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.6);
+        }
+
+        /* Scroll Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 1s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .slide-left {
+            opacity: 0;
+            transform: translateX(-50px);
+            transition: all 1s ease;
+        }
+
+        .slide-left.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .slide-right {
+            opacity: 0;
+            transform: translateX(50px);
+            transition: all 1s ease;
+        }
+
+        .slide-right.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Animations */
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateX(-50%) translateY(0);
+            }
+            40% {
+                transform: translateX(-50%) translateY(-10px);
+            }
+            60% {
+                transform: translateX(-50%) translateY(-5px);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-menu {
+                display: none;
+            }
+
+            .chapter-nav {
+                display: none;
+            }
+
+            .project-split {
+                grid-template-columns: 1fr !important;
+            }
+
+            .project-split-content {
+                padding: 2rem;
+            }
+
+            .floating-image {
+                width: 100% !important;
+                height: 200px !important;
+                float: none !important;
+                margin: 2rem 0 !important;
+            }
+
+            .timeline-item {
+                grid-template-columns: 1fr !important;
+                text-align: center;
+            }
+
+            .timeline::before {
+                left: 20px;
+            }
+
+            .timeline-dot {
+                left: 20px;
+            }
+
+            .timeline-content {
+                margin-left: 2rem;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 2rem;
+            }
+
+            .about-links {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-overlay">
+        <div class="nav-content">
+            <a href="#home" class="logo">{{PERSON_NAME}}</a>
+            <ul class="nav-menu">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#work">Stories</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Chapter Navigation -->
+    <div class="chapter-nav" id="chapter-nav">
+        <div class="chapter-nav-item active" data-title="Introduction" data-target="#home"></div>
+        <!-- Additional chapter navigation items will be dynamically inserted here -->
+        {{CHAPTER_NAVIGATION_ITEMS}}
+        <div class="chapter-nav-item" data-title="About" data-target="#about"></div>
+    </div>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero story-section">
+        <div class="hero-content fade-in">
+            <p class="hero-subtitle sans">{{PERSON_TITLE}}</p>
+            <h1 class="hero-title serif">{{HERO_TITLE}}</h1>
+            <p class="hero-description">
+                {{HERO_DESCRIPTION}}
+            </p>
+            <a href="#work" class="hero-cta">
+                Begin the Journey
+                <span>↓</span>
+            </a>
+        </div>
+        <div class="scroll-indicator sans">Scroll to explore</div>
+    </section>
+
+    <!-- Projects Container -->
+    <div class="projects-container {{PROJECT_COUNT_CLASS}}" id="projects-container">
+        <!-- Story sections will be dynamically inserted here -->
+        {{STORY_SECTIONS}}
+    </div>
+
+    <!-- About Section -->
+    <section id="about" class="about-section">
+        <div class="about-content fade-in">
+            <h2 class="about-title serif">The Storyteller</h2>
+            <p class="about-text">
+                {{PERSON_BIO}}
+            </p>
+            <div class="about-links" id="about-links-container">
+                <!-- About links will be dynamically inserted here -->
+                {{ABOUT_LINKS_SECTION}}
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Auto-detect and apply project count class
+        function initializeStorytellerLayout() {
+            const projectsContainer = document.getElementById('projects-container');
+            const storySections = document.querySelectorAll('.story-section:not(#home):not(#about)');
+            const count = storySections.length;
+            
+            // Remove any existing count classes
+            const countClasses = ['count-1', 'count-2', 'count-3', 'count-4', 'count-5', 'count-6', 'count-many'];
+            projectsContainer?.classList.remove(...countClasses);
+            
+            // Apply appropriate class based on project count
+            let countClass;
+            if (count <= 6) {
+                countClass = `count-${count}`;
+            } else {
+                countClass = 'count-many';
+            }
+            
+            projectsContainer?.classList.add(countClass);
+
+            // Auto-generate chapter navigation
+            generateChapterNavigation(count);
+        }
+
+        function generateChapterNavigation(count) {
+            const chapterNav = document.getElementById('chapter-nav');
+            if (!chapterNav) return;
+
+            // Clear existing navigation (except home and about)
+            const existingItems = chapterNav.querySelectorAll('.chapter-nav-item:not([data-target="#home"]):not([data-target="#about"])');
+            existingItems.forEach(item => item.remove());
+
+            const homeItem = chapterNav.querySelector('[data-target="#home"]');
+            const aboutItem = chapterNav.querySelector('[data-target="#about"]');
+
+            // Add project chapters between home and about
+            for (let i = 1; i <= count; i++) {
+                const item = document.createElement('div');
+                item.className = 'chapter-nav-item';
+                item.setAttribute('data-title', `Chapter ${i}`);
+                item.setAttribute('data-target', `#chapter${i}`);
+                
+                // Insert before about item
+                if (aboutItem) {
+                    chapterNav.insertBefore(item, aboutItem);
+                } else {
+                    chapterNav.appendChild(item);
+                }
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initializeStorytellerLayout);
+
+        // Scroll-based animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        // Observe all animation elements
+        document.querySelectorAll('.fade-in, .slide-left, .slide-right').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Chapter navigation
+        const sections = document.querySelectorAll('.story-section');
+
+        // Update active chapter on scroll
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= (sectionTop - 200)) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            document.querySelectorAll('.chapter-nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-target') === `#${current}`) {
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // Chapter navigation clicks
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('chapter-nav-item')) {
+                const target = document.querySelector(e.target.getAttribute('data-target'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }
+        });
+
+        // Smooth scrolling for all navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Parallax effect for fullwidth images
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const parallaxElements = document.querySelectorAll('.project-fullwidth');
+            
+            parallaxElements.forEach(element => {
+                const rate = scrolled * -0.5;
+                element.style.transform = `translateY(${rate}px)`;
+            });
+        });
+
+        // Video play button functionality
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('play-button') || e.target.closest('.play-button')) {
+                console.log('Video player would open here');
+                // In a real implementation, this would open a video player
+            }
+        });
+
+        // Navigation background on scroll
+        const nav = document.querySelector('.nav-overlay');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 100) {
+                nav.style.background = 'rgba(250, 250, 249, 0.98)';
+                nav.style.borderBottomColor = 'rgba(44, 44, 44, 0.2)';
+            } else {
+                nav.style.background = 'rgba(250, 250, 249, 0.95)';
+                nav.style.borderBottomColor = 'rgba(44, 44, 44, 0.1)';
+            }
+        });
+
+        // Animate metrics on scroll
+        const metricsObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const numbers = entry.target.querySelectorAll('.metric-number');
+                    numbers.forEach(number => {
+                        const target = number.textContent;
+                        const numericValue = parseInt(target.replace(/[^\d]/g, ''));
+                        const suffix = target.replace(/[\d.]/g, '');
+                        
+                        let current = 0;
+                        const increment = numericValue / 50;
+                        const timer = setInterval(() => {
+                            current += increment;
+                            if (current >= numericValue) {
+                                number.textContent = target;
+                                clearInterval(timer);
+                            } else {
+                                number.textContent = Math.floor(current) + suffix;
+                            }
+                        }, 30);
+                    });
+                }
+            });
+        }, { threshold: 0.5 });
+
+        const metricsSection = document.querySelector('.project-metrics');
+        if (metricsSection) {
+            metricsObserver.observe(metricsSection);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[USER_NAME] Portfolio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            font-family: 'Times New Roman', Times, serif;
+            background: #f5f1e8; /* MOODBOARD_PRIMARY_COLOR */
+            color: #2a2a2a; /* MOODBOARD_TEXT_COLOR */
+            line-height: 1.3;
+        }
+
+        /* Aged paper effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(139, 69, 19, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 69, 19, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .newspaper {
+            min-height: 100vh;
+            padding: 2rem 3rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            border-bottom: 4px solid #2a2a2a; /* MOODBOARD_BORDER_COLOR */
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #2a2a2a; /* MOODBOARD_BORDER_COLOR */
+        }
+
+        .top-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .left-box {
+            border: 2px solid #2a2a2a; /* MOODBOARD_BOX_BORDER */
+            padding: 0.3rem 0.6rem;
+            font-weight: bold;
+            color: #2a2a2a; /* MOODBOARD_BOX_TEXT */
+        }
+
+        .right-info {
+            text-align: right;
+            color: #2a2a2a; /* MOODBOARD_INFO_TEXT */
+        }
+
+        .masthead {
+            text-align: center;
+            font-size: clamp(3rem, 8vw, 5rem);
+            font-weight: 900;
+            color: #2a2a2a; /* MOODBOARD_MASTHEAD_COLOR */
+            margin: 0.5rem 0;
+            font-family: 'Old English Text MT', 'Times New Roman', serif;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
+        }
+
+        .subheader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            color: #2a2a2a; /* MOODBOARD_SUBHEADER_COLOR */
+        }
+
+        .volume-info {
+            font-weight: bold;
+        }
+
+        .date-location {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* Section styling */
+        .newspaper-section {
+            margin-bottom: 0;
+        }
+
+        /* Main content area */
+        .content-area {
+            display: grid;
+            grid-template-columns: 1.5fr 2px 2fr 2px 1.5fr;
+            gap: 0 2rem;
+            align-items: start;
+        }
+
+        /* Column containers */
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .divider-vertical {
+            background: #2a2a2a; /* MOODBOARD_DIVIDER_COLOR */
+            width: 2px;
+            min-height: 300px;
+        }
+
+        /* Article styling */
+        .article {
+            background: rgba(255, 255, 255, 0.3); /* MOODBOARD_ARTICLE_BG */
+            border: 1px solid rgba(42, 42, 42, 0.1); /* MOODBOARD_ARTICLE_BORDER */
+            border-bottom: none;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .article:last-child {
+            border-bottom: 1px solid rgba(42, 42, 42, 0.1); /* MOODBOARD_ARTICLE_BORDER */
+        }
+
+        .article:hover {
+            background: rgba(139, 92, 246, 0.1); /* MOODBOARD_ARTICLE_HOVER */
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* Article content */
+        .breaking-label {
+            background: #2a2a2a; /* MOODBOARD_LABEL_BG */
+            color: #f5f1e8; /* MOODBOARD_LABEL_TEXT */
+            padding: 0.2rem 0.5rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.8rem;
+            display: inline-block;
+        }
+
+        .article-headline {
+            font-size: clamp(1.2rem, 2vw, 1.8rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+            color: #2a2a2a; /* MOODBOARD_HEADLINE_COLOR */
+        }
+
+        .large-headline {
+            font-size: clamp(1.8rem, 3vw, 2.5rem);
+        }
+
+        .article-subheader {
+            font-size: 1rem;
+            font-style: italic;
+            margin-bottom: 1rem;
+            color: #4a4a4a; /* MOODBOARD_SUBHEADER_TEXT */
+        }
+
+        .byline {
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+            color: #2a2a2a; /* MOODBOARD_BYLINE_COLOR */
+        }
+
+        .article-text {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            text-align: justify;
+            margin-bottom: 1rem;
+            color: #2a2a2a; /* MOODBOARD_ARTICLE_TEXT */
+        }
+
+        .article-text p {
+            margin-bottom: 0.8rem;
+        }
+
+        .article-image {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(45deg, #8b7355, #a0956b); /* MOODBOARD_IMAGE_GRADIENT */
+            border: 2px solid #2a2a2a; /* MOODBOARD_IMAGE_BORDER */
+            margin: 1rem 0;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .image-caption {
+            font-size: 0.8rem;
+            font-style: italic;
+            text-align: center;
+            margin-top: 0.5rem;
+            color: #4a4a4a; /* MOODBOARD_CAPTION_COLOR */
+        }
+
+        /* Stats and special elements */
+        .stats-box {
+            border: 2px solid #2a2a2a; /* MOODBOARD_STATS_BORDER */
+            padding: 1rem;
+            margin: 1rem 0;
+            background: #f9f7f0; /* MOODBOARD_STATS_BG */
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            text-align: center;
+        }
+
+        .stat-item {
+            padding: 0.5rem;
+            border: 1px solid #2a2a2a; /* MOODBOARD_STAT_BORDER */
+            background: rgba(255, 255, 255, 0.5); /* MOODBOARD_STAT_BG */
+        }
+
+        .stat-number {
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #8b5cf6; /* MOODBOARD_ACCENT_COLOR */
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #2a2a2a; /* MOODBOARD_STAT_LABEL */
+        }
+
+        .tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            margin-top: 1rem;
+        }
+
+        .tag {
+            background: #e5e7eb; /* MOODBOARD_TAG_BG */
+            color: #374151; /* MOODBOARD_TAG_TEXT */
+            padding: 0.2rem 0.5rem;
+            font-size: 0.7rem;
+            border: 1px solid #d1d5db; /* MOODBOARD_TAG_BORDER */
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .quote-box {
+            border-left: 4px solid #8b5cf6; /* MOODBOARD_QUOTE_BORDER */
+            background: #f1f5f9; /* MOODBOARD_QUOTE_BG */
+            padding: 1rem;
+            margin: 1rem 0;
+            font-style: italic;
+        }
+
+        .quote-text {
+            margin-bottom: 0.5rem;
+            color: #2a2a2a; /* MOODBOARD_QUOTE_TEXT */
+        }
+
+        .quote-author {
+            font-size: 0.8rem;
+            color: #666; /* MOODBOARD_QUOTE_AUTHOR */
+            text-align: right;
+            font-weight: bold;
+        }
+
+        /* Skills and lists */
+        .skills-list, .project-list {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            list-style: none;
+            color: #2a2a2a; /* MOODBOARD_LIST_TEXT */
+        }
+
+        .skills-list li, .project-list li {
+            margin-bottom: 0.5rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .skills-list li::before, .project-list li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+            color: #8b5cf6; /* MOODBOARD_BULLET_COLOR */
+        }
+
+        /* Contact info */
+        .contact-info {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid #2a2a2a; /* MOODBOARD_CONTACT_BORDER */
+            color: #2a2a2a; /* MOODBOARD_CONTACT_TEXT */
+        }
+
+        .contact-item {
+            margin-bottom: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .contact-label {
+            font-weight: bold;
+            min-width: 60px;
+            color: #2a2a2a; /* MOODBOARD_CONTACT_LABEL */
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9); /* MOODBOARD_MODAL_BG */
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #f5f1e8; /* MOODBOARD_MODAL_CONTENT_BG */
+            padding: 3rem;
+            border-radius: 8px;
+            max-width: 80vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #666; /* MOODBOARD_MODAL_CLOSE */
+            font-family: 'Times New Roman', serif;
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #2a2a2a; /* MOODBOARD_MODAL_TITLE */
+            font-weight: 900;
+        }
+
+        .modal-image {
+            width: 100%;
+            height: 300px;
+            background-size: cover;
+            background-position: center;
+            margin-bottom: 2rem;
+            border: 2px solid #2a2a2a; /* MOODBOARD_MODAL_IMAGE_BORDER */
+        }
+
+        .modal-text {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #2a2a2a; /* MOODBOARD_MODAL_TEXT */
+            text-align: justify;
+        }
+
+        .modal-text p {
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .content-area {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .divider-vertical {
+                display: none;
+            }
+
+            .article-image {
+                height: 180px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .newspaper {
+                padding: 1.5rem;
+            }
+
+            .masthead {
+                font-size: 2.5rem;
+            }
+
+            .article:hover {
+                transform: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                padding: 2rem;
+                margin: 1rem;
+            }
+        }
+
+        /* Vintage newspaper lines effect */
+        .article::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -10px;
+            right: -10px;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                transparent,
+                transparent 1.2rem,
+                rgba(139, 69, 19, 0.05) 1.2rem,
+                rgba(139, 69, 19, 0.05) 1.25rem
+            );
+            pointer-events: none;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="newspaper">
+        <!-- Header -->
+        <header class="header">
+            <div class="top-line">
+                <div class="left-box">"[TAGLINE_TEXT]"</div>
+                <div class="right-info">
+                    [PUBLICATION_NAME]<br>
+                    Portfolio Edition<br>
+                    [CURRENT_DATE]
+                </div>
+            </div>
+            <h1 class="masthead">[USER_NAME]</h1>
+            <div class="subheader">
+                <div class="volume-info">VOL. [VOLUME_NUMBER]... No. 1</div>
+                <div>Copyright © 2024 [COPYRIGHT_NAME]</div>
+                <div class="date-location">[LOCATION_DATE_HEADER]</div>
+            </div>
+        </header>
+
+        <!-- Main content area -->
+        <div class="content-area">
+            <!-- Left Column -->
+            <div class="column">
+                <!-- Featured Project Article -->
+                <article class="article" data-modal="featured">
+                    <div class="breaking-label">Featured Work</div>
+                    <h2 class="article-headline large-headline">[PROJECT_1_HEADLINE]</h2>
+                    <p class="article-subheader">[PROJECT_1_SUBHEADLINE]</p>
+                    <p class="byline">By [USER_NAME]<br>[USER_TITLE]</p>
+                    
+                    <div class="stats-box">
+                        <div class="stats-grid">
+                            [PROJECT_1_STATS]
+                        </div>
+                    </div>
+
+                    <div class="article-text">
+                        <p>[PROJECT_1_SUMMARY]</p>
+                    </div>
+
+                    <div class="tags-list">
+                        [PROJECT_1_TAGS]
+                    </div>
+                </article>
+
+                <!-- Second Project Article -->
+                <article class="article" data-modal="project2">
+                    <h2 class="article-headline">[PROJECT_2_HEADLINE]</h2>
+                    <p class="article-subheader">[PROJECT_2_SUBHEADLINE]</p>
+                    <p class="byline">[PROJECT_2_BYLINE]</p>
+                    
+                    <div class="article-text">
+                        <p>[PROJECT_2_SUMMARY]</p>
+                        <p>[PROJECT_2_CHALLENGE]</p>
+                    </div>
+
+                    <div class="stats-box">
+                        <div class="stats-grid">
+                            [PROJECT_2_STATS]
+                        </div>
+                    </div>
+                </article>
+
+                <!-- About Article -->
+                <article class="article" data-modal="about">
+                    <h2 class="article-headline">Meet the [USER_PROFESSION]</h2>
+                    <p class="article-subheader">[EXPERIENCE_SUMMARY]</p>
+                    <p class="byline">Profile</p>
+                    
+                    <div class="article-text">
+                        <p>[USER_BIO_PARAGRAPH_1]</p>
+                        <p>[USER_BIO_PARAGRAPH_2]</p>
+                    </div>
+
+                    <ul class="skills-list">
+                        [USER_CREDENTIALS_LIST]
+                    </ul>
+                </article>
+            </div>
+
+            <div class="divider-vertical"></div>
+
+            <!-- Center Column -->
+            <div class="column">
+                <!-- Featured Image Article -->
+                <article class="article" data-modal="featured-image">
+                    <h3 class="article-headline">Behind the Design</h3>
+                    <div class="article-image" style="background-image: url('[PROJECT_1_MAIN_IMAGE]');"></div>
+                    <p class="image-caption">[PROJECT_1_IMAGE_CAPTION]</p>
+                    
+                    <div class="article-text">
+                        <p>[PROJECT_1_PROCESS_DESCRIPTION]</p>
+                        <p>[PROJECT_1_INNOVATION_DETAILS]</p>
+                    </div>
+                </article>
+
+                <!-- Process Article -->
+                <article class="article" data-modal="process">
+                    <h3 class="article-headline">Design Process</h3>
+                    <div class="article-image" style="background-image: url('[PROJECT_2_PROCESS_IMAGE]');"></div>
+                    <p class="image-caption">[PROJECT_2_PROCESS_CAPTION]</p>
+                    
+                    <div class="article-text">
+                        <p>[PROJECT_2_PROCESS_DESCRIPTION]</p>
+                    </div>
+                </article>
+
+                <!-- Additional Project Article -->
+                <article class="article" data-modal="project3">
+                    <h3 class="article-headline">[PROJECT_3_TITLE]</h3>
+                    <div class="article-image" style="background-image: url('[PROJECT_3_IMAGE]');"></div>
+                    <p class="image-caption">[PROJECT_3_CAPTION]</p>
+                    
+                    <div class="article-text">
+                        <p>[PROJECT_3_DESCRIPTION]</p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="divider-vertical"></div>
+
+            <!-- Right Column -->
+            <div class="column">
+                <!-- Impact Article -->
+                <article class="article" data-modal="impact">
+                    <h3 class="article-headline">Industry Impact</h3>
+                    <p class="byline">Market Response</p>
+                    
+                    <div class="quote-box">
+                        <p class="quote-text">"[CLIENT_TESTIMONIAL]"</p>
+                        <p class="quote-author">— [CLIENT_NAME], [CLIENT_TITLE]</p>
+                    </div>
+
+                    <div class="article-text">
+                        <p><strong>[RECOGNITION_TYPE]:</strong> [RECOGNITION_DETAILS]</p>
+                        <p><strong>User Feedback:</strong> [USER_FEEDBACK_SUMMARY]</p>
+                        <p><strong>Business Results:</strong> [BUSINESS_IMPACT]</p>
+                        <p><strong>Industry Coverage:</strong> [MEDIA_COVERAGE]</p>
+                    </div>
+                </article>
+
+                <!-- Results Article -->
+                <article class="article" data-modal="results">
+                    <h3 class="article-headline">Measurable Results</h3>
+                    <div class="article-text">
+                        <p><strong>Timeline:</strong> [PROJECT_TIMELINE]</p>
+                        <p><strong>Testing:</strong> [TESTING_DETAILS]</p>
+                        <p><strong>Optimization:</strong> [OPTIMIZATION_RESULTS]</p>
+                        <p><strong>Client Satisfaction:</strong> [CLIENT_SATISFACTION]</p>
+                    </div>
+
+                    <div class="tags-list">
+                        [METHODOLOGY_TAGS]
+                    </div>
+                </article>
+
+                <!-- Additional Work Article -->
+                <article class="article" data-modal="additional-work">
+                    <h2 class="article-headline">[ADDITIONAL_PROJECT_HEADLINE]</h2>
+                    <p class="article-subheader">[ADDITIONAL_PROJECT_SUBHEADLINE]</p>
+                    <p class="byline">[ADDITIONAL_PROJECT_BYLINE]</p>
+                    
+                    <div class="article-text">
+                        <p>[ADDITIONAL_PROJECT_DESCRIPTION]</p>
+                        <p>[ADDITIONAL_PROJECT_OUTCOME]</p>
+                    </div>
+
+                    <div class="tags-list">
+                        [ADDITIONAL_PROJECT_TAGS]
+                    </div>
+                </article>
+
+                <!-- Philosophy Article -->
+                <article class="article" data-modal="philosophy">
+                    <h3 class="article-headline">Design Philosophy</h3>
+                    <div class="quote-box">
+                        <p class="quote-text">"[USER_PHILOSOPHY_QUOTE]"</p>
+                        <p class="quote-author">— [USER_NAME]</p>
+                    </div>
+                    
+                    <div class="article-text">
+                        <p><strong>Approach:</strong> [DESIGN_APPROACH]</p>
+                        <p><strong>Methodology:</strong> [DESIGN_METHODOLOGY]</p>
+                        <p><strong>Focus:</strong> [DESIGN_FOCUS]</p>
+                    </div>
+                </article>
+
+                <!-- Contact Article -->
+                <article class="article" data-modal="contact">
+                    <h3 class="article-headline">Get in Touch</h3>
+                    <p class="byline">Available for Projects</p>
+                    
+                    <div class="article-text">
+                        <p>[AVAILABILITY_TEXT]</p>
+                    </div>
+
+                    <div class="contact-info">
+                        <div class="contact-item">
+                            <span class="contact-label">Email:</span>
+                            <span>[USER_EMAIL]</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-label">Phone:</span>
+                            <span>[USER_PHONE]</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-label">Portfolio:</span>
+                            <span>[USER_WEBSITE]</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-label">LinkedIn:</span>
+                            <span>[USER_LINKEDIN]</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        // Modal data structure - Will be populated with real project data
+        const modalData = [MODAL_DATA_JSON];
+
+        // Modal functionality
+        function openModal(modalId) {
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+            
+            if (modalData[modalId]) {
+                modalBody.innerHTML = modalData[modalId].content;
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Add click event listeners to articles
+        document.addEventListener('DOMContentLoaded', function() {
+            const articles = document.querySelectorAll('[data-modal]');
+            articles.forEach(article => {
+                article.addEventListener('click', function() {
+                    const modalId = this.getAttribute('data-modal');
+                    openModal(modalId);
+                });
+            });
+
+            // Close modal when clicking outside content
+            document.getElementById('modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
+
+        // Add newspaper-style animations
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate articles on scroll
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            });
+
+            // Initially hide articles for animation
+            document.querySelectorAll('.article').forEach((article, index) => {
+                article.style.opacity = '0';
+                article.style.transform = 'translateY(20px)';
+                article.style.transition = `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
+                observer.observe(article);
+            });
+        });
+    </script>
+</body>
+</html>

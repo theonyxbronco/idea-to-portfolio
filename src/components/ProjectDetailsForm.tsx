@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, Palette, Loader2, AlertTriangle, RefreshCw, Settings, ChevronDown, User, FolderOpen, ArrowLeft } from 'lucide-react';
+import { Upload, Palette, Loader2, AlertTriangle, RefreshCw, Settings, ChevronDown, User, FolderOpen, ArrowLeft, Eye, Sparkles, X, CheckCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@clerk/clerk-react';
 import { API_BASE_URL } from '@/services/api';
+import { getSkeletonPreview, getAllSkeletonPreviews } from '../skeletons';
 
 interface PersonalInfo {
   name: string;
@@ -50,6 +51,8 @@ interface PortfolioData {
     typography: string;
     mood: string;
   };
+  selectedSkeleton?: string;
+  customDesignRequest?: string;
 }
 
 const ProjectDetailsForm = () => {
@@ -273,43 +276,6 @@ const ProjectDetailsForm = () => {
     }
   };
 
-  // Moodboard Handlers
-  const handleMoodboardUpload = (files: FileList | null) => {
-    if (files) {
-      const validFiles = Array.from(files).filter(file => {
-        if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
-          toast({
-            title: "Invalid File Type",
-            description: `${file.name} is not a valid image format`,
-            variant: "destructive",
-          });
-          return false;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          toast({
-            title: "File Too Large",
-            description: `${file.name} is larger than 5MB`,
-            variant: "destructive",
-          });
-          return false;
-        }
-        return true;
-      });
-
-      setPortfolioData(prev => ({
-        ...prev,
-        moodboardImages: [...prev.moodboardImages, ...validFiles]
-      }));
-    }
-  };
-
-  const removeMoodboardImage = (imageIndex: number) => {
-    setPortfolioData(prev => ({
-      ...prev,
-      moodboardImages: prev.moodboardImages.filter((_, i) => i !== imageIndex)
-    }));
-  };
-
   // Style Preferences
   const handleStylePreferenceChange = (field: keyof typeof portfolioData.stylePreferences, value: string) => {
     setPortfolioData(prev => ({
@@ -401,7 +367,7 @@ const ProjectDetailsForm = () => {
         
         toast({
           title: `Auto-completing (${attempt}/${maxAttempts})...`,
-          description: "AI needs more time to finish your portfolio",
+          description: "Prism needs more time to finish your portfolio",
         });
 
         setTimeout(() => {
@@ -413,7 +379,7 @@ const ProjectDetailsForm = () => {
       if (result.success && result.portfolio) {
         toast({
           title: "Portfolio Generated Successfully!",
-          description: "Your AI-powered portfolio has been created and completed automatically.",
+          description: "Your portfolio has been created and completed automatically.",
         });
 
         navigate('/preview', { 
@@ -546,7 +512,9 @@ const ProjectDetailsForm = () => {
           finalProductImage: null
         })),
         moodboardImages: [],
-        stylePreferences: portfolioData.stylePreferences
+        stylePreferences: portfolioData.stylePreferences,
+        selectedSkeleton: portfolioData.selectedSkeleton,
+        customDesignRequest: portfolioData.customDesignRequest
       };
       
       formData.append('portfolioData', JSON.stringify(backendData));
@@ -601,7 +569,7 @@ const ProjectDetailsForm = () => {
       if (result.success && result.portfolio) {
         toast({
           title: "Portfolio Generated!",
-          description: "Your AI-powered portfolio has been created successfully.",
+          description: "Your portfolio has been created successfully.",
         });
 
         navigate('/preview', { 
@@ -684,7 +652,7 @@ const ProjectDetailsForm = () => {
               Portfolio Builder
             </h1>
             <p className="text-xl text-muted-foreground">
-              {fromDashboard ? 'Selected projects loaded - ready to generate!' : 'Ready to generate your AI-powered portfolio'}
+              {fromDashboard ? 'Selected projects loaded - ready to generate!' : 'Ready to generate your portfolio'}
             </p>
           </div>
 
@@ -806,138 +774,12 @@ const ProjectDetailsForm = () => {
             </Card>
           </div>
 
-          {/* Moodboard & Style Preferences - Rest of the component remains the same */}
-          <Card className="shadow-large border-0">
-            <CardHeader className="bg-gradient-accent text-accent-foreground rounded-t-lg">
-              <CardTitle className="text-2xl font-semibold flex items-center">
-                <Palette className="h-6 w-6 mr-3" />
-                Moodboard & Style Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              {/* Moodboard Upload */}
-              <div className="space-y-4">
-                <div className="text-base font-medium">
-                  Visual Inspiration (Moodboard)
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Upload images that represent the style, mood, and aesthetic you want for your portfolio
-                </p>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {portfolioData.moodboardImages.map((image, index) => (
-                    <div key={index} className="relative group">
-                      <div className="aspect-square bg-muted rounded-lg overflow-hidden shadow-soft">
-                        <img
-                          src={URL.createObjectURL(image)}
-                          alt={`Moodboard ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <button
-                        onClick={() => removeMoodboardImage(index)}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                  
-                  {/* Upload Area */}
-                  <label className="aspect-square border-2 border-dashed border-accent/30 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors bg-accent/10">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={(e) => handleMoodboardUpload(e.target.files)}
-                      className="hidden"
-                    />
-                    <Upload className="h-8 w-8 text-accent mb-2" />
-                    <span className="text-sm text-accent text-center font-medium">
-                      Add Inspiration
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Style Preferences */}
-              <div className="space-y-6">
-                <div className="text-base font-medium">Style Preferences</div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div className="text-sm">Preferred Color Scheme</div>
-                    <select
-                      value={portfolioData.stylePreferences.colorScheme}
-                      onChange={(e) => handleStylePreferenceChange('colorScheme', e.target.value)}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="">Select color preference</option>
-                      <option value="monochrome">Monochrome (Black & White)</option>
-                      <option value="minimal">Minimal (Neutral tones)</option>
-                      <option value="warm">Warm (Reds, oranges, yellows)</option>
-                      <option value="cool">Cool (Blues, greens, purples)</option>
-                      <option value="vibrant">Vibrant (Bold, bright colors)</option>
-                      <option value="earthy">Earthy (Natural, organic tones)</option>
-                      <option value="pastel">Pastel (Soft, muted colors)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm">Layout Style</div>
-                    <select
-                      value={portfolioData.stylePreferences.layoutStyle}
-                      onChange={(e) => handleStylePreferenceChange('layoutStyle', e.target.value)}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="">Select layout preference</option>
-                      <option value="minimal">Minimal & Clean</option>
-                      <option value="grid">Grid-based</option>
-                      <option value="masonry">Masonry (Pinterest-style)</option>
-                      <option value="magazine">Magazine-style</option>
-                      <option value="asymmetric">Asymmetric & Creative</option>
-                      <option value="fullscreen">Full-screen Showcase</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm">Typography Style</div>
-                    <select
-                      value={portfolioData.stylePreferences.typography}
-                      onChange={(e) => handleStylePreferenceChange('typography', e.target.value)}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="">Select typography preference</option>
-                      <option value="modern">Modern Sans-serif</option>
-                      <option value="classic">Classic Serif</option>
-                      <option value="artistic">Artistic & Creative</option>
-                      <option value="minimal">Minimal & Light</option>
-                      <option value="bold">Bold & Strong</option>
-                      <option value="elegant">Elegant & Refined</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm">Overall Mood</div>
-                    <select
-                      value={portfolioData.stylePreferences.mood}
-                      onChange={(e) => handleStylePreferenceChange('mood', e.target.value)}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-base shadow-soft focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="">Select mood preference</option>
-                      <option value="professional">Professional & Corporate</option>
-                      <option value="creative">Creative & Artistic</option>
-                      <option value="playful">Playful & Fun</option>
-                      <option value="elegant">Elegant & Sophisticated</option>
-                      <option value="edgy">Edgy & Modern</option>
-                      <option value="warm">Warm & Inviting</option>
-                      <option value="minimal">Minimal & Clean</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Enhanced Moodboard Section */}
+          <EnhancedMoodboardSection 
+            portfolioData={portfolioData}
+            setPortfolioData={setPortfolioData}
+            onStylePreferenceChange={handleStylePreferenceChange}
+          />
 
           {/* Advanced Settings Section */}
           <Card className="shadow-large border-0 mt-8">
@@ -1074,7 +916,7 @@ const ProjectDetailsForm = () => {
                       <>
                         {generationProgress < 30 && "Analyzing your information..."}
                         {generationProgress >= 30 && generationProgress < 60 && "Designing your layout..."}
-                        {generationProgress >= 60 && generationProgress < 90 && "Generating content with AI..."}
+                        {generationProgress >= 60 && generationProgress < 90 && "Generating content..."}
                         {generationProgress >= 90 && "Finalizing your portfolio..."}
                       </>
                     ) : (
@@ -1104,19 +946,19 @@ const ProjectDetailsForm = () => {
                 {(isGenerating || isAutoCompleting) ? (
                   <>
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    {!isAutoCompleting ? "Generating with AI..." : "Auto-completing..."}
+                    {!isAutoCompleting ? "Generating..." : "Auto-completing..."}
                   </>
                 ) : (
                   <>
                     <Upload className="h-5 w-5 mr-2" />
-                    Generate Portfolio with AI
+                    Generate Portfolio with Prism
                   </>
                 )}
               </Button>
 
               {!(isGenerating || isAutoCompleting) && (
                 <p className="text-sm text-muted-foreground text-center max-w-md">
-                  Our AI will analyze your information and create a stunning, personalized portfolio website. 
+                  Prism will analyze your information and create a stunning, personalized portfolio website. 
                   {' '}
                   <span className="text-accent font-medium">
                     If generation is incomplete, it will automatically continue until finished.
@@ -1133,6 +975,456 @@ const ProjectDetailsForm = () => {
                 </p>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EnhancedMoodboardSection = ({ portfolioData, setPortfolioData, onStylePreferenceChange }) => {
+  const [selectedSkeleton, setSelectedSkeleton] = useState('none');
+  const [customRequest, setCustomRequest] = useState('');
+  const [showSkeletonPreview, setShowSkeletonPreview] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const { toast } = useToast();
+
+  // Load skeleton options from the imported previews
+  const skeletonOptions = [
+    {
+      id: 'none',
+      name: 'No Skeleton',
+      description: 'Let Prism create a completely custom design based on your moodboard',
+      features: ['100% Custom Prism Design', 'Moodboard-Driven', 'Unique Layout', 'Creative Freedom'],
+      color: 'from-purple-500 to-pink-500',
+      html: null
+    },
+    ...getAllSkeletonPreviews()
+  ];
+
+  // Suggestion prompts that cycle through
+  const suggestionPrompts = [
+    "Make it feel premium and expensive, like a luxury brand...",
+    "I want a playful, energetic vibe with bright colors...",
+    "Keep it minimal and clean, focusing on white space...",
+    "Make it edgy and modern with dark themes...",
+    "I love retro aesthetics with vintage typography...",
+    "Create something warm and inviting, like a cozy cafe...",
+    "I want it to feel professional but not boring...",
+    "Make it artistic and experimental with bold layouts..."
+  ];
+
+  const [currentSuggestion, setCurrentSuggestion] = useState(0);
+
+  // Cycle through suggestions every 3 seconds
+  useEffect(() => {
+    if (!isTyping && !customRequest) {
+      const interval = setInterval(() => {
+        setCurrentSuggestion((prev) => (prev + 1) % suggestionPrompts.length);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isTyping, customRequest]);
+
+  // Handle moodboard image upload
+  const handleMoodboardUpload = (files: FileList | null) => {
+    if (files) {
+      const validFiles = Array.from(files).filter((file: File) => {
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        
+        // Check file type
+        if (!validTypes.includes(file.type)) {
+          toast({
+            title: "Invalid File Type",
+            description: `${file.name} is not a valid image format`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        
+        // Check file size (5MB limit)
+        if (file.size > 5 * 1024 * 1024) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} is larger than 5MB`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        
+        return true;
+      });
+
+      setPortfolioData(prev => ({
+        ...prev,
+        moodboardImages: [...prev.moodboardImages, ...validFiles]
+      }));
+    }
+  };
+
+  // Remove moodboard image
+  const removeMoodboardImage = (imageIndex: number) => {
+    setPortfolioData(prev => ({
+      ...prev,
+      moodboardImages: prev.moodboardImages.filter((_, i) => i !== imageIndex)
+    }));
+  };
+
+  // Handle skeleton selection
+  const handleSkeletonSelect = (skeletonId: string) => {
+    setSelectedSkeleton(skeletonId);
+    setPortfolioData(prev => ({
+      ...prev,
+      selectedSkeleton: skeletonId
+    }));
+  };
+
+  // Handle custom request input
+  const handleCustomRequestChange = (value: string) => {
+    setCustomRequest(value);
+    setIsTyping(value.length > 0);
+    setPortfolioData(prev => ({
+      ...prev,
+      customDesignRequest: value
+    }));
+  };
+
+  return (
+    <Card className="shadow-large border-0">
+      <CardHeader className="bg-gradient-accent text-accent-foreground rounded-t-lg">
+        <CardTitle className="text-2xl font-semibold flex items-center">
+          <Palette className="h-6 w-6 mr-3" />
+          Design Inspiration & Style
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-8 space-y-8">
+        
+        {/* Moodboard Upload Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Visual Inspiration (Moodboard)</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Upload images that represent the style, mood, and aesthetic you want for your portfolio
+              </p>
+            </div>
+            <div className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
+              {portfolioData.moodboardImages?.length || 0}/8 images
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {portfolioData.moodboardImages?.map((image, index) => (
+              <div key={index} className="relative group">
+                <div className="aspect-square bg-muted rounded-lg overflow-hidden shadow-soft border-2 border-transparent hover:border-accent transition-colors">
+                  <img
+                    src={URL.createObjectURL(image)}
+                    alt={`Moodboard ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <button
+                  onClick={() => removeMoodboardImage(index)}
+                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:scale-110"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            
+            {/* Upload Area */}
+            {(portfolioData.moodboardImages?.length || 0) < 8 && (
+              <label className="aspect-square border-2 border-dashed border-accent/30 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors bg-accent/10 group">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => handleMoodboardUpload(e.target.files)}
+                  className="hidden"
+                />
+                <Upload className="h-8 w-8 text-accent mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-sm text-accent text-center font-medium">
+                  Add Images
+                </span>
+                <span className="text-xs text-accent/70 text-center mt-1">
+                  Max 5MB each
+                </span>
+              </label>
+            )}
+          </div>
+        </div>
+
+        {/* Skeleton Selection */}
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium flex items-center">
+              <Sparkles className="h-5 w-5 mr-2 text-accent" />
+              Portfolio Style Foundation
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Choose a skeleton as a starting point (all made by Prism), or let Prism create something completely custom
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {skeletonOptions.map((skeleton) => (
+              <div
+                key={skeleton.id}
+                className={`relative cursor-pointer transition-all duration-300 ${
+                  selectedSkeleton === skeleton.id
+                    ? 'ring-2 ring-accent ring-offset-2 scale-[1.02]'
+                    : 'hover:scale-[1.01] hover:shadow-lg'
+                }`}
+                onClick={() => handleSkeletonSelect(skeleton.id)}
+              >
+                <Card className="h-full overflow-hidden">
+                  {/* Preview Image */}
+                  <div className="relative h-32 overflow-hidden">
+                    <div className={`absolute inset-0 bg-gradient-to-br ${skeleton.color} opacity-80`} />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-white font-semibold text-lg">
+                        {skeleton.name}
+                      </span>
+                    </div>
+                    {selectedSkeleton === skeleton.id && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle className="h-6 w-6 text-white bg-accent rounded-full" />
+                      </div>
+                    )}
+                  </div>
+
+                  <CardContent className="p-4 space-y-3">
+                    <div>
+                      <h4 className="font-medium text-sm">{skeleton.name}</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {skeleton.description}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      {skeleton.features.slice(0, 2).map((feature, idx) => (
+                        <div key={idx} className="flex items-center text-xs text-muted-foreground">
+                          <div className="w-1 h-1 bg-accent rounded-full mr-2" />
+                          {feature}
+                        </div>
+                      ))}
+                      {skeleton.features.length > 2 && (
+                        <div className="text-xs text-accent">
+                          +{skeleton.features.length - 2} more features
+                        </div>
+                      )}
+                    </div>
+
+                    {skeleton.id !== 'none' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs h-7"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSkeletonPreview(skeleton.id);
+                        }}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        Live Preview
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+
+          {/* Selected Skeleton Info */}
+          {selectedSkeleton !== 'none' && (
+            <div className="bg-accent/10 border border-accent/20 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="h-5 w-5 text-accent mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm">
+                    {skeletonOptions.find(s => s.id === selectedSkeleton)?.name} Selected
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Prism will use this as a foundation and customize it based on your moodboard and requirements
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Custom Design Request */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-medium">Custom Design Request</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Describe any specific design elements, feelings, or styles you want
+            </p>
+          </div>
+
+          <div className="relative">
+            <textarea
+              value={customRequest}
+              onChange={(e) => handleCustomRequestChange(e.target.value)}
+              onFocus={() => setIsTyping(true)}
+              onBlur={() => setIsTyping(customRequest.length > 0)}
+              placeholder={isTyping || customRequest ? '' : suggestionPrompts[currentSuggestion]}
+              className="w-full min-h-[120px] p-4 border border-input rounded-lg bg-background text-base resize-none focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+              style={{
+                lineHeight: '1.6'
+              }}
+            />
+            
+            {!isTyping && !customRequest && (
+              <div className="absolute top-4 left-4 pointer-events-none">
+                <span className="text-muted-foreground/60 italic">
+                  {suggestionPrompts[currentSuggestion]}
+                </span>
+              </div>
+            )}
+
+            <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
+              {customRequest.length}/500
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs text-muted-foreground">Quick suggestions:</span>
+            {['Modern & Minimal', 'Bold & Colorful', 'Dark & Edgy', 'Warm & Inviting'].map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => handleCustomRequestChange(suggestion + ' aesthetic with ')}
+                className="text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-2 py-1 rounded-md transition-colors"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Preview Modal */}
+        {showSkeletonPreview && (
+          <SkeletonPreviewModal 
+            skeletonId={showSkeletonPreview}
+            onClose={() => setShowSkeletonPreview(null)}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Skeleton Preview Modal Component
+interface SkeletonPreviewModalProps {
+  skeletonId: string;
+  onClose: () => void;
+}
+
+const SkeletonPreviewModal: React.FC<SkeletonPreviewModalProps> = ({ skeletonId, onClose }) => {
+  const [iframeKey, setIframeKey] = useState(0);
+  const [iframeSrc, setIframeSrc] = useState<string>('');
+  const skeletonPreview = getSkeletonPreview(skeletonId);
+
+  if (!skeletonPreview) {
+    return null;
+  }
+
+  // Create blob URL only once when component mounts or skeletonId changes
+  useEffect(() => {
+    const htmlBlob = new Blob([skeletonPreview.html], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(htmlBlob);
+    setIframeSrc(blobUrl);
+
+    // Cleanup function
+    return () => {
+      URL.revokeObjectURL(blobUrl);
+    };
+  }, [skeletonId]); // Only recreate when skeleton changes
+
+  // Don't render iframe until we have a stable URL
+  if (!iframeSrc) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-background rounded-lg p-8">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground mt-2 text-center">Loading preview...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-background rounded-lg max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b flex items-center justify-between bg-gradient-to-r from-accent/10 to-accent/5">
+          <div>
+            <h3 className="text-xl font-semibold text-foreground">
+              {skeletonPreview.name}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {skeletonPreview.description}
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIframeKey(prev => prev + 1)}
+              title="Refresh preview"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Preview Content */}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-[calc(95vh-120px)] w-full border-0">
+            <iframe
+              key={iframeKey}
+              src={iframeSrc}
+              className="w-full h-full border-0"
+              title={`${skeletonPreview.name} Preview`}
+              sandbox="allow-scripts allow-same-origin allow-forms"
+              loading="lazy"
+              onLoad={() => {
+                // Optional: Add any post-load logic here
+                console.log(`Preview loaded for ${skeletonPreview.name}`);
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Footer with Features */}
+        <div className="p-4 border-t bg-muted/30">
+          <div className="flex flex-wrap items-center justify-between">
+            <div className="flex flex-wrap gap-2">
+              {skeletonPreview.features.map((feature, idx) => (
+                <span 
+                  key={idx}
+                  className="inline-flex items-center text-xs bg-accent/10 text-accent px-2 py-1 rounded-full"
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  {feature}
+                </span>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="ml-auto"
+            >
+              Choose This Style
+            </Button>
           </div>
         </div>
       </div>

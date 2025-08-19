@@ -14,6 +14,42 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
+// Tier system configuration
+const TIER_LIMITS = {
+  Free: {
+    maxDeployments: 0,
+    maxProjects: 3,
+    maxPortfolios: 1,
+    features: ['Basic portfolio generation', 'Text editing', 'Save as draft'],
+    restrictions: ['No deployment', 'Limited projects', 'No custom styling']
+  },
+  Student: {
+    maxDeployments: 3,
+    maxProjects: 20,
+    maxPortfolios: 3,
+    features: ['Portfolio deployment', 'AI editing', 'Multiple projects', 'Email support'],
+    restrictions: ['Limited deployments', 'No custom CSS', 'No priority support']
+  },
+  Pro: {
+    maxDeployments: Infinity,
+    maxProjects: Infinity,
+    maxPortfolios: Infinity,
+    features: ['Unlimited deployments', 'Custom styling', 'Priority support', 'Advanced editing', 'Custom domains'],
+    restrictions: []
+  }
+};
+
+interface UserLimits {
+  tier: 'Free' | 'Student' | 'Pro';
+  usage: {
+    deployments: number;
+    projects: number;
+    portfolios: number;
+  };
+  canDeploy: boolean;
+  deploymentsRemaining: number;
+}
+
 interface EditableRegion {
   id: string;
   type: 'heading' | 'paragraph' | 'list-item' | 'button';
@@ -24,7 +60,7 @@ interface EditableRegion {
 
 type ViewportSize = 'mobile' | 'tablet' | 'desktop';
 
-const FreemiumEditPreview = () => {
+const Preview = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -36,6 +72,10 @@ const FreemiumEditPreview = () => {
   const [editingText, setEditingText] = useState('');
   const [htmlContent, setHtmlContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [userLimits, setUserLimits] = useState<UserLimits | null>(null);
+  const [isLoadingLimits, setIsLoadingLimits] = useState(true);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+
   const { portfolioData, generatedPortfolio, metadata, isIncomplete, isDraft, draftHtml } = location.state || {}; 
   const [aiRequest, setAiRequest] = useState('');
   const [isProcessingAiRequest, setIsProcessingAiRequest] = useState(false);
@@ -48,27 +88,504 @@ const FreemiumEditPreview = () => {
     }, [navigate]);
     return null;
   }
+
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [lastSavedDraft, setLastSavedDraft] = useState<string | null>(null);
+
+  // Load user limits on component mount
+  useEffect(() => {
+    const loadUserLimits = async () => {
+      if (!portfolioData?.personalInfo?.email) {
+        setIsLoadingLimits(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/check-user-limits?email=${encodeURIComponent(portfolioData.personalInfo.email)}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            const tier = data.data.tier as 'Free' | 'Student' | 'Pro';
+            const limits = TIER_LIMITS[tier];
+            const deploymentsRemaining = limits.maxDeployments === Infinity ? 
+              Infinity : Math.max(0, limits.maxDeployments - data.data.usage.portfolios);
+
+            setUserLimits({
+              tier,
+              usage: data.data.usage,
+              canDeploy: tier !== 'Free' && deploymentsRemaining > 0,
+              deploymentsRemaining
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load user limits:', error);
+        // Default to Free tier if we can't load limits
+        setUserLimits({
+          tier: 'Free',
+          usage: { deployments: 0, projects: 0, portfolios: 0 },
+          canDeploy: false,
+          deploymentsRemaining: 0
+        });
+      } finally {
+        setIsLoadingLimits(false);
+      }
+    };
+
+    loadUserLimits();
+  }, [portfolioData?.personalInfo?.email]);
 
   // Initialize HTML content
   useEffect(() => {
     setHtmlContent(originalHtml);
   }, [originalHtml]);
 
-  // Reset all changes to original content
-  const handleResetChanges = useCallback(() => {
-    setHtmlContent(originalHtml);
-    setHasChanges(false);
-    setActiveEdit(null);
-    setEditingText('');
-    toast({
-      title: "Changes Reset",
-      description: "All edits have been reverted to original content",
-    });
-  }, [originalHtml, toast]);
+  // Paywall Modal Component
+  const PaywallModal = () => (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Crown className="h-5 w-5 mr-2 text-yellow-500" />
+            Upgrade Required
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {userLimits?.tier === 'Free' ? (
+            <>
+              <div className="text-center p-4 bg-red-50 rounded-lg">
+                <Lock className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                <h3 className="font-semibold text-red-900">Deployment Locked</h3>
+                <p className="text-sm text-red-700">
+                  Free users cannot deploy portfolios. Upgrade to Student or Pro to make your portfolio live!
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="border-blue-200 bg-blue-50">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold text-blue-900 mb-2">Student Plan</h4>
+                    <div className="text-sm text-blue-700 space-y-1">
+                      <p>✓ 3 deployments</p>
+                      <p>✓ 20 projects</p>
+                      <p>✓ AI editing</p>
+                      <p>✓ Email support</p>
+                    </div>
+                    <Button className="w-full mt-3 bg-blue-600 hover:bg-blue-700" size="sm">
+                      Upgrade to Student
+                    </Button>
+                  </CardContent>
+                </Card>
+                
+                <Card className="border-purple-200 bg-purple-50">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold text-purple-900 mb-2">Pro Plan</h4>
+                    <div className="text-sm text-purple-700 space-y-1">
+                      <p>✓ Unlimited deployments</p>
+                      <p>✓ Unlimited projects</p>
+                      <p>✓ Custom styling</p>
+                      <p>✓ Priority support</p>
+                    </div>
+                    <Button className="w-full mt-3 bg-purple-600 hover:bg-purple-700" size="sm">
+                      Upgrade to Pro
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-center p-4 bg-orange-50 rounded-lg">
+                <AlertCircle className="h-8 w-8 text-orange-500 mx-auto mb-2" />
+                <h3 className="font-semibold text-orange-900">Deployment Limit Reached</h3>
+                <p className="text-sm text-orange-700">
+                  You've used all {TIER_LIMITS[userLimits.tier].maxDeployments} deployments for {userLimits.tier} tier. 
+                  Upgrade to Pro for unlimited deployments!
+                </p>
+              </div>
+              
+              <Card className="border-purple-200 bg-purple-50">
+                <CardContent className="p-4">
+                  <h4 className="font-semibold text-purple-900 mb-2">Pro Plan</h4>
+                  <div className="text-sm text-purple-700 space-y-1">
+                    <p>✓ Unlimited deployments</p>
+                    <p>✓ Unlimited projects</p>
+                    <p>✓ Custom styling</p>
+                    <p>✓ Priority support</p>
+                    <p>✓ Custom domains</p>
+                  </div>
+                  <Button className="w-full mt-3 bg-purple-600 hover:bg-purple-700">
+                    Upgrade to Pro
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
+          
+          <div className="flex space-x-2 pt-4">
+            <Button variant="outline" onClick={() => setShowPaywallModal(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button onClick={() => navigate('/pro-waitlist')} className="flex-1">
+              Learn More
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
-  // Parse editable regions from HTML
+  // Tier Badge Component
+  const TierBadge = ({ tier }: { tier: string }) => {
+    const colors = {
+      Free: 'bg-gray-100 text-gray-800',
+      Student: 'bg-blue-100 text-blue-800',
+      Pro: 'bg-purple-100 text-purple-800'
+    };
+    
+    return (
+      <Badge className={`${colors[tier]} font-medium`}>
+        {tier} Tier
+      </Badge>
+    );
+  };
+
+  // Usage Stats Component
+  const UsageStats = () => {
+    if (!userLimits) return null;
+    
+    const limits = TIER_LIMITS[userLimits.tier];
+    
+    return (
+      <Card className="shadow-medium border-0">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center justify-between">
+            <span className="flex items-center">
+              <Crown className="h-5 w-5 mr-2" />
+              Your Plan
+            </span>
+            <TierBadge tier={userLimits.tier} />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          {/* Deployment Status */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span>Deployments</span>
+              <span className="font-medium">
+                {userLimits.usage.portfolios} / {limits.maxDeployments === Infinity ? '∞' : limits.maxDeployments}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full ${
+                  userLimits.canDeploy ? 'bg-green-500' : 'bg-red-500'
+                }`}
+                style={{ 
+                  width: limits.maxDeployments === Infinity ? '100%' : 
+                    `${Math.min(100, (userLimits.usage.portfolios / limits.maxDeployments) * 100)}%` 
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Projects Status */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span>Projects</span>
+              <span className="font-medium">
+                {userLimits.usage.projects} / {limits.maxProjects === Infinity ? '∞' : limits.maxProjects}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-500 h-2 rounded-full"
+                style={{ 
+                  width: limits.maxProjects === Infinity ? '100%' : 
+                    `${Math.min(100, (userLimits.usage.projects / limits.maxProjects) * 100)}%` 
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Upgrade CTA */}
+          {userLimits.tier !== 'Pro' && (
+            <div className="pt-2 border-t">
+              <Button 
+                size="sm" 
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                onClick={() => navigate('/pro-waitlist')}
+              >
+                <Crown className="h-3 w-3 mr-1" />
+                Upgrade to {userLimits.tier === 'Free' ? 'Student or ' : ''}Pro
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Enhanced Deploy Handler with Paywall Check
+  const handleDeploy = async () => {
+    if (isIncomplete) {
+      toast({
+        title: "Cannot Deploy Incomplete Portfolio",
+        description: "Please complete the generation first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check user limits before attempting deployment
+    if (!userLimits) {
+      toast({
+        title: "Unable to Check Limits",
+        description: "Please refresh and try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show paywall if user cannot deploy
+    if (!userLimits.canDeploy) {
+      setShowPaywallModal(true);
+      return;
+    }
+
+    // Proceed with original deployment logic
+    try {
+      setIsDeploying(true);
+      
+      // Add tracking call here
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/track-deployment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: portfolioData.personalInfo.name,
+            email: portfolioData.personalInfo.email,
+            title: portfolioData.personalInfo.title,
+            userAgent: navigator.userAgent,
+            projectCount: portfolioData.projects.length,
+            tier: userLimits.tier
+          }),
+        });
+      } catch (trackingError) {
+        console.warn('Tracking failed:', trackingError);
+      }
+
+      let netlifyToken = import.meta.env.VITE_NETLIFY_TOKEN || 
+                        localStorage.getItem('netlifyToken');
+
+      if (!netlifyToken) {
+        netlifyToken = prompt(
+          "Please enter your Netlify Personal Access Token:\n\n" +
+          "1. Go to netlify.com → User Settings → Applications\n" +
+          "2. Click 'New access token'\n" +
+          "3. Give it a descriptive name (e.g., 'Portfolio Generator')\n" +
+          "4. Set expiration (recommended: 1 year)\n" +
+          "5. Copy and paste the token here"
+        );
+      }
+
+      if (!netlifyToken?.trim()) {
+        toast({
+          title: "Netlify Token Required",
+          description: "You need a Netlify Personal Access Token to deploy",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!netlifyToken.trim().match(/^[a-zA-Z0-9_-]+$/)) {
+        toast({
+          title: "Invalid Token Format",
+          description: "The token appears to be invalid. Please check and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      localStorage.setItem('netlifyToken', netlifyToken.trim());
+      
+      toast({ 
+        title: "Starting Deployment...",
+        description: "Preparing your portfolio for deployment",
+      });
+
+      const currentHtml = iframeRef.current?.contentDocument?.documentElement.outerHTML || htmlContent;
+      const cleanedHtml = cleanHtmlForExport(currentHtml);
+
+      if (!cleanedHtml || cleanedHtml.length < 100) {
+        throw new Error('Invalid HTML content - portfolio appears to be empty');
+      }
+
+      if (!cleanedHtml.includes('<html') && !cleanedHtml.includes('<!DOCTYPE')) {
+        throw new Error('Invalid HTML structure - missing HTML document structure');
+      }
+
+      const projectIds = portfolioData.projects ? 
+        portfolioData.projects.map(project => project.id || `project_${Math.random().toString(36).substr(2, 9)}`) : 
+        [];
+
+      console.log('📋 Deploying with project IDs:', projectIds);
+      console.log('👤 Deploying for user:', portfolioData.personalInfo.email);
+
+      const deployStartTime = Date.now();
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/deploy-folder-to-netlify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          htmlContent: cleanedHtml,
+          netlifyToken: netlifyToken.trim(),
+          personName: portfolioData.personalInfo.name || 'Portfolio',
+          userEmail: portfolioData.personalInfo.email,
+          projectIds: projectIds,
+          metadata: {
+            generatedAt: new Date().toISOString(),
+            projectCount: (portfolioData.projects || []).length,
+            hasCustomizations: hasChanges,
+            tier: userLimits.tier
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Deployment failed with status ${response.status}`;
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.details || errorData.error || errorMessage;
+          
+          if (response.status === 401) {
+            localStorage.removeItem('netlifyToken');
+            errorMessage = 'Invalid Netlify token. Please check your token and try again.';
+          } else if (response.status === 403) {
+            errorMessage = 'Insufficient permissions. Your Netlify token may not have site creation permissions.';
+          } else if (response.status === 429) {
+            errorMessage = 'Rate limit exceeded. Please wait a few minutes before trying again.';
+          } else if (response.status === 422) {
+            errorMessage = 'Invalid request data. Please try regenerating your portfolio.';
+          }
+          
+          console.error('Deployment API Error:', errorData);
+        } catch (parseError) {
+          console.error('Could not parse error response:', parseError);
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || result.details || 'Deployment failed for unknown reason');
+      }
+
+      if (result.success) {
+        const { deployment } = result;
+        const deployTime = Math.round((Date.now() - deployStartTime) / 1000);
+
+        // Update tracking with the deployment URL
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/update-deployment-url`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: portfolioData.personalInfo.email,
+              url: deployment.url
+            }),
+          });
+        } catch (updateError) {
+          console.warn('Failed to update deployment URL:', updateError);
+        }
+
+        // Update user limits after successful deployment
+        setUserLimits(prev => prev ? {
+          ...prev,
+          usage: {
+            ...prev.usage,
+            portfolios: prev.usage.portfolios + 1
+          },
+          canDeploy: prev.tier === 'Pro' || (prev.usage.portfolios + 1 < TIER_LIMITS[prev.tier].maxDeployments),
+          deploymentsRemaining: prev.tier === 'Pro' ? Infinity : Math.max(0, TIER_LIMITS[prev.tier].maxDeployments - (prev.usage.portfolios + 1))
+        } : null);
+
+        navigate('/deployment', {
+          state: {
+            portfolioData,
+            generatedPortfolio: cleanedHtml,
+            metadata: {
+              generatedAt: new Date().toISOString(),
+              projectCount: (portfolioData.projects || []).length,
+              hasCustomizations: hasChanges,
+              deployTime,
+              deployedAt: new Date().toISOString(),
+              projectIds: projectIds,
+              tier: userLimits.tier
+            },
+            deploymentUrl: deployment.url,
+            platform: 'Netlify',
+            isDeployed: true,
+          },
+        });
+
+        return;
+      }
+
+    } catch (error) {
+      console.error('Deployment error:', error);
+      
+      let userFriendlyMessage = 'An unexpected error occurred during deployment.';
+      let suggestions = 'Please try again in a few moments.';
+
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        
+        if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          userFriendlyMessage = 'Network connection error during deployment.';
+          suggestions = 'Please check your internet connection and try again.';
+        } else if (errorMessage.includes('token') || errorMessage.includes('auth')) {
+          userFriendlyMessage = 'Authentication failed with Netlify.';
+          suggestions = 'Please check your Netlify token and try again.';
+          localStorage.removeItem('netlifyToken');
+        } else if (errorMessage.includes('rate limit')) {
+          userFriendlyMessage = 'Too many deployment requests.';
+          suggestions = 'Please wait a few minutes before trying again.';
+        } else if (errorMessage.includes('html') || errorMessage.includes('content')) {
+          userFriendlyMessage = 'Invalid portfolio content detected.';
+          suggestions = 'Try regenerating your portfolio and then deploy again.';
+        } else if (errorMessage.includes('permission')) {
+          userFriendlyMessage = 'Insufficient permissions for deployment.';
+          suggestions = 'Make sure your Netlify token has site creation permissions.';
+        } else {
+          userFriendlyMessage = error.message;
+        }
+      }
+
+      toast({
+        variant: "destructive",
+        title: "Deployment Failed",
+        description: `${userFriendlyMessage} ${suggestions}`,
+        duration: 10000,
+      });
+
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
+  // Rest of your existing methods (parseEditableRegions, handleIframeLoad, etc.)
   const parseEditableRegions = useCallback(() => {
     if (!iframeRef.current?.contentDocument) return;
     
@@ -109,7 +626,6 @@ const FreemiumEditPreview = () => {
     setEditableRegions(regions);
   }, []);
 
-  // Handle iframe load
   const handleIframeLoad = useCallback(() => {
     if (!iframeRef.current?.contentDocument) return;
     
@@ -184,6 +700,82 @@ const FreemiumEditPreview = () => {
     setTimeout(parseEditableRegions, 200);
   }, [parseEditableRegions]);
 
+  const cleanHtmlForExport = (html: string): string => {
+    if (!html) return '';
+    
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Remove existing editable classes
+      const editableElements = doc.querySelectorAll('.freemium-editable');
+      editableElements.forEach(el => {
+        el.classList.remove('freemium-editable');
+      });
+      
+      const indicators = doc.querySelectorAll('.freemium-edit-indicator');
+      indicators.forEach(el => el.remove());
+      
+      const styleTags = doc.querySelectorAll('style');
+      styleTags.forEach(styleTag => {
+        if (styleTag.textContent?.includes('freemium-editable') || 
+            styleTag.textContent?.includes('edit-indicator')) {
+          styleTag.remove();
+        }
+      });
+      
+      let cleanedHtml = doc.documentElement.outerHTML;
+      
+      // Fix problematic navigation links
+      const navigationFixes = [
+        { pattern: /href=["']\/dashboard["']/gi, replacement: 'href="#about"' },
+        { pattern: /href=["']\/works["']/gi, replacement: 'href="#projects"' },
+        { pattern: /href=["']\/projects["']/gi, replacement: 'href="#projects"' },
+        { pattern: /href=["']\/portfolio["']/gi, replacement: 'href="#projects"' },
+        { pattern: /href=["']\#dashboard["']/gi, replacement: 'href="#about"' },
+        { pattern: /href=["']\#works["']/gi, replacement: 'href="#projects"' }
+      ];
+      
+      navigationFixes.forEach(({ pattern, replacement }) => {
+        cleanedHtml = cleanedHtml.replace(pattern, replacement);
+      });
+      
+      // Remove floating emoji animations
+      const emojiPatterns = [
+        /@keyframes\s+[^{]*emoji[^}]*\{[^}]+\}/gi,
+        /animation[^;]*emoji[^;]*;/gi,
+        /\.floating-emoji[^}]*\{[^}]+\}/gi,
+        /\.emoji-rain[^}]*\{[^}]+\}/gi,
+        /<div[^>]*class="[^"]*floating[^"]*emoji[^"]*"[^>]*>.*?<\/div>/gi
+      ];
+      
+      emojiPatterns.forEach(pattern => {
+        cleanedHtml = cleanedHtml.replace(pattern, '');
+      });
+      
+      // Remove problematic JavaScript
+      cleanedHtml = cleanedHtml.replace(
+        /window\.location\s*=\s*["'][^"']*["']/gi, 
+        '// navigation disabled for deployment'
+      );
+      
+      cleanedHtml = cleanedHtml.replace(
+        /location\.href\s*=\s*["'][^"']*["']/gi, 
+        '// navigation disabled for deployment'
+      );
+      
+      // Ensure proper DOCTYPE
+      if (!cleanedHtml.includes('<!DOCTYPE')) {
+        cleanedHtml = '<!DOCTYPE html>\n' + cleanedHtml;
+      }
+      
+      return cleanedHtml;
+    } catch (error) {
+      console.warn('HTML cleaning failed, using original:', error);
+      return html;
+    }
+  };
+
   // Apply text edit
   const applyTextEdit = useCallback((regionId: string, newText: string) => {
     if (!iframeRef.current?.contentDocument) return;
@@ -231,6 +823,17 @@ const FreemiumEditPreview = () => {
     setActiveEdit(null);
     setEditingText('');
   };
+
+  const handleResetChanges = useCallback(() => {
+    setHtmlContent(originalHtml);
+    setHasChanges(false);
+    setActiveEdit(null);
+    setEditingText('');
+    toast({
+      title: "Changes Reset",
+      description: "All edits have been reverted to original content",
+    });
+  }, [originalHtml, toast]);
 
   const handleSaveDraft = async () => {
     if (!portfolioData?.personalInfo?.email) {
@@ -286,96 +889,6 @@ const FreemiumEditPreview = () => {
     }
   };
 
-  const getViewportClasses = () => {
-    switch (viewportSize) {
-      case 'mobile':
-        return 'w-[375px] h-[667px]';
-      case 'tablet':
-        return 'w-[768px] h-[1024px]';
-      case 'desktop':
-        return 'w-full h-[700px]';
-      default:
-        return 'w-full h-[700px]';
-    }
-  };
-
-  const cleanHtmlForExport = (html: string): string => {
-    if (!html) return '';
-    
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      
-      // Remove existing editable classes (existing code)
-      const editableElements = doc.querySelectorAll('.freemium-editable');
-      editableElements.forEach(el => {
-        el.classList.remove('freemium-editable');
-      });
-      
-      const indicators = doc.querySelectorAll('.freemium-edit-indicator');
-      indicators.forEach(el => el.remove());
-      
-      const styleTags = doc.querySelectorAll('style');
-      styleTags.forEach(styleTag => {
-        if (styleTag.textContent?.includes('freemium-editable') || 
-            styleTag.textContent?.includes('edit-indicator')) {
-          styleTag.remove();
-        }
-      });
-      
-      // 🚨 NEW: Fix navigation and emoji issues
-      let cleanedHtml = doc.documentElement.outerHTML;
-      
-      // Fix problematic navigation links
-      const navigationFixes = [
-        { pattern: /href=["']\/dashboard["']/gi, replacement: 'href="#about"' },
-        { pattern: /href=["']\/works["']/gi, replacement: 'href="#projects"' },
-        { pattern: /href=["']\/projects["']/gi, replacement: 'href="#projects"' },
-        { pattern: /href=["']\/portfolio["']/gi, replacement: 'href="#projects"' },
-        { pattern: /href=["']\#dashboard["']/gi, replacement: 'href="#about"' },
-        { pattern: /href=["']\#works["']/gi, replacement: 'href="#projects"' }
-      ];
-      
-      navigationFixes.forEach(({ pattern, replacement }) => {
-        cleanedHtml = cleanedHtml.replace(pattern, replacement);
-      });
-      
-      // Remove floating emoji animations
-      const emojiPatterns = [
-        /@keyframes\s+[^{]*emoji[^}]*\{[^}]+\}/gi,
-        /animation[^;]*emoji[^;]*;/gi,
-        /\.floating-emoji[^}]*\{[^}]+\}/gi,
-        /\.emoji-rain[^}]*\{[^}]+\}/gi,
-        /<div[^>]*class="[^"]*floating[^"]*emoji[^"]*"[^>]*>.*?<\/div>/gi
-      ];
-      
-      emojiPatterns.forEach(pattern => {
-        cleanedHtml = cleanedHtml.replace(pattern, '');
-      });
-      
-      // Remove problematic JavaScript
-      cleanedHtml = cleanedHtml.replace(
-        /window\.location\s*=\s*["'][^"']*["']/gi, 
-        '// navigation disabled for deployment'
-      );
-      
-      cleanedHtml = cleanedHtml.replace(
-        /location\.href\s*=\s*["'][^"']*["']/gi, 
-        '// navigation disabled for deployment'
-      );
-      
-      // Ensure proper DOCTYPE
-      if (!cleanedHtml.includes('<!DOCTYPE')) {
-        cleanedHtml = '<!DOCTYPE html>\n' + cleanedHtml;
-      }
-      
-      return cleanedHtml;
-    } catch (error) {
-      console.warn('HTML cleaning failed, using original:', error);
-      return html;
-    }
-  };
-
   const handleAiEditRequest = async () => {
     if (!aiRequest.trim()) return;
     
@@ -423,250 +936,38 @@ const FreemiumEditPreview = () => {
     }
   };
 
-  const handleDeploy = async () => {
-    if (isIncomplete) {
-      toast({
-        title: "Cannot Deploy Incomplete Portfolio",
-        description: "Please complete the generation first",
-        variant: "destructive",
-      });
-      return;
-    }
-  
-    try {
-      setIsDeploying(true);
-      
-      // Add tracking call here
-      try {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/track-deployment`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: portfolioData.personalInfo.name,
-            email: portfolioData.personalInfo.email,
-            title: portfolioData.personalInfo.title,
-            userAgent: navigator.userAgent,
-            projectCount: portfolioData.projects.length,
-            tier: 'Free' // Default to Free tier
-          }),
-        });
-      } catch (trackingError) {
-        console.warn('Tracking failed:', trackingError);
-      }
-  
-      let netlifyToken = import.meta.env.VITE_NETLIFY_TOKEN || 
-                        localStorage.getItem('netlifyToken');
-  
-      if (!netlifyToken) {
-        netlifyToken = prompt(
-          "Please enter your Netlify Personal Access Token:\n\n" +
-          "1. Go to netlify.com → User Settings → Applications\n" +
-          "2. Click 'New access token'\n" +
-          "3. Give it a descriptive name (e.g., 'Portfolio Generator')\n" +
-          "4. Set expiration (recommended: 1 year)\n" +
-          "5. Copy and paste the token here"
-        );
-      }
-  
-      if (!netlifyToken?.trim()) {
-        toast({
-          title: "Netlify Token Required",
-          description: "You need a Netlify Personal Access Token to deploy",
-          variant: "destructive",
-        });
-        return;
-      }
-  
-      if (!netlifyToken.trim().match(/^[a-zA-Z0-9_-]+$/)) {
-        toast({
-          title: "Invalid Token Format",
-          description: "The token appears to be invalid. Please check and try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-  
-      localStorage.setItem('netlifyToken', netlifyToken.trim());
-      
-      toast({ 
-        title: "Starting Deployment...",
-        description: "Preparing your portfolio for deployment",
-      });
-  
-      const currentHtml = iframeRef.current?.contentDocument?.documentElement.outerHTML || htmlContent;
-      const cleanedHtml = cleanHtmlForExport(currentHtml);
-  
-      if (!cleanedHtml || cleanedHtml.length < 100) {
-        throw new Error('Invalid HTML content - portfolio appears to be empty');
-      }
-  
-      if (!cleanedHtml.includes('<html') && !cleanedHtml.includes('<!DOCTYPE')) {
-        throw new Error('Invalid HTML structure - missing HTML document structure');
-      }
-  
-      // 🆕 Extract project IDs from portfolioData
-      const projectIds = portfolioData.projects ? 
-        portfolioData.projects.map(project => project.id || `project_${Math.random().toString(36).substr(2, 9)}`) : 
-        [];
-  
-      console.log('📋 Deploying with project IDs:', projectIds);
-      console.log('👤 Deploying for user:', portfolioData.personalInfo.email);
-  
-      const deployStartTime = Date.now();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/deploy-folder-to-netlify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          htmlContent: cleanedHtml,
-          netlifyToken: netlifyToken.trim(),
-          personName: portfolioData.personalInfo.name || 'Portfolio',
-          userEmail: portfolioData.personalInfo.email, // 🆕 Add user email for tracking
-          projectIds: projectIds, // 🆕 Add project IDs array for tracking
-          metadata: {
-            generatedAt: new Date().toISOString(),
-            projectCount: (portfolioData.projects || []).length,
-            hasCustomizations: hasChanges
-          }
-        }),
-      });
-  
-      if (!response.ok) {
-        let errorMessage = `Deployment failed with status ${response.status}`;
-        
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.details || errorData.error || errorMessage;
-          
-          if (response.status === 401) {
-            localStorage.removeItem('netlifyToken');
-            errorMessage = 'Invalid Netlify token. Please check your token and try again.';
-          } else if (response.status === 403) {
-            errorMessage = 'Insufficient permissions. Your Netlify token may not have site creation permissions.';
-          } else if (response.status === 429) {
-            errorMessage = 'Rate limit exceeded. Please wait a few minutes before trying again.';
-          } else if (response.status === 422) {
-            errorMessage = 'Invalid request data. Please try regenerating your portfolio.';
-          }
-          
-          console.error('Deployment API Error:', errorData);
-        } catch (parseError) {
-          console.error('Could not parse error response:', parseError);
-        }
-        
-        throw new Error(errorMessage);
-      }
-  
-      const result = await response.json();
-  
-      if (!result.success) {
-        throw new Error(result.error || result.details || 'Deployment failed for unknown reason');
-      }
-  
-      if (result.success) {
-        const { deployment } = result;
-        const deployTime = Math.round((Date.now() - deployStartTime) / 1000);
-  
-        // Update tracking with the deployment URL
-        try {
-          await fetch(`${import.meta.env.VITE_API_URL}/api/update-deployment-url`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: portfolioData.personalInfo.email,
-              url: deployment.url
-            }),
-          });
-        } catch (updateError) {
-          console.warn('Failed to update deployment URL:', updateError);
-        }
-  
-        navigate('/deployment', {
-          state: {
-            portfolioData,
-            generatedPortfolio: cleanedHtml,
-            metadata: {
-              generatedAt: new Date().toISOString(),
-              projectCount: (portfolioData.projects || []).length,
-              hasCustomizations: hasChanges,
-              deployTime,
-              deployedAt: new Date().toISOString(),
-              projectIds: projectIds, // 🆕 Pass project IDs to deployment page
-            },
-            deploymentUrl: deployment.url,
-            platform: 'Netlify',
-            isDeployed: true,
-          },
-        });
-  
-        return;
-      }
-  
-    } catch (error) {
-      console.error('Deployment error:', error);
-      
-      let userFriendlyMessage = 'An unexpected error occurred during deployment.';
-      let suggestions = 'Please try again in a few moments.';
-  
-      if (error instanceof Error) {
-        const errorMessage = error.message.toLowerCase();
-        
-        if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-          userFriendlyMessage = 'Network connection error during deployment.';
-          suggestions = 'Please check your internet connection and try again.';
-        } else if (errorMessage.includes('token') || errorMessage.includes('auth')) {
-          userFriendlyMessage = 'Authentication failed with Netlify.';
-          suggestions = 'Please check your Netlify token and try again.';
-          localStorage.removeItem('netlifyToken');
-        } else if (errorMessage.includes('rate limit')) {
-          userFriendlyMessage = 'Too many deployment requests.';
-          suggestions = 'Please wait a few minutes before trying again.';
-        } else if (errorMessage.includes('html') || errorMessage.includes('content')) {
-          userFriendlyMessage = 'Invalid portfolio content detected.';
-          suggestions = 'Try regenerating your portfolio and then deploy again.';
-        } else if (errorMessage.includes('permission')) {
-          userFriendlyMessage = 'Insufficient permissions for deployment.';
-          suggestions = 'Make sure your Netlify token has site creation permissions.';
-        } else {
-          userFriendlyMessage = error.message;
-        }
-      }
-  
-      toast({
-        variant: "destructive",
-        title: "Deployment Failed",
-        description: `${userFriendlyMessage} ${suggestions}`,
-        duration: 10000,
-      });
-  
-      console.group('🔍 Deployment Error Details');
-      console.log('Error:', error);
-      console.log('Portfolio Data:', {
-        name: portfolioData.personalInfo?.name,
-        email: portfolioData.personalInfo?.email,
-        htmlLength: htmlContent?.length,
-        hasProjects: (portfolioData.projects || []).length > 0,
-        projectIds: portfolioData.projects?.map(p => p.id || 'no-id'),
-        hasChanges
-      });
-      console.log('Environment:', {
-        apiUrl: import.meta.env.VITE_API_URL,
-        hasStoredToken: !!localStorage.getItem('netlifyToken')
-      });
-      console.groupEnd();
-  
-    } finally {
-      setIsDeploying(false);
+  const getViewportClasses = () => {
+    switch (viewportSize) {
+      case 'mobile':
+        return 'w-[375px] h-[667px]';
+      case 'tablet':
+        return 'w-[768px] h-[1024px]';
+      case 'desktop':
+        return 'w-full h-[700px]';
+      default:
+        return 'w-full h-[700px]';
     }
   };
 
+  // Loading state
+  if (isLoadingLimits) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <Card className="p-6">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span>Loading user information...</span>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
+      {/* Paywall Modal */}
+      {showPaywallModal && <PaywallModal />}
+      
       <div className="container mx-auto px-4 py-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -684,12 +985,15 @@ const FreemiumEditPreview = () => {
                 <h1 className="text-2xl font-bold text-foreground flex items-center">
                   <Edit3 className="h-5 w-5 mr-2" />
                   Quick Edit
-                  <Badge variant="secondary" className="ml-2 text-xs">
-                    Free tier
-                  </Badge>
+                  {userLimits && <TierBadge tier={userLimits.tier} />}
                 </h1>
                 <p className="text-muted-foreground text-sm">
                   Click on any text to edit • {hasChanges ? 'Unsaved changes' : 'No changes'}
+                  {userLimits && userLimits.tier !== 'Pro' && userLimits.deploymentsRemaining !== Infinity && (
+                    <span className="ml-2 text-orange-600 font-medium">
+                      {userLimits.deploymentsRemaining} deployment{userLimits.deploymentsRemaining !== 1 ? 's' : ''} remaining
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -722,9 +1026,16 @@ const FreemiumEditPreview = () => {
               </Button>
               <Button
                 onClick={handleDeploy}
-                variant="build"
-                disabled={isDeploying || isIncomplete}
+                variant={userLimits?.canDeploy ? "build" : "outline"}
+                disabled={isDeploying || isIncomplete || !userLimits?.canDeploy}
+                className={cn(
+                  "relative",
+                  !userLimits?.canDeploy && "opacity-60"
+                )}
               >
+                {!userLimits?.canDeploy && (
+                  <Lock className="h-4 w-4 mr-2" />
+                )}
                 {isDeploying ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -732,8 +1043,8 @@ const FreemiumEditPreview = () => {
                   </>
                 ) : (
                   <>
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Deploy to Web
+                    {userLimits?.canDeploy && <Rocket className="h-4 w-4 mr-2" />}
+                    {userLimits?.canDeploy ? 'Deploy to Web' : 'Upgrade to Deploy'}
                   </>
                 )}
               </Button>
@@ -870,33 +1181,8 @@ const FreemiumEditPreview = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Pro Upgrade */}
-              <Card className="shadow-medium border-0 bg-gradient-to-br from-purple-50 to-blue-50">
-                <CardContent className="p-4">
-                  <div className="text-center space-y-3">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto">
-                      <Crown className="h-6 w-6 text-white" />
-                    </div>
-                    <h3 className="font-semibold text-gray-900">Unlock Pro Features</h3>
-                    <p className="text-xs text-gray-600">
-                      Upgrade for advanced visual editing, custom styling, and unlimited suggestions
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-1 text-xs text-gray-500">
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Visual Editor</span>
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Custom CSS</span>
-                      <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Advanced Layouts</span>
-                    </div>
-                    <Button 
-                      size="sm"
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-xs h-8"
-                      onClick={() => navigate('/pro-waitlist')}
-                    >
-                      <Crown className="h-3 w-3 mr-1" />
-                      Upgrade to Pro
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Usage Stats */}
+              <UsageStats />
 
               {/* AI Assistant */}
               <Card className="shadow-medium border-0">
@@ -940,6 +1226,50 @@ const FreemiumEditPreview = () => {
                 </CardContent>
               </Card>
 
+              {/* Pro Upgrade (only show if not Pro) */}
+              {userLimits && userLimits.tier !== 'Pro' && (
+                <Card className="shadow-medium border-0 bg-gradient-to-br from-purple-50 to-blue-50">
+                  <CardContent className="p-4">
+                    <div className="text-center space-y-3">
+                      <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto">
+                        <Crown className="h-6 w-6 text-white" />
+                      </div>
+                      <h3 className="font-semibold text-gray-900">
+                        {userLimits.tier === 'Free' ? 'Unlock Deployment' : 'Unlock Unlimited'}
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        {userLimits.tier === 'Free' 
+                          ? 'Upgrade to Student or Pro to deploy your portfolio and make it live on the web'
+                          : 'Upgrade to Pro for unlimited deployments, custom styling, and priority support'
+                        }
+                      </p>
+                      <div className="flex flex-wrap justify-center gap-1 text-xs text-gray-500">
+                        {userLimits.tier === 'Free' ? (
+                          <>
+                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Portfolio Deployment</span>
+                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Live Web Hosting</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Unlimited Deployments</span>
+                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Custom Domains</span>
+                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Priority Support</span>
+                          </>
+                        )}
+                      </div>
+                      <Button 
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-xs h-8"
+                        onClick={() => navigate('/pro-waitlist')}
+                      >
+                        <Crown className="h-3 w-3 mr-1" />
+                        Upgrade {userLimits.tier === 'Free' ? 'Now' : 'to Pro'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Editing Instructions */}
               <Card className="shadow-medium border-0">
                 <CardHeader className="pb-3">
@@ -979,9 +1309,14 @@ const FreemiumEditPreview = () => {
                         <span className="text-xs font-bold text-purple-600">3</span>
                       </div>
                       <div>
-                        <p className="font-medium">Deploy When Ready</p>
+                        <p className="font-medium">
+                          {userLimits?.canDeploy ? 'Deploy When Ready' : 'Upgrade to Deploy'}
+                        </p>
                         <p className="text-muted-foreground text-xs">
-                          Click deploy to make your portfolio live
+                          {userLimits?.canDeploy 
+                            ? 'Click deploy to make your portfolio live'
+                            : 'Upgrade your plan to deploy your portfolio'
+                          }
                         </p>
                       </div>
                     </div>
@@ -1000,20 +1335,24 @@ const FreemiumEditPreview = () => {
               <Eye className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/pro-waitlist')}
-            >
-              <Crown className="h-4 w-4 mr-2" />
-              Learn About Pro
-            </Button>
+            
+            {userLimits && userLimits.tier !== 'Pro' && (
+              <Button
+                variant="outline"
+                onClick={() => navigate('/pro-waitlist')}
+              >
+                <Crown className="h-4 w-4 mr-2" />
+                {userLimits.tier === 'Free' ? 'Upgrade to Deploy' : 'Upgrade to Pro'}
+              </Button>
+            )}
 
             <Button
               onClick={handleDeploy}
-              variant="build"
-              disabled={isDeploying || isIncomplete}
+              variant={userLimits?.canDeploy ? "build" : "outline"}
+              disabled={isDeploying || isIncomplete || !userLimits?.canDeploy}
               className="px-8"
             >
+              {!userLimits?.canDeploy && <Lock className="h-4 w-4 mr-2" />}
               {isDeploying ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -1021,8 +1360,8 @@ const FreemiumEditPreview = () => {
                 </>
               ) : (
                 <>
-                  <Rocket className="h-4 w-4 mr-2" />
-                  Deploy Portfolio
+                  {userLimits?.canDeploy && <Rocket className="h-4 w-4 mr-2" />}
+                  {userLimits?.canDeploy ? 'Deploy Portfolio' : 'Upgrade to Deploy'}
                 </>
               )}
             </Button>
@@ -1058,12 +1397,21 @@ const FreemiumEditPreview = () => {
                 
                 <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Rocket className="h-4 w-4 text-purple-600" />
+                    {userLimits?.canDeploy ? (
+                      <Rocket className="h-4 w-4 text-purple-600" />
+                    ) : (
+                      <Lock className="h-4 w-4 text-purple-600" />
+                    )}
                   </div>
                   <div>
-                    <p className="font-medium">One-Click Deploy</p>
+                    <p className="font-medium">
+                      {userLimits?.canDeploy ? 'One-Click Deploy' : 'Deployment Available'}
+                    </p>
                     <p className="text-muted-foreground text-xs">
-                      Make your portfolio live on the web instantly
+                      {userLimits?.canDeploy 
+                        ? 'Make your portfolio live on the web instantly'
+                        : 'Upgrade to deploy your portfolio to the web'
+                      }
                     </p>
                   </div>
                 </div>
@@ -1076,4 +1424,4 @@ const FreemiumEditPreview = () => {
   );
 };
 
-export default FreemiumEditPreview;
+export default Preview;

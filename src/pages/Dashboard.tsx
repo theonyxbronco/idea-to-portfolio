@@ -21,7 +21,10 @@ import {
   Edit,
   Trash2,
   ImageIcon,
-  Edit3
+  Edit3,
+  Crown,
+  Lock,
+  AlertTriangle
 } from 'lucide-react';
 import { API_BASE_URL } from '@/services/api';
 
@@ -60,6 +63,33 @@ interface Project {
   };
 }
 
+interface UserTier {
+  tier: 'Free' | 'Student' | 'Pro';
+  limits: {
+    maxProjects: number;
+    maxPortfolios: number;
+    maxDrafts: number;
+  };
+}
+
+const TIER_LIMITS = {
+  Free: {
+    maxProjects: 3,
+    maxPortfolios: 1,
+    maxDrafts: 1
+  },
+  Student: {
+    maxProjects: 20,
+    maxPortfolios: 3,
+    maxDrafts: 5
+  },
+  Pro: {
+    maxProjects: Infinity,
+    maxPortfolios: Infinity,
+    maxDrafts: Infinity
+  }
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -68,10 +98,14 @@ const Dashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userTags, setUserTags] = useState<string[]>([]);
-  const [tier, setTier] = useState<string>('Free');
+  const [tier, setTier] = useState<'Free' | 'Student' | 'Pro'>('Free');
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [previewDraft, setPreviewDraft] = useState<Draft | null>(null);
+  
+  // Paywall states
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<'projects' | 'portfolios' | 'drafts'>('projects');
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -80,6 +114,15 @@ const Dashboard = () => {
       try {
         setIsLoading(true);
         
+        // Fetch user info first to get tier
+        const userInfoResponse = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-user-info?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);
+        if (userInfoResponse.ok) {
+          const userResult = await userInfoResponse.json();
+          if (userResult.success && userResult.data) {
+            setTier(userResult.data.tier || 'Free');
+          }
+        }
+
         // Fetch portfolio data
         const portfolioResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/user-data?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);        
         if (portfolioResponse.ok) {
@@ -87,7 +130,6 @@ const Dashboard = () => {
           if (portfolioData.success) {
             setPortfolios(portfolioData.data.portfolios || []);
             setUserTags(portfolioData.data.tags || []);
-            setTier(portfolioData.data.tier || 'Free');
           }
         }
 
@@ -118,6 +160,78 @@ const Dashboard = () => {
     fetchUserData();
   }, [user]);
 
+  // Check if user can perform an action based on their tier
+  const canPerformAction = (action: 'projects' | 'portfolios' | 'drafts'): boolean => {
+    const limits = TIER_LIMITS[tier];
+    
+    switch (action) {
+      case 'projects':
+        return projects.length < limits.maxProjects;
+      case 'portfolios':
+        return (portfolios.length + drafts.length) < limits.maxPortfolios;
+      case 'drafts':
+        return drafts.length < limits.maxDrafts;
+      default:
+        return false;
+    }
+  };
+
+  const getUsageStatus = (action: 'projects' | 'portfolios' | 'drafts') => {
+    const limits = TIER_LIMITS[tier];
+    let current = 0;
+    let max = 0;
+
+    switch (action) {
+      case 'projects':
+        current = projects.length;
+        max = limits.maxProjects;
+        break;
+      case 'portfolios':
+        current = portfolios.length + drafts.length;
+        max = limits.maxPortfolios;
+        break;
+      case 'drafts':
+        current = drafts.length;
+        max = limits.maxDrafts;
+        break;
+    }
+
+    return { current, max, isAtLimit: current >= max };
+  };
+
+  const handleUpgradeModal = (reason: 'projects' | 'portfolios' | 'drafts') => {
+    setUpgradeReason(reason);
+    setShowUpgradeModal(true);
+  };
+
+  const handleCreateNewPortfolio = () => {
+    // Check portfolio limit
+    if (!canPerformAction('portfolios')) {
+      handleUpgradeModal('portfolios');
+      return;
+    }
+
+    if (projects.length === 0) {
+      navigate('/create');
+      return;
+    }
+    setShowProjectSelector(true);
+  };
+
+  const handleEditProjects = () => {
+    navigate('/projects');
+  };
+
+  const handleAddProject = () => {
+    // Check project limit
+    if (!canPerformAction('projects')) {
+      handleUpgradeModal('projects');
+      return;
+    }
+    
+    navigate('/projects');
+  };
+
   const getStatusColor = (status: Portfolio['status']) => {
     switch (status) {
       case 'deployed':
@@ -144,14 +258,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleCreateNewPortfolio = () => {
-    if (projects.length === 0) {
-      navigate('/create');
-      return;
-    }
-    setShowProjectSelector(true);
-  };
-
   const handleProjectSelection = (projectId: string, checked: boolean) => {
     if (checked) {
       setSelectedProjects(prev => [...prev, projectId]);
@@ -173,17 +279,13 @@ const Dashboard = () => {
     setSelectedProjects([]);
   };
 
-  const handleEditProjects = () => {
-    navigate('/projects');
-  };
-
   const handleLoadDraft = (draft: Draft) => {
     navigate('/preview', {
       state: {
         portfolioData: {
           personalInfo: {
             name: 'Draft Portfolio',
-            email: 'draft@example.com' // You may need to store this in your draft
+            email: 'draft@example.com'
           }
         },
         generatedPortfolio: {
@@ -224,6 +326,9 @@ const Dashboard = () => {
     );
   }
 
+  const projectsUsage = getUsageStatus('projects');
+  const portfoliosUsage = getUsageStatus('portfolios');
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12">
@@ -231,7 +336,7 @@ const Dashboard = () => {
           {/* Welcome Section */}
           <DashboardWelcome />
 
-          {/* Current Plan Section */}
+          {/* Current Plan Section with Usage */}
           <Card className="shadow-medium border-0 mb-6">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -243,6 +348,24 @@ const Dashboard = () => {
                       {tier === 'Free' ? 'Upgrade Available' : 'Active'}
                     </Badge>
                   </p>
+                  
+                  {/* Usage Information for Free Users */}
+                  {tier === 'Free' && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Projects:</span>
+                        <span className={projectsUsage.isAtLimit ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                          {projectsUsage.current}/{projectsUsage.max}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Portfolios:</span>
+                        <span className={portfoliosUsage.isAtLimit ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                          {portfoliosUsage.current}/{portfoliosUsage.max}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <Button variant="outline" onClick={() => navigate('/pro-waitlist')}>
                   <Sparkles className="h-4 w-4 mr-2" />
@@ -275,7 +398,12 @@ const Dashboard = () => {
                     <FolderOpen className="h-6 w-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{projects.length}</p>
+                    <p className="text-2xl font-bold flex items-center">
+                      {projects.length}
+                      {tier === 'Free' && projectsUsage.isAtLimit && (
+                        <Lock className="h-4 w-4 ml-1 text-red-500" />
+                      )}
+                    </p>
                     <p className="text-sm text-muted-foreground">Projects</p>
                   </div>
                 </div>
@@ -313,8 +441,8 @@ const Dashboard = () => {
             </Card>
           </div>
 
-                    {/* SHOWROOM CTA SECTION */}
-                    <Card className="shadow-large border-0 mb-12 bg-gradient-to-r from-purple-50 via-blue-50 to-indigo-50">
+          {/* SHOWROOM CTA SECTION */}
+          <Card className="shadow-large border-0 mb-12 bg-gradient-to-r from-purple-50 via-blue-50 to-indigo-50">
             <CardContent className="p-8">
               <div className="text-center space-y-4">
                 <div className="flex justify-center">
@@ -360,11 +488,23 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">Your Projects</h2>
             <div className="flex gap-3">
-              <Button onClick={handleCreateNewPortfolio} variant="build" className="shadow-medium">
+              <Button 
+                onClick={handleCreateNewPortfolio} 
+                variant="build" 
+                className="shadow-medium"
+                disabled={tier === 'Free' && portfoliosUsage.isAtLimit}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create New Portfolio
+                {tier === 'Free' && portfoliosUsage.isAtLimit && (
+                  <Lock className="h-4 w-4 ml-2" />
+                )}
               </Button>
-              <Button onClick={handleEditProjects} variant="outline" className="shadow-medium">
+              <Button 
+                onClick={handleEditProjects} 
+                variant="outline" 
+                className="shadow-medium"
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Manage Projects
               </Button>
@@ -382,69 +522,123 @@ const Dashboard = () => {
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   Start by adding your creative projects. These will be used to generate your AI-powered portfolio.
                 </p>
-                <Button onClick={() => navigate('/projects')} variant="build" size="lg">
+                <Button 
+                  onClick={handleAddProject} 
+                  variant="build" 
+                  size="lg"
+                  disabled={tier === 'Free' && projectsUsage.isAtLimit}
+                >
                   <Plus className="h-5 w-5 mr-2" />
                   Add Your First Project
+                  {tier === 'Free' && projectsUsage.isAtLimit && (
+                    <Lock className="h-4 w-4 ml-2" />
+                  )}
                 </Button>
+                
+                {tier === 'Free' && projectsUsage.isAtLimit && (
+                  <p className="text-sm text-red-600 mt-3">
+                    You've reached the limit of {TIER_LIMITS.Free.maxProjects} projects for free users
+                  </p>
+                )}
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {projects.slice(0, 6).map((project) => (
-                <Card key={project.id} className="shadow-medium border-0 hover:shadow-large transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg truncate">{project.title}</CardTitle>
-                      <Badge variant="outline" className="text-xs">
-                        {project.category || project.customCategory}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-4">
-                    {/* Project Preview */}
-                    <div className="aspect-video bg-gradient-accent/10 rounded-lg flex items-center justify-center">
-                      {project.imageMetadata?.finalImage ? (
-                        <div className="text-center">
-                          <ImageIcon className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                          <p className="text-xs text-muted-foreground">Has Images</p>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-xs text-muted-foreground">Project Preview</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Project Info */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground line-clamp-2">{project.subtitle}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {project.tags.slice(0, 3).map((tag, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
-                        ))}
-                        {project.tags.length > 3 && (
-                          <Badge variant="secondary" className="text-xs">+{project.tags.length - 3}</Badge>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                {projects.slice(0, 6).map((project) => (
+                  <Card key={project.id} className="shadow-medium border-0 hover:shadow-large transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg truncate">{project.title}</CardTitle>
+                        <Badge variant="outline" className="text-xs">
+                          {project.category || project.customCategory}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-4">
+                      {/* Project Preview */}
+                      <div className="aspect-video bg-gradient-accent/10 rounded-lg flex items-center justify-center">
+                        {project.imageMetadata?.finalImage ? (
+                          <div className="text-center">
+                            <ImageIcon className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                            <p className="text-xs text-muted-foreground">Has Images</p>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-xs text-muted-foreground">Project Preview</p>
+                          </div>
                         )}
                       </div>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {new Date(project.createdAt || '').toLocaleDateString()}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
 
-          {projects.length > 6 && (
-            <div className="text-center mb-8">
-              <Button variant="outline" onClick={() => navigate('/projects')}>
-                View All {projects.length} Projects
-              </Button>
-            </div>
+                      {/* Project Info */}
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground line-clamp-2">{project.subtitle}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {project.tags.slice(0, 3).map((tag, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
+                          ))}
+                          {project.tags.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">+{project.tags.length - 3}</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {new Date(project.createdAt || '').toLocaleDateString()}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {/* Add Project Card - Only show if not at limit */}
+                {tier !== 'Free' || !projectsUsage.isAtLimit ? (
+                  <Card 
+                    className="shadow-medium border-2 border-dashed border-gray-300 hover:border-primary hover:shadow-large transition-all cursor-pointer"
+                    onClick={handleAddProject}
+                  >
+                    <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-[250px]">
+                      <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                        <Plus className="h-8 w-8 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">Add New Project</h3>
+                      <p className="text-sm text-muted-foreground text-center">
+                        Click to add another project to your portfolio
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="shadow-medium border-2 border-dashed border-red-300 bg-red-50">
+                    <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-[250px]">
+                      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                        <Lock className="h-8 w-8 text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2 text-red-800">Project Limit Reached</h3>
+                      <p className="text-sm text-red-600 text-center mb-4">
+                        Free users can have up to {TIER_LIMITS.Free.maxProjects} projects
+                      </p>
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleUpgradeModal('projects')}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        <Crown className="h-4 w-4 mr-2" />
+                        Upgrade to Pro
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {projects.length > 6 && (
+                <div className="text-center mb-8">
+                  <Button variant="outline" onClick={() => navigate('/projects')}>
+                    View All {projects.length} Projects
+                  </Button>
+                </div>
+              )}
+            </>
           )}
 
           {/* Your Portfolios Section */}
@@ -454,7 +648,7 @@ const Dashboard = () => {
 
           {/* Portfolios Grid */}
           {portfolios.length === 0 && drafts.length === 0 ? (
-            <Card className="shadow-large border-0">
+            <Card className="shadow-large border-0 mb-8">
               <CardContent className="p-12 text-center">
                 <div className="w-24 h-24 bg-gradient-accent rounded-full flex items-center justify-center mx-auto mb-6">
                   <Sparkles className="h-12 w-12 text-white" />
@@ -463,14 +657,28 @@ const Dashboard = () => {
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   Create your first AI-powered portfolio to showcase your work and land your dream opportunities.
                 </p>
-                <Button onClick={handleCreateNewPortfolio} variant="build" size="lg" disabled={projects.length === 0}>
+                <Button 
+                  onClick={handleCreateNewPortfolio} 
+                  variant="build" 
+                  size="lg" 
+                  disabled={projects.length === 0 || (tier === 'Free' && portfoliosUsage.isAtLimit)}
+                >
                   <Plus className="h-5 w-5 mr-2" />
                   {projects.length === 0 ? 'Add Projects First' : 'Create Your First Portfolio'}
+                  {tier === 'Free' && portfoliosUsage.isAtLimit && (
+                    <Lock className="h-4 w-4 ml-2" />
+                  )}
                 </Button>
+                
+                {tier === 'Free' && portfoliosUsage.isAtLimit && (
+                  <p className="text-sm text-red-600 mt-3">
+                    You've reached the limit of {TIER_LIMITS.Free.maxPortfolios} portfolio for free users
+                  </p>
+                )}
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {/* Render drafts first */}
               {drafts.map((draft) => (
                 <Card key={draft.id} className="shadow-medium border-0 hover:shadow-large transition-shadow">
@@ -777,6 +985,74 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Upgrade Modal */}
+          <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center">
+                  <Crown className="h-6 w-6 mr-2 text-yellow-500" />
+                  Upgrade to Pro
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="flex items-center space-x-3 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <AlertTriangle className="h-8 w-8 text-red-600 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-red-800">
+                      {upgradeReason === 'projects' && 'Project Limit Reached'}
+                      {upgradeReason === 'portfolios' && 'Portfolio Limit Reached'}
+                      {upgradeReason === 'drafts' && 'Draft Limit Reached'}
+                    </h3>
+                    <p className="text-sm text-red-600">
+                      {upgradeReason === 'projects' && `Free users can only have ${TIER_LIMITS.Free.maxProjects} projects. Upgrade to Pro for unlimited projects.`}
+                      {upgradeReason === 'portfolios' && `Free users can only have ${TIER_LIMITS.Free.maxPortfolios} portfolio. Upgrade to Pro for unlimited portfolios.`}
+                      {upgradeReason === 'drafts' && `Free users can only have ${TIER_LIMITS.Free.maxDrafts} draft. Upgrade to Pro for unlimited drafts.`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-semibold">Pro Plan Includes:</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center">
+                      <Sparkles className="h-4 w-4 mr-2 text-green-600" />
+                      Unlimited projects and portfolios
+                    </li>
+                    <li className="flex items-center">
+                      <Sparkles className="h-4 w-4 mr-2 text-green-600" />
+                      Advanced AI editing features
+                    </li>
+                    <li className="flex items-center">
+                      <Sparkles className="h-4 w-4 mr-2 text-green-600" />
+                      Custom domains and analytics
+                    </li>
+                    <li className="flex items-center">
+                      <Sparkles className="h-4 w-4 mr-2 text-green-600" />
+                      Priority support
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowUpgradeModal(false);
+                    navigate('/pro-waitlist');
+                  }}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  <Crown className="h-4 w-4 mr-2" />
+                  Upgrade to Pro
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>

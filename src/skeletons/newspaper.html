@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jordan Blake Portfolio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            font-family: 'Times New Roman', Times, serif;
+            background: #f5f1e8;
+            color: #2a2a2a;
+            line-height: 1.3;
+        }
+
+        /* Aged paper effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(139, 69, 19, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 69, 19, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .newspaper {
+            min-height: 100vh;
+            padding: 2rem 3rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            border-bottom: 4px solid #2a2a2a;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #2a2a2a;
+        }
+
+        .top-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .left-box {
+            border: 2px solid #2a2a2a;
+            padding: 0.3rem 0.6rem;
+            font-weight: bold;
+        }
+
+        .right-info {
+            text-align: right;
+        }
+
+        .masthead {
+            text-align: center;
+            font-size: clamp(3rem, 8vw, 5rem);
+            font-weight: 900;
+            color: #2a2a2a;
+            margin: 0.5rem 0;
+            font-family: 'Old English Text MT', 'Times New Roman', serif;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
+        }
+
+        .subheader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .volume-info {
+            font-weight: bold;
+        }
+
+        .date-location {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* Section styling */
+        .newspaper-section {
+            margin-bottom: 0;
+        }
+
+        /* Main content area */
+        .content-area {
+            display: grid;
+            grid-template-columns: 1.5fr 2px 2fr 2px 1.5fr;
+            gap: 0 2rem;
+            align-items: start;
+        }
+
+        /* Column containers */
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .divider-vertical {
+            background: #2a2a2a;
+            width: 2px;
+            min-height: 300px;
+        }
+
+        /* Article styling */
+        .article {
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(42, 42, 42, 0.1);
+            border-bottom: none;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .article:last-child {
+            border-bottom: 1px solid rgba(42, 42, 42, 0.1);
+        }
+
+        .article:hover {
+            background: rgba(139, 92, 246, 0.1);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* Article content */
+        .breaking-label {
+            background: #2a2a2a;
+            color: #f5f1e8;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.8rem;
+            display: inline-block;
+        }
+
+        .article-headline {
+            font-size: clamp(1.2rem, 2vw, 1.8rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .large-headline {
+            font-size: clamp(1.8rem, 3vw, 2.5rem);
+        }
+
+        .article-subheader {
+            font-size: 1rem;
+            font-style: italic;
+            margin-bottom: 1rem;
+            color: #4a4a4a;
+        }
+
+        .byline {
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .article-text {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            text-align: justify;
+            margin-bottom: 1rem;
+        }
+
+        .article-text p {
+            margin-bottom: 0.8rem;
+        }
+
+        .article-image {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(45deg, #8b7355, #a0956b);
+            border: 2px solid #2a2a2a;
+            margin: 1rem 0;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .image-caption {
+            font-size: 0.8rem;
+            font-style: italic;
+            text-align: center;
+            margin-top: 0.5rem;
+            color: #4a4a4a;
+        }
+
+        /* Stats and special elements */
+        .stats-box {
+            border: 2px solid #2a2a2a;
+            padding: 1rem;
+            margin: 1rem 0;
+            background: #f9f7f0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            text-align: center;
+        }
+
+        .stat-item {
+            padding: 0.5rem;
+            border: 1px solid #2a2a2a;
+        }
+
+        .stat-number {
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #8b5cf6;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            margin-top: 1rem;
+        }
+
+        .tag {
+            background: #e5e7eb;
+            color: #374151;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.7rem;
+            border: 1px solid #d1d5db;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .quote-box {
+            border-left: 4px solid #8b5cf6;
+            background: #f1f5f9;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-style: italic;
+        }
+
+        .quote-text {
+            margin-bottom: 0.5rem;
+        }
+
+        .quote-author {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        /* Skills and lists */
+        .skills-list, .project-list {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            list-style: none;
+        }
+
+        .skills-list li, .project-list li {
+            margin-bottom: 0.5rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .skills-list li::before, .project-list li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        /* Contact info */
+        .contact-info {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid #2a2a2a;
+        }
+
+        .contact-item {
+            margin-bottom: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .contact-label {
+            font-weight: bold;
+            min-width: 60px;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #f5f1e8;
+            padding: 3rem;
+            border-radius: 8px;
+            max-width: 80vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #666;
+            font-family: 'Times New Roman', serif;
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #2a2a2a;
+            font-weight: 900;
+        }
+
+        .modal-image {
+            width: 100%;
+            height: 300px;
+            background-size: cover;
+            background-position: center;
+            margin-bottom: 2rem;
+            border: 2px solid #2a2a2a;
+        }
+
+        .modal-text {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #2a2a2a;
+            text-align: justify;
+        }
+
+        .modal-text p {
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .content-area {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .divider-vertical {
+                display: none;
+            }
+
+            .article-image {
+                height: 180px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .newspaper {
+                padding: 1.5rem;
+            }
+
+            .masthead {
+                font-size: 2.5rem;
+            }
+
+            .article:hover {
+                transform: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                padding: 2rem;
+                margin: 1rem;
+            }
+        }
+
+        /* Vintage newspaper lines effect */
+        .article::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -10px;
+            right: -10px;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                transparent,
+                transparent 1.2rem,
+                rgba(139, 69, 19, 0.05) 1.2rem,
+                rgba(139, 69, 19, 0.05) 1.25rem
+            );
+            pointer-events: none;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="newspaper">
+        <!-- Header -->
+        <header class="header">
+            <div class="top-line">
+                <div class="left-box">"All the Design<br>Fit to Portfolio"</div>
+                <div class="right-info">
+                    Creative Weekly<br>
+                    Portfolio Edition<br>
+                    Monday, Dec 16, 2024
+                </div>
+            </div>
+            <h1 class="masthead">Jordan Blake</h1>
+            <div class="subheader">
+                <div class="volume-info">VOL. L... No. 1</div>
+                <div>Copyright © 2024 Not The New York Times</div>
+                <div class="date-location">PORTFOLIO, MONDAY, DECEMBER 16, 2024</div>
+            </div>
+        </header>
+
+        <!-- Main content area -->
+        <div class="content-area">
+            <!-- Left Column -->
+            <div class="column">
+                <article class="article" data-modal="featured">
+                    <div class="breaking-label">Featured Work</div>
+                    <h2 class="article-headline large-headline">Revolutionary Banking App Transforms Fintech Industry</h2>
+                    <p class="article-subheader">TechFlow's mobile platform sees 400% user growth after complete redesign</p>
+                    <p class="byline">By JORDAN BLAKE<br>Lead Designer</p>
+                    
+                    <div class="stats-box">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number">400%</div>
+                                <div class="stat-label">User Growth</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">4.9★</div>
+                                <div class="stat-label">App Rating</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">$2.1M</div>
+                                <div class="stat-label">Funding</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">6 mo</div>
+                                <div class="stat-label">Timeline</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="article-text">
+                        <p>The comprehensive redesign focused on streamlining user onboarding, improving navigation clarity, and implementing advanced security features that don't compromise usability.</p>
+                    </div>
+
+                    <div class="tags-list">
+                        <span class="tag">Mobile UX</span>
+                        <span class="tag">Fintech</span>
+                        <span class="tag">User Research</span>
+                        <span class="tag">Prototyping</span>
+                    </div>
+                </article>
+
+                <article class="article" data-modal="ecommerce">
+                    <h2 class="article-headline">E-commerce Platform Redesign Boosts Sales 65%</h2>
+                    <p class="article-subheader">RetailMax sees record conversion rates after UX overhaul</p>
+                    <p class="byline">Design Strategy Report</p>
+                    
+                    <div class="article-text">
+                        <p>Complete redesign of legacy e-commerce platform focusing on mobile-first approach, streamlined checkout process, and personalized product recommendations.</p>
+                        <p>Challenge: 23% cart abandonment rate and outdated visual design that wasn't mobile-responsive.</p>
+                    </div>
+
+                    <div class="stats-box">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number">65%</div>
+                                <div class="stat-label">Conversion ↑</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">23%</div>
+                                <div class="stat-label">Cart Abandon ↓</div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="article" data-modal="about">
+                    <h2 class="article-headline">Meet the Designer</h2>
+                    <p class="article-subheader">8+ years creating digital experiences that drive business results</p>
+                    <p class="byline">Profile</p>
+                    
+                    <div class="article-text">
+                        <p>Jordan Blake is a Creative Director based in San Francisco, specializing in user experience design and brand strategy for startups and established companies.</p>
+                        <p>Passionate about sustainable design practices and mentoring emerging designers through the AIGA SF chapter.</p>
+                    </div>
+
+                    <ul class="skills-list">
+                        <li><strong>Education:</strong> M.F.A. Design, Art Center College</li>
+                        <li><strong>Specialties:</strong> Mobile UX, Fintech, Brand Strategy</li>
+                        <li><strong>Tools:</strong> Figma, Adobe Creative Suite, Principle</li>
+                        <li><strong>Leadership:</strong> Managed teams of 5+ designers</li>
+                    </ul>
+                </article>
+            </div>
+
+            <div class="divider-vertical"></div>
+
+            <!-- Center Column -->
+            <div class="column">
+                <article class="article" data-modal="featured-image">
+                    <h3 class="article-headline">Behind the Design</h3>
+                    <div class="article-image" style="background-image: url('https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&auto=format&fit=crop');"></div>
+                    <p class="image-caption">The final mobile banking interface showcasing the streamlined user experience and modern visual design.</p>
+                    
+                    <div class="article-text">
+                        <p>The design process included extensive user research with over 200 banking customers, competitive analysis of 15 financial apps, and iterative testing throughout development.</p>
+                        <p>Key innovations include biometric authentication flow, predictive transaction categorization, and personalized financial insights dashboard.</p>
+                    </div>
+                </article>
+
+                <article class="article" data-modal="ecommerce-process">
+                    <h3 class="article-headline">Design Process</h3>
+                    <div class="article-image" style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&auto=format&fit=crop');"></div>
+                    <p class="image-caption">User journey mapping and wireframe development for the checkout optimization.</p>
+                    
+                    <div class="article-text">
+                        <p>Conducted extensive user testing with 150+ customers to identify pain points in the purchasing journey.</p>
+                    </div>
+                </article>
+
+                <article class="article" data-modal="brand-system">
+                    <h3 class="article-headline">Brand System</h3>
+                    <div class="article-image" style="background-image: url('https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=600&auto=format&fit=crop');"></div>
+                    <p class="image-caption">Complete brand identity system including logo variations, color palette, and typography.</p>
+                    
+                    <div class="article-text">
+                        <p>Created modular brand system that works across digital and print applications, from business cards to billboard advertisements.</p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="divider-vertical"></div>
+
+            <!-- Right Column -->
+            <div class="column">
+                <article class="article" data-modal="impact">
+                    <h3 class="article-headline">Industry Impact</h3>
+                    <p class="byline">Market Response</p>
+                    
+                    <div class="quote-box">
+                        <p class="quote-text">"This sets a new standard for financial app design. The user experience is incredibly intuitive while maintaining enterprise-level security."</p>
+                        <p class="quote-author">— Sarah Chen, CEO TechFlow Inc.</p>
+                    </div>
+
+                    <div class="article-text">
+                        <p><strong>AIGA Recognition:</strong> 2024 Design Excellence Award winner</p>
+                        <p><strong>User Feedback:</strong> 4.9/5 average rating with over 50,000 reviews</p>
+                        <p><strong>Business Results:</strong> Helped secure Series B funding round</p>
+                        <p><strong>Industry Coverage:</strong> Featured in Design Week, Fast Company, and TechCrunch</p>
+                    </div>
+                </article>
+
+                <article class="article" data-modal="ecommerce-results">
+                    <h3 class="article-headline">Measurable Results</h3>
+                    <div class="article-text">
+                        <p><strong>Timeline:</strong> 4-month project completion</p>
+                        <p><strong>A/B Testing:</strong> 6 weeks of split testing validated design decisions</p>
+                        <p><strong>Mobile Optimization:</strong> 80% of traffic now converts on mobile devices</p>
+                        <p><strong>Client Satisfaction:</strong> Contract extended for ongoing optimization</p>
+                    </div>
+
+                    <div class="tags-list">
+                        <span class="tag">E-commerce</span>
+                        <span class="tag">Conversion Optimization</span>
+                        <span class="tag">Mobile Design</span>
+                        <span class="tag">A/B Testing</span>
+                    </div>
+                </article>
+
+                <article class="article" data-modal="branding">
+                    <h2 class="article-headline">Startup Branding Success Leads to $2M Funding</h2>
+                    <p class="article-subheader">GreenTech Solutions' complete rebrand attracts Series A investment</p>
+                    <p class="byline">Brand Strategy Case Study</p>
+                    
+                    <div class="article-text">
+                        <p>Comprehensive brand identity development for clean energy startup, including logo design, color palette, typography system, and brand guidelines.</p>
+                        <p>The rebrand positioned GreenTech as an innovative, trustworthy leader in sustainable technology solutions.</p>
+                    </div>
+
+                    <div class="tags-list">
+                        <span class="tag">Brand Identity</span>
+                        <span class="tag">Logo Design</span>
+                        <span class="tag">Sustainability</span>
+                        <span class="tag">Startup</span>
+                    </div>
+                </article>
+
+                <article class="article" data-modal="philosophy">
+                    <h3 class="article-headline">Design Philosophy</h3>
+                    <div class="quote-box">
+                        <p class="quote-text">"Every design decision should be justified by user needs and business objectives. Beautiful interfaces are meaningless if they don't solve real problems."</p>
+                        <p class="quote-author">— Jordan Blake</p>
+                    </div>
+                    
+                    <div class="article-text">
+                        <p><strong>Approach:</strong> User-centered design process with data-driven decision making</p>
+                        <p><strong>Methodology:</strong> Research, ideation, prototyping, testing, iteration</p>
+                        <p><strong>Focus:</strong> Balancing aesthetic excellence with functional usability</p>
+                    </div>
+                </article>
+
+                <article class="article" data-modal="contact">
+                    <h3 class="article-headline">Get in Touch</h3>
+                    <p class="byline">Available for Projects</p>
+                    
+                    <div class="article-text">
+                        <p>Currently accepting new projects for 2025. Interested in working with startups, established companies, and social impact organizations.</p>
+                    </div>
+
+                    <div class="contact-info">
+                        <div class="contact-item">
+                            <span class="contact-label">Email:</span>
+                            <span>jordan@creativetribune.com</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-label">Phone:</span>
+                            <span>(415) 555-0123</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-label">Portfolio:</span>
+                            <span>jordanblake.design</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-label">LinkedIn:</span>
+                            <span>/in/jordan-blake-design</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        // Modal data
+        const modalData = {
+            featured: {
+                content: `
+                    <h2 class="modal-title">TechFlow Banking App - Complete Redesign</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Project Overview:</strong> Complete redesign of TechFlow's mobile banking platform, transforming user experience and business outcomes through strategic design thinking.</p>
+                        
+                        <p><strong>The Challenge:</strong> TechFlow's legacy banking app suffered from a 68% onboarding abandonment rate, confusing navigation, and poor mobile optimization. Users frequently complained about difficulty completing basic banking tasks.</p>
+                        
+                        <p><strong>Research & Discovery:</strong> Conducted extensive user interviews with 200+ banking customers, analyzed competitor apps, and performed usability audits to identify core pain points.</p>
+                        
+                        <p><strong>Design Solution:</strong> Developed a user-centered design approach featuring simplified navigation, intuitive onboarding flow, biometric authentication, and personalized financial insights.</p>
+                        
+                        <p><strong>Key Features:</strong> One-tap transfers, intelligent spending categorization, bill pay reminders, savings goal tracking, and enhanced security measures that don't compromise usability.</p>
+                        
+                        <p><strong>Results:</strong> 400% increase in user growth, 4.9-star app store rating, $2.1M additional funding secured, and recognition as 2024 AIGA Design Excellence Award winner.</p>
+                        
+                        <p><strong>Technical Details:</strong> Designed in Figma with comprehensive design system, prototyped user flows in Principle, collaborated with React Native development team for pixel-perfect implementation.</p>
+                        
+                        <p><strong>Timeline:</strong> 6 months from research to app store launch</p>
+                        <p><strong>Team:</strong> Led design team of 3, worked with 6 developers and 2 product managers</p>
+                    </div>
+                `
+            },
+            'featured-image': {
+                content: `
+                    <h2 class="modal-title">Design Process & Methodology</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>User Research Phase:</strong> Conducted in-depth interviews with 200+ banking customers across different demographics to understand pain points, behaviors, and needs.</p>
+                        
+                        <p><strong>Competitive Analysis:</strong> Analyzed 15 major financial apps including Chase, Bank of America, Wells Fargo, and fintech startups like Chime and Revolut to identify market gaps and opportunities.</p>
+                        
+                        <p><strong>Information Architecture:</strong> Restructured app navigation based on user mental models, reducing cognitive load and improving task completion rates.</p>
+                        
+                        <p><strong>Prototyping & Testing:</strong> Created interactive prototypes in Figma and Principle, conducted usability testing sessions with 50+ users throughout the design process.</p>
+                        
+                        <p><strong>Design System:</strong> Developed comprehensive design system with 200+ components, ensuring consistency across all touchpoints and scalability for future features.</p>
+                        
+                        <p><strong>Accessibility:</strong> Ensured WCAG 2.1 AA compliance with proper color contrast, screen reader compatibility, and touch target sizing for inclusive design.</p>
+                    </div>
+                `
+            },
+            impact: {
+                content: `
+                    <h2 class="modal-title">Industry Impact & Recognition</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Industry Recognition:</strong> The TechFlow banking app redesign received widespread recognition in the design and fintech communities, setting new standards for mobile banking experiences.</p>
+                        
+                        <p><strong>Awards & Recognition:</strong></p>
+                        <ul>
+                            <li>2024 AIGA Design Excellence Award - Digital Experience</li>
+                            <li>UX Awards 2024 - Best Financial Services App</li>
+                            <li>Webby Awards 2024 - Honoree in Mobile Apps & Sites</li>
+                            <li>Fast Company Innovation by Design 2024 - Finalist</li>
+                        </ul>
+                        
+                        <p><strong>Media Coverage:</strong> Featured in Design Week, Fast Company, TechCrunch, and Forbes for innovative approach to financial UX design.</p>
+                        
+                        <p><strong>Business Impact:</strong> The redesign directly contributed to TechFlow's successful Series B funding round, attracting $2.1M in additional investment.</p>
+                        
+                        <p><strong>User Adoption:</strong> App store ratings improved from 2.8 to 4.9 stars, with over 50,000 positive reviews highlighting the improved user experience.</p>
+                        
+                        <p><strong>Market Influence:</strong> Design patterns and innovations from this project have been adopted by other fintech companies, influencing industry standards.</p>
+                    </div>
+                `
+            },
+            ecommerce: {
+                content: `
+                    <h2 class="modal-title">RetailMax E-commerce Platform Redesign</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Project Overview:</strong> Complete overhaul of RetailMax's e-commerce platform, focusing on conversion optimization and mobile-first user experience to address declining sales and poor user engagement.</p>
+                        
+                        <p><strong>The Challenge:</strong> RetailMax's legacy platform suffered from a 23% cart abandonment rate, poor mobile experience (only 15% mobile conversion), and outdated visual design that didn't reflect the brand's premium positioning.</p>
+                        
+                        <p><strong>Research & Analysis:</strong> Conducted comprehensive user research including usability testing with 150+ customers, heat mapping analysis, conversion funnel analysis, and competitive benchmarking against leading e-commerce platforms.</p>
+                        
+                        <p><strong>Key Problems Identified:</strong></p>
+                        <ul>
+                            <li>Complex multi-step checkout process</li>
+                            <li>Poor search functionality and product discovery</li>
+                            <li>Non-responsive design causing mobile friction</li>
+                            <li>Lack of guest checkout option</li>
+                            <li>Insufficient product information and imagery</li>
+                        </ul>
+                        
+                        <p><strong>Design Strategy:</strong> Implemented mobile-first design approach, streamlined checkout to single page, improved product discovery with enhanced search and filtering, and created personalized shopping experiences.</p>
+                        
+                        <p><strong>Results:</strong> 65% increase in conversion rates, 40% reduction in cart abandonment, 25% increase in average order value, and 80% of traffic now successfully converts on mobile devices.</p>
+                    </div>
+                `
+            },
+            'ecommerce-process': {
+                content: `
+                    <h2 class="modal-title">E-commerce Design Process</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Discovery Phase:</strong> Conducted stakeholder interviews, analyzed existing analytics data, and performed comprehensive audit of current platform to identify improvement opportunities.</p>
+                        
+                        <p><strong>User Research:</strong> Organized focus groups with 150+ customers, conducted card sorting exercises for navigation optimization, and performed task-based usability testing to understand user pain points.</p>
+                        
+                        <p><strong>Journey Mapping:</strong> Created detailed customer journey maps highlighting friction points in the purchase process, from product discovery to post-purchase experience.</p>
+                        
+                        <p><strong>Wireframing & Prototyping:</strong> Developed low-fidelity wireframes for all key pages, created interactive prototypes for user testing, and iterated based on feedback from stakeholders and users.</p>
+                        
+                        <p><strong>Visual Design:</strong> Established new visual design language that reflected brand values, created comprehensive style guide, and designed high-fidelity mockups for all responsive breakpoints.</p>
+                        
+                        <p><strong>Testing & Validation:</strong> Conducted A/B testing on key conversion elements, performed usability testing on final designs, and validated design decisions with quantitative data.</p>
+                    </div>
+                `
+            },
+            'ecommerce-results': {
+                content: `
+                    <h2 class="modal-title">Measurable Results & Outcomes</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Conversion Optimization:</strong> Achieved 65% increase in overall conversion rates through streamlined user experience and optimized checkout process.</p>
+                        
+                        <p><strong>Mobile Performance:</strong> Mobile conversion rates improved by 120%, with 80% of mobile traffic now successfully completing purchases.</p>
+                        
+                        <p><strong>Cart Abandonment:</strong> Reduced cart abandonment from 23% to 14% through simplified checkout process and trust signals.</p>
+                        
+                        <p><strong>Average Order Value:</strong> 25% increase in AOV through improved product recommendations and cross-selling strategies.</p>
+                        
+                        <p><strong>Page Load Speed:</strong> Optimized designs contributed to 40% faster page load times, improving user experience and SEO rankings.</p>
+                        
+                        <p><strong>A/B Testing Results:</strong> 6 weeks of comprehensive split testing validated key design decisions:</p>
+                        <ul>
+                            <li>Single-page checkout increased completion by 35%</li>
+                            <li>Enhanced product imagery increased engagement by 28%</li>
+                            <li>Simplified navigation improved product discovery by 42%</li>
+                        </ul>
+                        
+                        <p><strong>Business Impact:</strong> RetailMax extended the contract for ongoing optimization and recommended our services to their parent company's other brands.</p>
+                    </div>
+                `
+            },
+            branding: {
+                content: `
+                    <h2 class="modal-title">GreenTech Solutions Brand Identity</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Project Overview:</strong> Comprehensive brand identity development for GreenTech Solutions, a clean energy startup seeking to establish credibility and attract Series A investment.</p>
+                        
+                        <p><strong>The Challenge:</strong> GreenTech had innovative technology but lacked professional brand presence. Their existing materials appeared amateur and didn't convey the reliability investors expect from a technology company.</p>
+                        
+                        <p><strong>Brand Strategy:</strong> Positioned GreenTech as a trustworthy, innovative leader in sustainable technology solutions. The brand needed to balance approachability with technical expertise.</p>
+                        
+                        <p><strong>Design Process:</strong></p>
+                        <ul>
+                            <li>Stakeholder workshops to define brand values and positioning</li>
+                            <li>Competitive analysis of successful clean energy companies</li>
+                            <li>Concept development and iterative logo design</li>
+                            <li>Color palette and typography selection</li>
+                            <li>Brand guidelines and application design</li>
+                        </ul>
+                        
+                        <p><strong>Brand Elements:</strong> Created comprehensive identity system including primary and secondary logos, color palette reflecting both technology and nature, typography hierarchy, iconography system, and photography style guidelines.</p>
+                        
+                        <p><strong>Applications:</strong> Designed business cards, letterhead, presentation templates, website mockups, vehicle wraps, trade show materials, and investor pitch deck template.</p>
+                        
+                        <p><strong>Results:</strong> GreenTech successfully secured $2M Series A funding within 3 months, with investors specifically mentioning the professional brand presentation as a confidence factor.</p>
+                    </div>
+                `
+            },
+            'brand-system': {
+                content: `
+                    <h2 class="modal-title">Comprehensive Brand System</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Logo Development:</strong> Created modular logo system with primary mark, wordmark, and simplified icon versions to ensure versatility across all applications and media.</p>
+                        
+                        <p><strong>Color Palette:</strong> Developed sophisticated color system combining tech-forward blues and greens with warm accent colors, ensuring accessibility compliance and print reproduction quality.</p>
+                        
+                        <p><strong>Typography:</strong> Selected modern, readable typeface family with multiple weights, ensuring professional appearance across digital and print applications.</p>
+                        
+                        <p><strong>Iconography:</strong> Designed custom icon set reflecting clean energy themes while maintaining consistency with overall brand aesthetic.</p>
+                        
+                        <p><strong>Photography Style:</strong> Established photography guidelines emphasizing clean, modern imagery that showcases technology and environmental benefits.</p>
+                        
+                        <p><strong>Brand Guidelines:</strong> Created comprehensive 40-page brand manual documenting proper usage, spacing, color codes, typography hierarchy, and application examples.</p>
+                        
+                        <p><strong>Scalability:</strong> Designed system to work effectively from business card size to billboard applications, ensuring brand recognition at any scale.</p>
+                        
+                        <p><strong>Digital Applications:</strong> Optimized all brand elements for digital use including social media profiles, email signatures, and web applications.</p>
+                    </div>
+                `
+            },
+            'brand-impact': {
+                content: `
+                    <h2 class="modal-title">Investment Success & Brand Impact</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Funding Success:</strong> GreenTech Solutions secured $2M Series A funding within 3 months of brand launch, with investors specifically citing the professional brand presentation as a key confidence factor.</p>
+                        
+                        <p><strong>Brand Recognition:</strong> Brand awareness surveys showed 85% increase in unaided brand recognition within the clean energy sector after 6 months.</p>
+                        
+                        <p><strong>Media Coverage:</strong> Professional brand identity helped secure coverage in 12 major sustainability and technology publications, including GreenTech Media and CleanTechnica.</p>
+                        
+                        <p><strong>Industry Credibility:</strong> Brand positioning enabled partnerships with established energy companies and government agencies, lending credibility to their innovative solutions.</p>
+                        
+                        <p><strong>Trade Show Impact:</strong> New brand materials resulted in 300% increase in trade show lead generation and 150% improvement in booth traffic at major clean energy conferences.</p>
+                        
+                        <p><strong>Employee Pride:</strong> Internal surveys showed 90% of employees felt more confident representing the company after the rebrand, improving recruitment and retention.</p>
+                        
+                        <p><strong>Digital Presence:</strong> Website traffic increased by 200% and social media engagement improved by 180% following brand implementation.</p>
+                        
+                        <p><strong>Long-term Value:</strong> Brand system continues to support company growth, with all new materials maintaining consistent brand standards established in original guidelines.</p>
+                    </div>
+                `
+            },
+            about: {
+                content: `
+                    <h2 class="modal-title">About Jordan Blake</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Creative Director & UX Designer</strong> with 8+ years of experience creating digital experiences that drive measurable business results. Based in San Francisco, specializing in user experience design and brand strategy for startups and established companies.</p>
+                        
+                        <p><strong>Education:</strong> Master of Fine Arts in Design from Art Center College of Design, focusing on interaction design and human-centered design principles.</p>
+                        
+                        <p><strong>Professional Experience:</strong></p>
+                        <ul>
+                            <li>Creative Director at TechFlow Inc. (2022-Present)</li>
+                            <li>Senior UX Designer at RetailMax (2020-2022)</li>
+                            <li>UX Designer at GreenTech Solutions (2018-2020)</li>
+                            <li>Junior Designer at Design Studio SF (2016-2018)</li>
+                        </ul>
+                        
+                        <p><strong>Specialties:</strong> Mobile UX design, fintech applications, e-commerce optimization, brand strategy, design systems, user research, and data-driven design decisions.</p>
+                        
+                        <p><strong>Tools & Technologies:</strong> Figma, Adobe Creative Suite (Photoshop, Illustrator, After Effects), Principle, Sketch, InVision, Miro, HTML/CSS, and various prototyping tools.</p>
+                        
+                        <p><strong>Leadership:</strong> Managed cross-functional design teams of 5+ designers, collaborated with engineering and product teams, and mentored junior designers through AIGA SF chapter.</p>
+                        
+                        <p><strong>Community Involvement:</strong> Active member of AIGA San Francisco, regular speaker at design conferences, and advocate for sustainable design practices and accessibility in digital products.</p>
+                    </div>
+                `
+            },
+            philosophy: {
+                content: `
+                    <h2 class="modal-title">Design Philosophy & Approach</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Core Philosophy:</strong> "Every design decision should be justified by user needs and business objectives. Beautiful interfaces are meaningless if they don't solve real problems."</p>
+                        
+                        <p><strong>User-Centered Approach:</strong> All design decisions start with understanding user needs, behaviors, and pain points through comprehensive research and testing methodologies.</p>
+                        
+                        <p><strong>Data-Driven Design:</strong> Combine qualitative user insights with quantitative analytics to make informed design decisions that can be measured and validated.</p>
+                        
+                        <p><strong>Design Process:</strong></p>
+                        <ul>
+                            <li><strong>Research:</strong> User interviews, surveys, competitive analysis, and market research</li>
+                            <li><strong>Ideation:</strong> Brainstorming sessions, design thinking workshops, and concept development</li>
+                            <li><strong>Prototyping:</strong> Low to high-fidelity prototypes for testing and validation</li>
+                            <li><strong>Testing:</strong> Usability testing, A/B testing, and iterative improvements</li>
+                            <li><strong>Implementation:</strong> Close collaboration with development teams for pixel-perfect execution</li>
+                        </ul>
+                        
+                        <p><strong>Business Impact Focus:</strong> Every project must demonstrate clear business value through improved metrics such as conversion rates, user engagement, or brand perception.</p>
+                        
+                        <p><strong>Accessibility & Inclusion:</strong> Design for all users regardless of ability, ensuring WCAG compliance and inclusive design principles in every project.</p>
+                        
+                        <p><strong>Sustainable Design:</strong> Advocate for environmentally conscious design decisions and sustainable business practices in all client engagements.</p>
+                    </div>
+                `
+            },
+            contact: {
+                content: `
+                    <h2 class="modal-title">Get in Touch</h2>
+                    <div class="modal-image" style="background-image: url('https://images.unsplash.com/photo-1423666639041-f56000c27a9a?w=800&auto=format&fit=crop');"></div>
+                    <div class="modal-text">
+                        <p><strong>Currently Available:</strong> Accepting new projects for 2025. Interested in working with startups, established companies, and social impact organizations that value user-centered design and measurable results.</p>
+                        
+                        <p><strong>Project Types:</strong></p>
+                        <ul>
+                            <li>Mobile app design and optimization</li>
+                            <li>E-commerce platform redesigns</li>
+                            <li>Brand identity development</li>
+                            <li>Design system creation</li>
+                            <li>UX audits and optimization</li>
+                            <li>Design team consulting and mentoring</li>
+                        </ul>
+                        
+                        <p><strong>Collaboration Style:</strong> I work closely with cross-functional teams including product managers, engineers, and business stakeholders to ensure design solutions align with business goals and technical constraints.</p>
+                        
+                        <p><strong>Project Duration:</strong> Available for projects ranging from 2-week UX audits to 6-month complete redesigns. Flexible engagement models including contract work and ongoing retainer relationships.</p>
+                        
+                        <p><strong>Geographic Reach:</strong> Based in San Francisco but work with clients globally. Comfortable with remote collaboration and international time zones.</p>
+                        
+                        <p><strong>Response Time:</strong> Typically respond to new inquiries within 24 hours. Initial consultation calls can usually be scheduled within 2-3 business days.</p>
+                        
+                        <p><strong>Portfolio:</strong> Additional case studies and work samples available upon request. Happy to discuss specific project requirements and provide relevant examples.</p>
+                        
+                        <p>Ready to start your next design project? Let's discuss how user-centered design can drive your business results.</p>
+                    </div>
+                `
+            }
+        };
+
+        // Modal functionality
+        function openModal(modalId) {
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+            
+            if (modalData[modalId]) {
+                modalBody.innerHTML = modalData[modalId].content;
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Add click event listeners to articles
+        document.addEventListener('DOMContentLoaded', function() {
+            const articles = document.querySelectorAll('[data-modal]');
+            articles.forEach(article => {
+                article.addEventListener('click', function() {
+                    const modalId = this.getAttribute('data-modal');
+                    openModal(modalId);
+                });
+            });
+
+            // Close modal when clicking outside content
+            document.getElementById('modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
+
+        // Add some newspaper-style animations
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate articles on scroll
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            });
+
+            // Initially hide articles for animation
+            document.querySelectorAll('.article').forEach((article, index) => {
+                article.style.opacity = '0';
+                article.style.transform = 'translateY(20px)';
+                article.style.transition = `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
+                observer.observe(article);
+            });
+        });
+    </script>
+</body>
+</html>

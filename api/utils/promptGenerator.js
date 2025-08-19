@@ -1,17 +1,18 @@
 const fs = require('fs-extra');
+const path = require('path');
 
 class PromptGenerator {
   constructor() {
+    this.skeletonsPath = path.join(__dirname, '..', 'api', 'skeletons');
+    
     this.systemPrompts = {
       base: `You are an elite AI design system with surgical precision for creating portfolios. You have been provided with multiple intelligence layers that create a complete picture of what the user needs.
 
 CRITICAL PHILOSOPHY: You are not just generating a portfolio - you are creating a design that feels like it was custom-made by an expert who:
 1. ✨ Created the moodboard images themselves (perfect aesthetic match)
 2. 🎯 Understands exactly what type of content the user has (content strategy)  
-3. 🏭 Has deep expertise in the user's specific industry (industry intelligence)
-4. 📸 Knows precisely how to showcase each project's story (project intelligence)
-
-This is not a template - this is bespoke design intelligence.`,
+3. 🎭 Has deep expertise in the user's specific industry (industry intelligence)
+4. 📸 Knows precisely how to showcase each project's story (project intelligence)`,
 
       responseFormat: `🚨 CRITICAL RESPONSE FORMAT:
 - Your response must contain ONLY the HTML code
@@ -23,119 +24,329 @@ This is not a template - this is bespoke design intelligence.`,
 - PURE HTML ONLY - any additional text will break the system`
     };
 
-    this.strategyTemplates = {
-      'showcase-heavy': {
-        focus: 'Detailed project storytelling with rich case studies',
-        structure: 'Expandable case study cards with process documentation',
-        contentRatio: '60% project details, 40% visual design',
-        interactionStyle: 'Detailed exploration with smooth transitions'
-      },
-      'visual-first': {
-        focus: 'Images as primary storytelling device',
-        structure: 'Gallery-driven layout with minimal text overlays',
-        contentRatio: '80% visual content, 20% essential text',
-        interactionStyle: 'Image-focused interactions and hover effects'
-      },
-      'story-driven': {
-        focus: 'Narrative-based project presentation',
-        structure: 'Text-heavy sections with supporting imagery',
-        contentRatio: '70% written content, 30% supporting visuals',
-        interactionStyle: 'Reading-focused with clear typography hierarchy'
-      },
-      'design-focused': {
-        focus: 'Aesthetic execution matching moodboard precisely',
-        structure: 'Design-driven layout with generated content',
-        contentRatio: '50% design elements, 50% curated content',
-        interactionStyle: 'Style-showcase with smooth animations'
-      }
+    // 🆕 SKELETON REPLACEMENT PATTERNS
+    this.skeletonPatterns = {
+      // Personal Info
+      USER_NAME: (data) => data.personalInfo?.name || 'Creative Professional',
+      USER_FIRST_NAME: (data) => data.personalInfo?.name?.split(' ')[0] || 'Creative',
+      USER_TITLE: (data) => data.personalInfo?.title || 'Designer & Strategist',
+      USER_EMAIL: (data) => data.personalInfo?.email || 'contact@portfolio.com',
+      USER_PHONE: (data) => data.personalInfo?.phone || '',
+      USER_LINKEDIN: (data) => data.personalInfo?.linkedin || '#',
+      USER_INSTAGRAM: (data) => data.personalInfo?.instagram || '#',
+      
+      // Bio sections
+      USER_BIO_PARAGRAPH_1: (data) => this.splitBio(data.personalInfo?.bio, 0),
+      USER_BIO_PARAGRAPH_2: (data) => this.splitBio(data.personalInfo?.bio, 1),
+      USER_BIO_PARAGRAPH_3: (data) => this.splitBio(data.personalInfo?.bio, 2),
+      USER_ABOUT_TEXT: (data) => this.formatAboutText(data.personalInfo?.bio, data.personalInfo?.name),
+      
+      // Skills
+      USER_SKILLS_LIST: (data) => this.formatSkillsList(data.personalInfo?.skills),
+      USER_TOOLS_LIST: (data) => this.formatToolsList(data.personalInfo?.skills),
+      
+      // Portfolio description
+      PORTFOLIO_DESCRIPTION: (data) => this.generatePortfolioDescription(data.projects),
+      
+      // Gallery-specific patterns
+      FILTER_CATEGORIES: (data) => this.generateFilterCategories(data.projects),
+      PROJECT_DATA_JSON: (data) => this.generateProjectDataJSON(data.projects),
+      
+      // Hero images (for gallery-first)
+      HERO_IMAGE_1: (data) => this.getHeroImage(data.projects, 0),
+      HERO_IMAGE_2: (data) => this.getHeroImage(data.projects, 1),
+      HERO_IMAGE_3: (data) => this.getHeroImage(data.projects, 2),
+      HERO_IMAGE_4: (data) => this.getHeroImage(data.projects, 3),
+      HERO_IMAGE_5: (data) => this.getHeroImage(data.projects, 4),
+      
+      // Contact
+      CONTACT_INTRO_TEXT: (data) => `Ready to bring your vision to life? I'm ${data.personalInfo?.name || 'always'} excited to collaborate on meaningful projects that make a difference.`,
+      CONTACT_AVAILABILITY_TEXT: (data) => 'Available for commissions, collaborations, and creative projects',
+      FOOTER_TEXT: (data) => 'Crafted with passion and attention to detail.',
+      
+      // Skills section
+      SKILLS_SECTION_TITLE: (data) => 'Creative Excellence',
+      SKILLS_DESCRIPTION: (data) => `My toolkit spans traditional design principles to cutting-edge digital technologies, always focused on creating meaningful connections between brands and their audiences.`
+    };
+
+    // 🎨 MOODBOARD COLOR EXTRACTION PATTERNS
+    this.moodboardColorPatterns = {
+      MOODBOARD_PRIMARY_COLOR: 'background',
+      MOODBOARD_SECONDARY_COLOR: 'secondary backgrounds',
+      MOODBOARD_TEXT_COLOR: 'primary text',
+      MOODBOARD_ACCENT_COLOR: 'accent and hover states',
+      MOODBOARD_CTA_COLOR: 'call-to-action buttons',
+      MOODBOARD_GRADIENT: 'gradient overlays',
+      MOODBOARD_CARD_BG: 'card backgrounds',
+      MOODBOARD_PROJECT_GRADIENT: 'project image overlays'
     };
   }
 
   /**
-   * Generate messages for Anthropic API using the INSANE analysis results
+   * 🎯 MAIN METHOD: Generate messages for Claude with enhanced skeleton support
    */
-  async generateInsaneAnthropicMessages(portfolioData, projectImages, insaneAnalysis, moodboardFiles = []) {
-    console.log('🚀 Generating INSANE Anthropic messages...');
+  async generateEnhancedAnthropicMessages(portfolioData, projectImages, insaneAnalysis, moodboardFiles = [], designOptions = {}) {
+    const { selectedSkeleton = 'none', customDesignRequest = '' } = designOptions;
     
-    const messages = [];
-    const contentArray = [
-      {
-        type: "text", 
-        text: this.systemPrompts.base
+    console.log(`🚀 Generating prompt - Skeleton: ${selectedSkeleton}, Custom Request: ${customDesignRequest ? 'Yes' : 'No'}`);
+    
+    // SKELETON MODE: Load and customize existing HTML
+    if (selectedSkeleton !== 'none') {
+      const skeletonHTML = await this.loadSkeletonHTML(selectedSkeleton);
+      if (skeletonHTML) {
+        return this.generateSkeletonMessages(skeletonHTML, portfolioData, projectImages, moodboardFiles, customDesignRequest, insaneAnalysis);
       }
-    ];
-
-    // Add the assembled intelligent prompt from INSANE analysis
-    if (insaneAnalysis.intelligentPrompt) {
-      contentArray.push({
-        type: "text",
-        text: insaneAnalysis.intelligentPrompt.assembledPrompt
-      });
     }
 
-    // Add moodboard images for Claude to see
-    if (moodboardFiles && moodboardFiles.length > 0) {
-      await this.addMoodboardImagesToContent(contentArray, moodboardFiles);
-    }
-
-    // Add comprehensive user data
-    contentArray.push({
-      type: "text",
-      text: this.generateComprehensiveUserData(portfolioData, projectImages, insaneAnalysis)
-    });
-
-    // Add intelligence summary for Claude's reference
-    contentArray.push({
-      type: "text",
-      text: this.generateIntelligenceSummary(insaneAnalysis)
-    });
-
-    // Add project-specific implementation guide
-    contentArray.push({
-      type: "text",
-      text: this.generateProjectImplementationGuide(projectImages, insaneAnalysis.analysisLevels.contentQuality)
-    });
-
-    // Add final execution instructions
-    contentArray.push({
-      type: "text",
-      text: this.generateFinalExecutionInstructions(insaneAnalysis)
-    });
-
-    // Add response format requirements
-    contentArray.push({
-      type: "text",
-      text: this.systemPrompts.responseFormat
-    });
-
-    messages.push({
-      role: "user",
-      content: contentArray
-    });
-
-    return messages;
+    // CREATIVE MODE: Build from scratch with INSANE analysis
+    return this.generateCreativeMessages(portfolioData, projectImages, insaneAnalysis, moodboardFiles, customDesignRequest);
   }
 
   /**
-   * Add moodboard images to content array
+   * 🗂️ ENHANCED SKELETON MODE: Comprehensive customization with moodboard integration
+   */
+  async generateSkeletonMessages(skeletonHTML, portfolioData, projectImages, moodboardFiles, customDesignRequest, insaneAnalysis) {
+    const contentArray = [
+      { type: "text", text: this.systemPrompts.base },
+      { type: "text", text: "\n🗂️ SKELETON CUSTOMIZATION MODE - ENHANCED" }
+    ];
+
+    // Add moodboard images for color extraction
+    if (moodboardFiles?.length > 0) {
+      await this.addMoodboardImagesToContent(contentArray, moodboardFiles);
+    }
+
+    // Pre-process skeleton with user data
+    const processedSkeleton = this.preprocessSkeleton(skeletonHTML, portfolioData, projectImages);
+
+    // Main customization instructions
+    contentArray.push({
+      type: "text",
+      text: this.buildEnhancedSkeletonInstructions(processedSkeleton, portfolioData, projectImages, customDesignRequest, insaneAnalysis, moodboardFiles.length > 0)
+    });
+
+    contentArray.push({ type: "text", text: this.systemPrompts.responseFormat });
+
+    return [{ role: "user", content: contentArray }];
+  }
+
+  /**
+   * 🔄 PRE-PROCESS SKELETON: Replace basic placeholders with user data
+   */
+  preprocessSkeleton(skeletonHTML, portfolioData, projectImages) {
+    let processedHTML = skeletonHTML;
+    
+    // Replace basic user info patterns
+    Object.entries(this.skeletonPatterns).forEach(([pattern, processor]) => {
+      const placeholder = `[${pattern}]`;
+      if (processedHTML.includes(placeholder)) {
+        const replacement = processor(portfolioData) || placeholder;
+        processedHTML = processedHTML.replace(new RegExp(`\\[${pattern}\\]`, 'g'), replacement);
+      }
+    });
+
+    // Replace project-specific data
+    processedHTML = this.replaceProjectData(processedHTML, projectImages);
+
+    return processedHTML;
+  }
+
+  /**
+   * 📂 REPLACE PROJECT DATA: Dynamic project insertion with gallery support
+   */
+  replaceProjectData(html, projectImages) {
+    let processedHTML = html;
+    const projects = projectImages?.projectImages || [];
+
+    projects.forEach((project, index) => {
+      const projectNum = index + 1;
+      
+      // Basic project info
+      processedHTML = processedHTML.replace(new RegExp(`\\[PROJECT_${projectNum}_TITLE\\]`, 'g'), 
+        project.title || `Project ${projectNum}`);
+      processedHTML = processedHTML.replace(new RegExp(`\\[PROJECT_${projectNum}_CATEGORY\\]`, 'g'), 
+        project.category || project.customCategory || 'Creative Work');
+      processedHTML = processedHTML.replace(new RegExp(`\\[PROJECT_${projectNum}_OVERVIEW\\]`, 'g'), 
+        project.overview || project.description || 'Innovative project showcasing creative expertise');
+      
+      // Gallery-specific patterns
+      processedHTML = processedHTML.replace(new RegExp(`\\[PROJECT_${projectNum}_CATEGORY_FILTER\\]`, 'g'), 
+        this.formatCategoryForFilter(project.category || project.customCategory));
+      processedHTML = processedHTML.replace(new RegExp(`\\[PROJECT_${projectNum}_DATE\\]`, 'g'), 
+        this.formatProjectDate(project.createdAt));
+
+      // Project images
+      if (project.finalImages?.length > 0) {
+        project.finalImages.forEach((img, imgIndex) => {
+          processedHTML = processedHTML.replace(new RegExp(`\\[PROJECT_${projectNum}_FINAL_IMAGE_${imgIndex + 1}\\]`, 'g'), 
+            img.url || '');
+        });
+      }
+
+      if (project.processImages?.length > 0) {
+        project.processImages.forEach((img, imgIndex) => {
+          processedHTML = processedHTML.replace(new RegExp(`\\[PROJECT_${projectNum}_PROCESS_IMAGE_${imgIndex + 1}\\]`, 'g'), 
+            img.url || '');
+        });
+      }
+
+      // Project tags
+      const tagsHTML = project.tags?.map(tag => `<span class="tag">${tag}</span>`).join('') || 
+        '<span class="tag">design</span><span class="tag">creative</span>';
+      processedHTML = processedHTML.replace(new RegExp(`\\[PROJECT_${projectNum}_TAGS\\]`, 'g'), tagsHTML);
+    });
+
+    return processedHTML;
+  }
+
+  /**
+   * 🎨 BUILD ENHANCED SKELETON INSTRUCTIONS: Comprehensive customization guide
+   */
+  buildEnhancedSkeletonInstructions(processedSkeleton, portfolioData, projectImages, customDesignRequest, insaneAnalysis, hasMoodboard) {
+    const projects = projectImages?.projectImages || [];
+    const totalImages = projects.reduce((sum, p) => 
+      sum + (p.processImages?.length || 0) + (p.finalImages?.length || 0), 0);
+
+    const moodboardAnalysis = insaneAnalysis?.analysisLevels?.visualIntelligence || {};
+    const industryInsights = insaneAnalysis?.analysisLevels?.industryIntelligence || {};
+
+    return `
+🎯 ENHANCED SKELETON CUSTOMIZATION TASK:
+
+${hasMoodboard ? `🎨 MOODBOARD COLOR EXTRACTION CRITICAL:
+You have been provided with moodboard images. Extract the EXACT color palette and apply it to ALL color variables in the CSS.
+
+REPLACE THESE COLOR PATTERNS WITH MOODBOARD COLORS:
+• MOODBOARD_PRIMARY_COLOR → Main background color from moodboard
+• MOODBOARD_SECONDARY_COLOR → Secondary/accent background from moodboard  
+• MOODBOARD_TEXT_COLOR → Primary text color that works with moodboard
+• MOODBOARD_ACCENT_COLOR → Accent color for hovers/highlights from moodboard
+• MOODBOARD_CTA_COLOR → Bold color for call-to-action buttons from moodboard
+• MOODBOARD_GRADIENT → Create gradients using moodboard color palette
+• All other MOODBOARD_* variables → Match the aesthetic perfectly
+
+CRITICAL: The final result must look like it was designed specifically for these moodboard images.` : ''}
+
+${insaneAnalysis ? `🧠 INTELLIGENCE INTEGRATION:
+• Visual Style: ${moodboardAnalysis.visualDNA?.category || 'modern'} ${moodboardAnalysis.visualDNA?.mood || 'aesthetic'}
+• Industry Focus: ${industryInsights.detectedIndustry || 'creative professional'}
+• Content Strategy: ${insaneAnalysis.analysisLevels?.contentQuality?.strategy || 'balanced'}
+• Confidence: ${Math.round((insaneAnalysis.overallConfidence || 0.5) * 100)}% AI analysis` : ''}
+
+📊 USER DATA INTEGRATION STATUS:
+✅ Name: ${portfolioData.personalInfo?.name || 'NEEDS_REPLACEMENT'}
+✅ Title: ${portfolioData.personalInfo?.title || 'NEEDS_REPLACEMENT'}  
+✅ Email: ${portfolioData.personalInfo?.email || 'NEEDS_REPLACEMENT'}
+✅ Bio: ${portfolioData.personalInfo?.bio ? 'PROVIDED' : 'NEEDS_CREATIVE_BIO'}
+✅ Skills: ${portfolioData.personalInfo?.skills?.length || 0} skills provided
+✅ Projects: ${projects.length} projects with ${totalImages} total images
+
+${customDesignRequest ? `🔥 CUSTOM STYLING REQUEST: "${customDesignRequest}"
+- PRIORITY: HIGH - This request should be the primary design philosophy
+- Integration: Apply this styling throughout while maintaining skeleton structure
+- Creative interpretation: Go beyond literal implementation` : ''}
+
+🚨 SKELETON CUSTOMIZATION RULES:
+
+1. **COMPLETE COLOR REPLACEMENT**: 
+   ${hasMoodboard ? 'Extract and apply moodboard colors to EVERY MOODBOARD_* variable' : 'Create a cohesive color scheme based on user industry/style preferences'}
+
+2. **PROJECT IMAGE INTEGRATION**:
+   - Replace [PROJECT_*_FINAL_IMAGE_*] with actual project image URLs
+   - Replace [PROJECT_*_PROCESS_IMAGE_*] with actual process image URLs  
+   - Ensure all images are properly referenced in background-image styles
+
+3. **DYNAMIC PROJECT SECTIONS**:
+   - If user has fewer than 3 projects, remove unused PROJECT_*_START to PROJECT_*_END sections
+   - If user has more than 3 projects, duplicate the project template section
+   - Each project should showcase its unique images and content
+
+4. **CONTENT PERSONALIZATION**:
+   - Replace all [USER_*] placeholders with actual user data
+   - Create compelling bio paragraphs if user bio is short
+   - Generate relevant skills lists based on user's background
+
+5. **RESPONSIVE & MODERN**:
+   - Ensure mobile-first design approach
+   - Maintain smooth animations and interactions
+   - Keep professional aesthetic with personality
+
+6. **FINAL QUALITY CHECKS**:
+   - No placeholder text should remain
+   - All images should have proper URLs or elegant fallbacks
+   - Color scheme should be cohesive and professional
+   - Typography should match the overall aesthetic
+
+SKELETON HTML TO CUSTOMIZE:
+\`\`\`html
+${processedSkeleton}
+\`\`\`
+
+Return the fully customized, production-ready HTML with:
+${hasMoodboard ? '- Moodboard colors applied throughout' : '- Professional color scheme'}
+- All user data properly integrated  
+- Real project images and content
+- ${customDesignRequest ? 'Custom styling request implemented' : 'Clean, modern design'}
+- No placeholder text remaining`;
+  }
+
+  /**
+   * 🎨 CREATIVE MODE: Build completely custom portfolio with INSANE analysis
+   */
+  async generateCreativeMessages(portfolioData, projectImages, insaneAnalysis, moodboardFiles, customDesignRequest) {
+    const contentArray = [
+      { type: "text", text: this.systemPrompts.base }
+    ];
+
+    // Add INSANE analysis if available
+    if (insaneAnalysis) {
+      contentArray.push({
+        type: "text",
+        text: this.generateIntelligenceSummary(insaneAnalysis, customDesignRequest)
+      });
+
+      if (insaneAnalysis.intelligentPrompt) {
+        contentArray.push({
+          type: "text",
+          text: insaneAnalysis.intelligentPrompt.assembledPrompt
+        });
+      }
+    }
+
+    // Add moodboard images if available
+    if (moodboardFiles?.length > 0) {
+      await this.addMoodboardImagesToContent(contentArray, moodboardFiles);
+    }
+
+    // Add user data and instructions
+    contentArray.push({
+      type: "text",
+      text: this.buildCreativeInstructions(portfolioData, projectImages, insaneAnalysis, customDesignRequest)
+    });
+
+    contentArray.push({ type: "text", text: this.systemPrompts.responseFormat });
+
+    return [{ role: "user", content: contentArray }];
+  }
+
+  /**
+   * 🖼️ Add moodboard images to content array
    */
   async addMoodboardImagesToContent(contentArray, moodboardFiles) {
     if (!moodboardFiles || moodboardFiles.length === 0) return;
 
-    console.log(`🖼️ Adding ${moodboardFiles.length} moodboard images for Claude to analyze...`);
+    console.log(`🖼️ Adding ${moodboardFiles.length} moodboard images...`);
     
     contentArray.push({
       type: "text",
       text: `\n🎨 MOODBOARD ANALYSIS INSTRUCTIONS:
-I'm providing you with ${moodboardFiles.length} moodboard images. These represent the EXACT aesthetic the portfolio must match.
+I'm providing ${moodboardFiles.length} moodboard images representing the EXACT aesthetic the portfolio must match.
 
 CRITICAL ANALYSIS TASKS:
-1. **VISUAL DNA EXTRACTION**: Identify the precise design patterns, color schemes, typography styles, and layout principles
-2. **STRUCTURAL PATTERNS**: Look for website layouts, navigation styles, content organization, and unique design elements
-3. **AESTHETIC SIGNATURES**: Find the distinctive visual elements that make this style unique
-4. **IMPLEMENTATION STRATEGY**: Determine how to authentically recreate this aesthetic in the portfolio
-
-The portfolio must look like it was designed by the same person who created these moodboard references.`
+1. Extract precise design patterns, color schemes, and typography  
+2. Identify layout principles and navigation styles
+3. Find distinctive visual elements that make this style unique
+4. Determine how to authentically recreate this aesthetic`
     });
 
     for (const [index, file] of moodboardFiles.entries()) {
@@ -151,8 +362,6 @@ The portfolio must look like it was designed by the same person who created thes
             data: base64Image
           }
         });
-
-        console.log(`✅ Added moodboard image ${index + 1}: ${file.originalname}`);
       } catch (error) {
         console.warn(`⚠️ Failed to load moodboard image ${index + 1}:`, error.message);
       }
@@ -160,476 +369,378 @@ The portfolio must look like it was designed by the same person who created thes
   }
 
   /**
-   * Generate comprehensive user data section
+   * 🔧 UTILITY METHODS
    */
-  generateComprehensiveUserData(portfolioData, projectImages, insaneAnalysis) {
-    const projects = projectImages?.projectImages || [];
-    const totalImages = projects.reduce((sum, p) => 
-      sum + (p.processImages?.length || 0) + (p.finalImages?.length || 0), 0);
+  
+  splitBio(bio, paragraphIndex) {
+    if (!bio) {
+      const defaultBios = [
+        "I'm a passionate creative professional with years of experience crafting memorable experiences that connect with audiences on an emotional level.",
+        "My approach combines strategic thinking with beautiful aesthetics, ensuring every project not only looks stunning but also drives real business results.",
+        "When I'm not designing, you'll find me exploring new creative techniques, collaborating with fellow artists, and pushing the boundaries of what's possible."
+      ];
+      return defaultBios[paragraphIndex] || '';
+    }
 
-    return `
-📊 COMPREHENSIVE USER DATA:
+    const sentences = bio.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const sentencesPerParagraph = Math.ceil(sentences.length / 3);
+    const start = paragraphIndex * sentencesPerParagraph;
+    const end = start + sentencesPerParagraph;
+    
+    return sentences.slice(start, end).join('. ').trim() + (sentences.slice(start, end).length > 0 ? '.' : '');
+  }
 
-🧑‍💼 PERSONAL INFORMATION:
-- Name: ${portfolioData.personalInfo.name}
-- Professional Title: ${portfolioData.personalInfo.title}
-- Bio: "${portfolioData.personalInfo.bio || 'Creative professional passionate about design'}"
-- Email: ${portfolioData.personalInfo.email || 'contact@portfolio.com'}
-- Skills: ${portfolioData.personalInfo.skills?.join(', ') || 'Creative skills matching detected industry'}
+  formatAboutText(bio, name) {
+    if (bio && bio.length > 100) return bio;
+    
+    const defaultAbout = `I'm a visual storyteller ${name ? `named ${name.split(' ')[0]} ` : ''}passionate about capturing authentic moments and creating compelling narratives through my work. With years of experience behind the lens, I specialize in bringing creative visions to life through thoughtful composition, lighting, and post-production techniques. My work explores the intersection of emotion and artistry, always seeking to tell stories that resonate with viewers on a deeper level.`;
+    
+    return bio || defaultAbout;
+  }
 
-🔗 SOCIAL PRESENCE:
-${[
-  portfolioData.personalInfo.website && `Website: ${portfolioData.personalInfo.website}`,
-  portfolioData.personalInfo.linkedin && `LinkedIn: ${portfolioData.personalInfo.linkedin}`,
-  portfolioData.personalInfo.instagram && `Instagram: ${portfolioData.personalInfo.instagram}`,
-  portfolioData.personalInfo.behance && `Behance: ${portfolioData.personalInfo.behance}`,
-  portfolioData.personalInfo.dribbble && `Dribbble: ${portfolioData.personalInfo.dribbble}`
-].filter(Boolean).join('\n') || 'Social links to be styled according to moodboard aesthetic'}
+  generatePortfolioDescription(projects) {
+    if (!projects || projects.length === 0) {
+      return 'A curated collection of creative work spanning visual storytelling, design, and artistic exploration.';
+    }
+    
+    const categories = this.getProjectCategories(projects);
+    return `A curated collection of recent projects spanning ${categories}. Each piece explores the delicate balance between creativity, technique, and authentic storytelling.`;
+  }
 
-📁 PROJECT PORTFOLIO (${portfolioData.projects?.length || 0} projects, ${totalImages} images):
-${portfolioData.projects?.map((project, index) => `
-PROJECT ${index + 1}: "${project.title}"
-├── Category: ${project.category || project.customCategory || 'Creative Work'}
-├── Overview: ${project.overview || project.description || 'Innovative project showcasing creative expertise'}
-├── Tags: ${project.tags?.join(', ') || 'design, creative'}
-${project.problem ? `├── Problem: ${project.problem}` : ''}
-${project.solution ? `├── Solution: ${project.solution}` : ''}
-${project.reflection ? `└── Reflection: ${project.reflection}` : ''}
-`).join('') || 'No projects provided - create sample projects matching the detected industry and visual style'}
+  generateFilterCategories(projects) {
+    if (!projects || projects.length === 0) {
+      return '<div class="filter-tag" data-filter="creative">Creative</div><div class="filter-tag" data-filter="design">Design</div>';
+    }
+    
+    const categories = [...new Set(projects.map(p => 
+      this.formatCategoryForFilter(p.category || p.customCategory)
+    ))].filter(Boolean);
+    
+    return categories.map(cat => 
+      `<div class="filter-tag" data-filter="${cat}">${this.formatCategoryForDisplay(cat)}</div>`
+    ).join('');
+  }
 
-🎨 STYLE PREFERENCES:
-- Color Scheme: ${portfolioData.stylePreferences?.colorScheme || 'Extract from moodboard and intelligence analysis'}
-- Layout Style: ${portfolioData.stylePreferences?.layoutStyle || 'Use detected industry and content strategy patterns'}
-- Typography: ${portfolioData.stylePreferences?.typography || 'Apply moodboard typography analysis'}
-- Overall Mood: ${portfolioData.stylePreferences?.mood || 'Match visual DNA analysis results'}`;
+  generateProjectDataJSON(projects) {
+    if (!projects || projects.length === 0) return '{}';
+    
+    const projectData = {};
+    projects.forEach((project, index) => {
+      const key = this.formatProjectKey(project.title, index);
+      projectData[key] = {
+        title: project.title || `Project ${index + 1}`,
+        subtitle: project.subtitle || 'Creative exploration',
+        category: project.category || project.customCategory || 'Creative Work',
+        overview: project.overview || project.description || 'Innovative project showcasing creative expertise',
+        tags: project.tags || ['design', 'creative'],
+        date: this.formatProjectDate(project.createdAt),
+        image: project.finalImages?.[0]?.url || '',
+        finalImages: project.finalImages || [],
+        processImages: project.processImages || []
+      };
+    });
+    
+    // Return valid JavaScript object literal without outer braces
+    return JSON.stringify(projectData, null, 2);
+  }
+
+  getHeroImage(projects, index) {
+    if (!projects || projects.length === 0) return '';
+    
+    const project = projects[index % projects.length];
+    return project?.finalImages?.[0]?.url || project?.processImages?.[0]?.url || '';
+  }
+
+  formatCategoryForFilter(category) {
+    if (!category) return 'creative';
+    return category.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  formatCategoryForDisplay(filterCategory) {
+    return filterCategory.charAt(0).toUpperCase() + filterCategory.slice(1);
+  }
+
+  formatProjectKey(title, index) {
+    if (!title) return `project-${index + 1}`;
+    return title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+  }
+
+  formatProjectDate(dateString) {
+    if (!dateString) return new Date().getFullYear().toString();
+    
+    try {
+      const date = new Date(dateString);
+      return date.getFullYear().toString();
+    } catch {
+      return new Date().getFullYear().toString();
+    }
+  }
+
+  formatSkillsList(skills) {
+    if (!skills || !Array.isArray(skills)) return '<li>Creative Design</li><li>Strategy</li><li>Innovation</li>';
+    
+    return skills.slice(0, 4).map(skill => 
+      `<li class="skill-item">
+        <span>${skill}</span>
+        <div class="skill-level" style="--skill-width: ${85 + Math.random() * 15}%"></div>
+      </li>`
+    ).join('');
+  }
+
+  formatToolsList(skills) {
+    // Extract tool-like skills or create default ones
+    const toolSkills = skills?.filter(skill => 
+      skill.toLowerCase().includes('adobe') || 
+      skill.toLowerCase().includes('figma') ||
+      skill.toLowerCase().includes('sketch') ||
+      skill.toLowerCase().includes('photo')
+    ) || ['Adobe Creative Suite', 'Figma', 'Photography', 'Digital Design'];
+
+    return toolSkills.slice(0, 4).map(tool => 
+      `<li class="skill-item">
+        <span>${tool}</span>
+        <div class="skill-level" style="--skill-width: ${80 + Math.random() * 20}%"></div>
+      </li>`
+    ).join('');
+  }
+
+  getProjectCategories(projects) {
+    if (!projects || projects.length === 0) return 'creative work';
+    
+    const categories = projects.map(p => p.category || p.customCategory).filter(Boolean);
+    const uniqueCategories = [...new Set(categories)];
+    
+    if (uniqueCategories.length === 0) return 'creative work';
+    if (uniqueCategories.length === 1) return uniqueCategories[0];
+    if (uniqueCategories.length === 2) return uniqueCategories.join(' and ');
+    
+    return uniqueCategories.slice(0, -1).join(', ') + ', and ' + uniqueCategories.slice(-1);
   }
 
   /**
-   * Generate intelligence summary for Claude's reference
+   * 🧠 Generate intelligence summary with custom request integration
    */
-  generateIntelligenceSummary(insaneAnalysis) {
-    const visual = insaneAnalysis.analysisLevels.visualIntelligence || {};
-    const content = insaneAnalysis.analysisLevels.contentQuality || {};
-    const industry = insaneAnalysis.analysisLevels.industryIntelligence || {};
+  generateIntelligenceSummary(insaneAnalysis, customDesignRequest = '') {
+    const visual = insaneAnalysis.analysisLevels?.visualIntelligence || {};
+    const content = insaneAnalysis.analysisLevels?.contentQuality || {};
+    const industry = insaneAnalysis.analysisLevels?.industryIntelligence || {};
 
     return `
 🧠 INTELLIGENCE ANALYSIS SUMMARY:
 
 🎨 VISUAL INTELLIGENCE (${Math.round((visual.confidence || 0) * 100)}% confidence):
-- Detected Style: ${visual.visualDNA?.category || 'modern'} ${visual.visualDNA?.mood || 'aesthetic'}
-- Color Profile: ${visual.colors?.palette?.join(', ') || 'Balanced palette'}
-- Typography: ${visual.typography?.category || 'sans-serif'} fonts, ${visual.typography?.weight || 'regular'} weight
-- Layout Approach: ${visual.layout?.grid || 'standard'} grid, ${visual.layout?.whitespace || 'balanced'} whitespace
-- Navigation Style: ${visual.structure?.navigation || 'horizontal'}
-- Unique Signatures: ${visual.signatures?.join(', ') || 'Clean modern elements'}
+- Style: ${visual.visualDNA?.category || 'modern'} ${visual.visualDNA?.mood || 'aesthetic'}
+- Colors: ${visual.colors?.palette?.join(', ') || 'Balanced palette'}
+- Typography: ${visual.typography?.category || 'sans-serif'} fonts
+- Layout: ${visual.layout?.grid || 'standard'} grid
 
 📝 CONTENT STRATEGY (${Math.round((content.confidence || 0) * 100)}% confidence):
-- Content Type: ${content.contentType || 'balanced'}
-- Generation Strategy: ${content.strategy || 'standard'}
-- Strengths: ${content.strengths?.join(', ') || 'Creative potential'}
-- Focus Areas: ${content.recommendations?.join(' | ') || 'Balanced presentation'}
+- Approach: ${content.strategy || 'balanced'}
+- Focus: ${content.recommendations?.join(' | ') || 'Professional presentation'}
 
-🏭 INDUSTRY INTELLIGENCE (${Math.round((industry.confidence || 0) * 100)}% confidence):
-- Detected Industry: ${industry.detectedIndustry || 'general creative'}
+🎭 INDUSTRY INTELLIGENCE (${Math.round((industry.confidence || 0) * 100)}% confidence):
+- Industry: ${industry.detectedIndustry || 'creative professional'}
 - Portfolio Focus: ${industry.portfolioFocus || 'balanced showcase'}
-- Layout Style: ${industry.layoutStyle || 'professional'}
-- Recommended Sections: ${industry.recommendedSections?.join(' → ') || 'standard sections'}
 
-🎯 SYSTEM STATUS: ${insaneAnalysis.systemStatus || 'SMART'} (${Math.round((insaneAnalysis.overallConfidence || 0.5) * 100)}% overall confidence)
-
-IMPLEMENTATION DIRECTIVE: Use this intelligence to create a portfolio that feels expertly crafted for this specific user's needs, industry, and aesthetic preferences.`;
+${customDesignRequest ? `🔥 CUSTOM DESIGN INTEGRATION: "${customDesignRequest}"
+- Implementation: Blend this request seamlessly with intelligence analysis
+- Priority: High - this custom request should feel like a core design principle` : ''}`;
   }
 
   /**
-   * Generate project implementation guide
+   * 🎨 Build creative mode instructions
    */
-  generateProjectImplementationGuide(projectImages, contentStrategy) {
-    const projects = projectImages?.projectImages || [];
-    
-    if (projects.length === 0) {
-      return `
-📁 PROJECT IMPLEMENTATION GUIDE:
-
-⚠️ NO PROJECT IMAGES AVAILABLE
-STRATEGY: Create 3-4 compelling sample projects that match:
-- The detected visual DNA aesthetic
-- The user's industry and skill set  
-- The intelligent content strategy recommendations
-
-APPROACH: Use design elements, CSS styling, and generated content to create portfolio sections that demonstrate the aesthetic potential while maintaining professional credibility.`;
-    }
-
-    const strategy = contentStrategy?.strategy || 'balanced';
-    const strategyDetails = this.strategyTemplates[strategy] || this.strategyTemplates['design-focused'];
-
-    let guide = `
-📁 PROJECT IMPLEMENTATION GUIDE:
-
-🎯 CONTENT STRATEGY: ${strategy}
-- Focus: ${strategyDetails.focus}
-- Structure: ${strategyDetails.structure}  
-- Content Ratio: ${strategyDetails.contentRatio}
-- Interaction Style: ${strategyDetails.interactionStyle}
-
-📸 PROJECT-SPECIFIC IMPLEMENTATION:
-Total Projects: ${projects.length}
-Total Images: ${projects.reduce((sum, p) => sum + (p.processImages?.length || 0) + (p.finalImages?.length || 0), 0)}
-
-PROJECT BREAKDOWN:`;
-
-    projects.forEach((project, index) => {
-      const finalCount = project.finalImages?.length || 0;
-      const processCount = project.processImages?.length || 0;
-      
-      guide += `\n\n━━━ PROJECT ${index + 1}: "${project.title}" ━━━
-📊 Image Assets: ${finalCount} final + ${processCount} process images
-🎯 Implementation Strategy:`;
-
-      switch (strategy) {
-        case 'showcase-heavy':
-          guide += `
-  ├── PRIMARY DISPLAY: Detailed case study card with expandable sections
-  ├── FINAL IMAGES: Feature prominently as hero images with full details
-  ├── PROCESS IMAGES: Create comprehensive process gallery showing methodology
-  └── CONTENT: Use detailed project information with problem-solution narrative`;
-          break;
-        
-        case 'visual-first':
-          guide += `
-  ├── PRIMARY DISPLAY: Image-hero layout with minimal text overlay
-  ├── FINAL IMAGES: Use as dominant visual element (80% of card space)
-  ├── PROCESS IMAGES: Organize in hoverable gallery or carousel
-  └── CONTENT: Generate concise, impactful descriptions that support imagery`;
-          break;
-        
-        case 'story-driven':
-          guide += `
-  ├── PRIMARY DISPLAY: Text-focused cards with supporting imagery
-  ├── FINAL IMAGES: Use as accent elements supporting the narrative
-  ├── PROCESS IMAGES: Integrate within written case study content
-  └── CONTENT: Emphasize detailed project stories and problem-solving process`;
-          break;
-        
-        default:
-          guide += `
-  ├── PRIMARY DISPLAY: Balanced card with equal visual-text weight
-  ├── FINAL IMAGES: Feature as main project visuals with good prominence
-  ├── PROCESS IMAGES: Show in expandable gallery section
-  └── CONTENT: Balanced approach with both visuals and descriptive content`;
-      }
-
-      // Add specific image URLs for this project
-      if (finalCount > 0) {
-        guide += `\n\n🖼️ FINAL IMAGES FOR "${project.title}":`;
-        project.finalImages.forEach((img, imgIndex) => {
-          guide += `\n  ${imgIndex + 1}. ${img.url} (${img.filename})`;
-        });
-      }
-
-      if (processCount > 0) {
-        guide += `\n\n📷 PROCESS IMAGES FOR "${project.title}":`;
-        project.processImages.slice(0, 3).forEach((img, imgIndex) => { // Show first 3 for brevity
-          guide += `\n  ${imgIndex + 1}. ${img.url} (${img.filename})`;
-        });
-        if (processCount > 3) {
-          guide += `\n  ... and ${processCount - 3} more process images`;
-        }
-      }
-    });
-
-    guide += `\n\n🚨 CRITICAL IMPLEMENTATION RULES:
-1. Each project's images must ONLY appear in that project's section
-2. Use exact URLs as provided - no modifications or concatenations
-3. Implement the content strategy consistently across all projects
-4. Maintain visual coherence with the detected aesthetic DNA
-5. Create smooth interactions that match the strategy's interaction style`;
-
-    return guide;
-  }
-
-  /**
-   * Generate final execution instructions
-   */
-  generateFinalExecutionInstructions(insaneAnalysis) {
-    const systemStatus = insaneAnalysis.systemStatus || 'SMART';
-    const confidence = Math.round((insaneAnalysis.overallConfidence || 0.5) * 100);
-    const visual = insaneAnalysis.analysisLevels.visualIntelligence || {};
-    const content = insaneAnalysis.analysisLevels.contentQuality || {};
-    const industry = insaneAnalysis.analysisLevels.industryIntelligence || {};
-
-    return `
-🎯 FINAL EXECUTION INSTRUCTIONS:
-
-🚀 SYSTEM STATUS: ${systemStatus} (${confidence}% confidence)
-This is ${systemStatus === 'INSANE' ? 'maximum intelligence' : systemStatus === 'SMART' ? 'high intelligence' : 'standard'} mode.
-
-🔥 EXECUTION PRIORITIES:
-1. **VISUAL DNA MATCH** (${Math.round((visual.confidence || 0) * 100)}% confidence)
-   - Implement the exact aesthetic from moodboard analysis
-   - Use detected color palette: ${visual.colors?.palette?.join(', ') || 'balanced colors'}
-   - Apply ${visual.typography?.category || 'modern'} typography with ${visual.typography?.weight || 'regular'} weights
-   - Create ${visual.layout?.whitespace || 'balanced'} layouts with ${visual.structure?.navigation || 'horizontal'} navigation
-
-2. **CONTENT STRATEGY EXECUTION** (${Math.round((content.confidence || 0) * 100)}% confidence)
-   - Primary approach: ${content.strategy || 'balanced'}
-   - Content strengths: ${content.strengths?.join(', ') || 'creative potential'}
-   - Implementation: ${content.recommendations?.join(' | ') || 'professional presentation'}
-
-3. **INDUSTRY ADAPTATION** (${Math.round((industry.confidence || 0) * 100)}% confidence)
-   - Optimize for: ${industry.detectedIndustry || 'creative professional'}
-   - Portfolio focus: ${industry.portfolioFocus || 'balanced showcase'}
-   - Section structure: ${industry.recommendedSections?.join(' → ') || 'standard flow'}
-
-✨ SUCCESS METRICS:
-${systemStatus === 'INSANE' ? '🔥 INSANE LEVEL - Portfolio must look like it cost $10,000 to design' : 
-  systemStatus === 'SMART' ? '⚡ SMART LEVEL - Portfolio should feel expertly crafted' : 
-  '💡 STANDARD LEVEL - Portfolio should be professional and well-designed'}
-
-TECHNICAL REQUIREMENTS:
-- Single HTML file with embedded CSS and JavaScript
-- Fully responsive design (mobile-first approach)
-- Modern CSS features (Grid, Flexbox, CSS Variables)
-- Smooth animations matching the detected aesthetic mood
-- Accessibility standards (ARIA, semantic HTML, keyboard navigation)
-- Fast loading with optimized performance
-- Cross-browser compatibility
-
-MANDATORY FOOTER:
-"© ${new Date().getFullYear()} [User Name] — product of Interract Agency. All rights reserved. ✨"
-
-🎨 THE FINAL RESULT MUST FEEL LIKE:
-- A custom design created by someone who made the moodboard images
-- An expert portfolio for the ${industry.detectedIndustry || 'detected'} industry
-- A perfectly balanced presentation of the user's ${content.contentType || 'available'} content
-- A premium, professional portfolio that commands attention and respect
-
-Generate the complete portfolio HTML now.`;
-  }
-
-  /**
-   * Legacy method for backwards compatibility - Updated to use INSANE analysis
-   */
-  async generateStyledPrompt(portfolioData, projectImages, designStyle = 'modern', insaneAnalysis = null) {
-    console.log('⚠️ Using legacy text-only prompt with INSANE analysis integration');
-    
-    if (!insaneAnalysis) {
-      console.warn('No INSANE analysis provided, falling back to basic prompt generation');
-      return this.generateBasicPrompt(portfolioData, projectImages, designStyle);
-    }
-
-    let prompt = this.systemPrompts.base;
-    
-    // Add intelligence summary
-    prompt += '\n\n' + this.generateIntelligenceSummary(insaneAnalysis);
-    
-    // Add the assembled intelligent prompt
-    if (insaneAnalysis.intelligentPrompt) {
-      prompt += '\n\n' + insaneAnalysis.intelligentPrompt.assembledPrompt;
-    }
-    
-    // Add comprehensive user data
-    prompt += '\n\n' + this.generateComprehensiveUserData(portfolioData, projectImages, insaneAnalysis);
-    
-    // Add project implementation guide
-    prompt += '\n\n' + this.generateProjectImplementationGuide(projectImages, insaneAnalysis.analysisLevels.contentQuality);
-    
-    // Add final execution instructions
-    prompt += '\n\n' + this.generateFinalExecutionInstructions(insaneAnalysis);
-    
-    // Add response format
-    prompt += '\n\n' + this.systemPrompts.responseFormat;
-    
-    return prompt;
-  }
-
-  /**
-   * Basic prompt generation fallback
-   */
-  generateBasicPrompt(portfolioData, projectImages, designStyle) {
+  buildCreativeInstructions(portfolioData, projectImages, insaneAnalysis, customDesignRequest) {
     const projects = projectImages?.projectImages || [];
     const totalImages = projects.reduce((sum, p) => 
       sum + (p.processImages?.length || 0) + (p.finalImages?.length || 0), 0);
+    const strategy = insaneAnalysis?.analysisLevels?.contentQuality?.strategy || 'design-focused';
 
-    return `${this.systemPrompts.base}
+    return `
+🎯 CREATIVE PORTFOLIO TASK:
 
-🎨 DESIGN STYLE: ${designStyle} aesthetic
-📊 USER DATA: ${portfolioData.personalInfo.name} - ${portfolioData.personalInfo.title}
-📁 PROJECTS: ${portfolioData.projects?.length || 0} projects with ${totalImages} images available
+📊 USER PROFILE:
+• Name: ${portfolioData.personalInfo.name}
+• Title: ${portfolioData.personalInfo.title}
+• Industry: ${insaneAnalysis?.analysisLevels?.industryIntelligence?.detectedIndustry || 'Creative'}
+• Bio: "${portfolioData.personalInfo.bio || 'Passionate creative professional'}"
+• Contact: ${portfolioData.personalInfo.email || 'contact@portfolio.com'}
+• Social: ${this.formatSocialLinks(portfolioData.personalInfo)}
+• Skills: ${portfolioData.personalInfo.skills?.join(', ') || 'Creative Design'}
 
-APPROACH: Create a professional portfolio that showcases the user's work with a ${designStyle} design approach.
+📝 PROJECTS (${projects.length} projects, ${totalImages} images):
+${projects.length > 0 ? projects.map((project, i) => this.formatProjectWithImages(project, i + 1)).join('\n') : 'Create compelling sample projects that match the user\'s industry and aesthetic'}
 
-${totalImages > 0 ? this.generateBasicProjectGuide(projects) : 'Create compelling sample projects that match the design style.'}
+🎯 CONTENT STRATEGY: ${this.getStrategyDescription(strategy)}
 
-TECHNICAL: Single HTML file, responsive design, modern CSS, embedded styles and scripts.
+${customDesignRequest ? `🔥 CUSTOM DESIGN REQUEST: "${customDesignRequest}"
+- Integration: Make this the core design philosophy driving all aesthetic decisions` : ''}
 
-${this.systemPrompts.responseFormat}`;
+🚨 DESIGN REQUIREMENTS:
+1. Match moodboard aesthetic exactly
+2. Create unique layout based on intelligence analysis
+3. Showcase projects with proper image integration
+4. Mobile-responsive design (mobile-first approach)
+5. Modern CSS (Grid, Flexbox, smooth animations)
+6. Professional and premium feel
+7. Fast loading with embedded styles and scripts
+8. Accessibility standards (ARIA, semantic HTML)
+
+🎯 SUCCESS CRITERIA:
+Create a portfolio that looks expertly crafted and perfectly tailored to this user's needs, industry, and aesthetic preferences.`;
   }
 
   /**
-   * Basic project guide for fallback
+   * 📝 Format project with image details (for creative mode)
    */
-  generateBasicProjectGuide(projects) {
-    let guide = '\n🔗 PROJECT IMAGES AVAILABLE:\n';
+  formatProjectWithImages(project, index) {
+    const finalCount = project.finalImages?.length || 0;
+    const processCount = project.processImages?.length || 0;
     
-    projects.forEach((project, index) => {
-      guide += `\nPROJECT ${index + 1}: "${project.title}"`;
-      if (project.finalImages?.length > 0) {
-        guide += `\n  Final: ${project.finalImages[0].url}`;
-      }
-      if (project.processImages?.length > 0) {
-        guide += `\n  Process: ${project.processImages.length} images`;
-      }
-    });
-    
-    guide += '\n\nIMPLEMENTATION: Use these images in their respective project sections only.';
-    return guide;
-  }
+    let projectText = `\n┌─── PROJECT ${index}: "${project.title}" ───┐
+• Category: ${project.category || project.customCategory || 'Creative Work'}
+• Overview: ${project.overview || project.description || 'Innovative project showcasing creative expertise'}
+• Tags: ${project.tags?.join(', ') || 'design, creative'}
+• Images: ${finalCount} final + ${processCount} process`;
 
-  /**
-   * Generate Anthropic messages with fallback support
-   */
-  async generateAnthropicMessages(portfolioData, projectImages, designStyle = 'modern', analysisResults = null) {
-    // If we have INSANE analysis results, use the enhanced method
-    if (analysisResults && analysisResults.systemStatus) {
-      return await this.generateInsaneAnthropicMessages(portfolioData, projectImages, analysisResults);
-    }
-    
-    // Otherwise, fall back to basic message generation
-    console.log('⚠️ No INSANE analysis available, using basic message generation');
-    
-    const messages = [];
-    const textContent = await this.generateStyledPrompt(portfolioData, projectImages, designStyle, analysisResults);
-    
-    const contentArray = [
-      {
-        type: "text",
-        text: textContent
-      }
-    ];
-
-    // Add basic project image information if available
-    const projects = projectImages?.projectImages || [];
-    if (projects.length > 0) {
-      contentArray.push({
-        type: "text",
-        text: this.generateBasicProjectGuide(projects)
+    if (finalCount > 0) {
+      projectText += `\n  Final Images:`;
+      project.finalImages.slice(0, 2).forEach((img, i) => {
+        projectText += `\n    ${i + 1}. ${img.url}`;
       });
+      if (finalCount > 2) projectText += `\n    ... and ${finalCount - 2} more final images`;
     }
 
-    messages.push({
-      role: "user",
-      content: contentArray
-    });
+    if (processCount > 0) {
+      projectText += `\n  Process Images:`;
+      project.processImages.slice(0, 2).forEach((img, i) => {
+        projectText += `\n    ${i + 1}. ${img.url}`;
+      });
+      if (processCount > 2) projectText += `\n    ... and ${processCount - 2} more process images`;
+    }
 
-    return messages;
+    return projectText + '\n└─────────────────────────────────────┘';
   }
 
   /**
-   * Add moodboard images to existing content array (separate method for flexibility)
+   * 🔗 Format social links
    */
-  async addMoodboardToMessages(messages, moodboardFiles) {
-    if (!moodboardFiles || moodboardFiles.length === 0 || !messages.length) return messages;
-
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage && lastMessage.content && Array.isArray(lastMessage.content)) {
-      await this.addMoodboardImagesToContent(lastMessage.content, moodboardFiles);
-    }
-
-    return messages;
+  formatSocialLinks(personalInfo) {
+    const links = [
+      personalInfo.linkedin && `LinkedIn: ${personalInfo.linkedin}`,
+      personalInfo.instagram && `Instagram: ${personalInfo.instagram}`,
+      personalInfo.behance && `Behance: ${personalInfo.behance}`,
+      personalInfo.dribbble && `Dribbble: ${personalInfo.dribbble}`,
+      personalInfo.website && `Website: ${personalInfo.website}`
+    ].filter(Boolean);
+    
+    return links.length > 0 ? links.join(' | ') : 'No social links provided';
   }
 
   /**
-   * Utility methods
+   * 📋 Get strategy description
+   */
+  getStrategyDescription(strategy) {
+    const strategyTemplates = {
+      'showcase-heavy': 'Detailed project storytelling with rich case studies',
+      'visual-first': 'Images as primary storytelling device',
+      'story-driven': 'Narrative-based project presentation',
+      'design-focused': 'Aesthetic execution matching moodboard precisely'
+    };
+    
+    return strategyTemplates[strategy] || 'Balanced presentation showcasing creativity and professionalism';
+  }
+
+  /**
+   * 📂 Load skeleton HTML file
+   */
+  async loadSkeletonHTML(selectedSkeleton) {
+    const skeletonFiles = {
+      'creative-professional': 'creative-professional.html',
+      'gallery-first': 'gallery-first.html',
+      'newspaper': 'newspaper.html',
+      'storyteller': 'storyteller.html'
+    };
+
+    const fileName = skeletonFiles[selectedSkeleton];
+    if (!fileName) {
+      console.warn(`⚠️ Unknown skeleton: ${selectedSkeleton}`);
+      return null;
+    }
+
+    const skeletonPath = path.join(this.skeletonsPath, fileName);
+    
+    try {
+      if (await fs.pathExists(skeletonPath)) {
+        const html = await fs.readFile(skeletonPath, 'utf8');
+        console.log(`✅ Loaded skeleton: ${selectedSkeleton} (${Math.round(html.length / 1024)}KB)`);
+        return html;
+      } else {
+        console.warn(`⚠️ Skeleton file not found: ${skeletonPath}`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ Error loading skeleton ${selectedSkeleton}:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * 🔧 Utility methods
    */
   getMediaTypeFromMimetype(mimetype) {
-    const mediaTypes = {
+    const types = {
       'image/jpeg': 'image/jpeg',
-      'image/jpg': 'image/jpeg',
+      'image/jpg': 'image/jpeg', 
       'image/png': 'image/png',
       'image/gif': 'image/gif',
       'image/webp': 'image/webp'
     };
-    return mediaTypes[mimetype] || 'image/jpeg';
+    return types[mimetype] || 'image/jpeg';
   }
 
   /**
-   * Generate execution summary for logging/debugging
+   * 🔧 FALLBACK METHODS for backward compatibility
    */
-  generateExecutionSummary(insaneAnalysis) {
-    if (!insaneAnalysis) return 'Basic prompt generation';
-
-    const visual = insaneAnalysis.analysisLevels?.visualIntelligence || {};
-    const content = insaneAnalysis.analysisLevels?.contentQuality || {};
-    const industry = insaneAnalysis.analysisLevels?.industryIntelligence || {};
-
-    return `INSANE System Execution Summary:
-🚀 System Status: ${insaneAnalysis.systemStatus} (${Math.round((insaneAnalysis.overallConfidence || 0) * 100)}%)
-🎨 Visual DNA: ${visual.visualDNA?.category || 'unknown'} ${visual.visualDNA?.mood || ''} (${Math.round((visual.confidence || 0) * 100)}%)
-📝 Content Strategy: ${content.strategy || 'unknown'} (${Math.round((content.confidence || 0) * 100)}%)
-🏭 Industry: ${industry.detectedIndustry || 'unknown'} (${Math.round((industry.confidence || 0) * 100)}%)
-🧩 Prompt Assembly: ${insaneAnalysis.intelligentPrompt ? 'LEGO blocks assembled' : 'Basic assembly'}`;
+  async generateSkeletonAwareMessages(portfolioData, projectImages, designStyle, designOptions = {}) {
+    console.log('⚠️ Using fallback skeleton-aware generation');
+    return this.generateEnhancedAnthropicMessages(portfolioData, projectImages, null, [], designOptions);
   }
 
-  /**
-   * Validate analysis results
-   */
-  validateAnalysisResults(analysisResults) {
-    if (!analysisResults) return { valid: false, reason: 'No analysis results provided' };
+  async generateStyledPrompt(portfolioData, projectImages, designStyle, insaneAnalysis, designOptions = {}) {
+    console.log('⚠️ Using legacy text-only prompt');
     
-    if (!analysisResults.analysisLevels) {
-      return { valid: false, reason: 'Missing analysis levels' };
+    const { selectedSkeleton = 'none', customDesignRequest = '' } = designOptions || {};
+    
+    if (selectedSkeleton !== 'none') {
+      const skeletonHTML = await this.loadSkeletonHTML(selectedSkeleton);
+      if (skeletonHTML) {
+        const processedSkeleton = this.preprocessSkeleton(skeletonHTML, portfolioData, projectImages);
+        return this.buildEnhancedSkeletonInstructions(processedSkeleton, portfolioData, projectImages, customDesignRequest, insaneAnalysis, false);
+      }
     }
 
-    const requiredLevels = ['visualIntelligence', 'contentQuality', 'industryIntelligence'];
-    const missingLevels = requiredLevels.filter(level => !analysisResults.analysisLevels[level]);
-    
-    if (missingLevels.length > 0) {
-      return { valid: false, reason: `Missing analysis levels: ${missingLevels.join(', ')}` };
-    }
+    const projects = projectImages?.projectImages || [];
+    return `${this.systemPrompts.base}
 
-    if (!analysisResults.intelligentPrompt) {
-      return { valid: false, reason: 'Missing intelligent prompt assembly' };
-    }
+🎨 DESIGN STYLE: ${designStyle}
+📊 USER: ${portfolioData.personalInfo.name} - ${portfolioData.personalInfo.title}
+📝 PROJECTS: ${projects.length} projects available
+${customDesignRequest ? `🔥 CUSTOM REQUEST: "${customDesignRequest}"` : ''}
 
-    return { valid: true, reason: 'Analysis results are complete' };
+Create a professional portfolio showcasing the user's work with a ${designStyle} design approach.
+
+${this.systemPrompts.responseFormat}`;
   }
 
-  /**
-   * Get strategy details for a given strategy type
-   */
-  getStrategyDetails(strategyType) {
-    return this.strategyTemplates[strategyType] || this.strategyTemplates['design-focused'];
-  }
-
-  /**
-   * Calculate prompt complexity score
-   */
-  calculateComplexityScore(insaneAnalysis) {
-    if (!insaneAnalysis) return 0.3;
-
-    const weights = {
-      visualConfidence: 0.3,
-      contentConfidence: 0.25,
-      industryConfidence: 0.25,
-      systemStatus: 0.2
-    };
-
-    const visual = insaneAnalysis.analysisLevels?.visualIntelligence?.confidence || 0;
-    const content = insaneAnalysis.analysisLevels?.contentQuality?.confidence || 0;
-    const industry = insaneAnalysis.analysisLevels?.industryIntelligence?.confidence || 0;
-    
-    const statusScore = {
-      'INSANE': 1.0,
-      'SMART': 0.8,
-      'BASIC': 0.5,
-      'FALLBACK': 0.3
-    }[insaneAnalysis.systemStatus] || 0.3;
-
-    return (
-      visual * weights.visualConfidence +
-      content * weights.contentConfidence +
-      industry * weights.industryConfidence +
-      statusScore * weights.systemStatus
+  async generateAnthropicMessages(portfolioData, projectImages, designStyle = 'modern', analysisResults = null) {
+    console.log('⚠️ Using legacy message generation');
+    return this.generateEnhancedAnthropicMessages(
+      portfolioData, 
+      projectImages, 
+      analysisResults, 
+      [], 
+      { selectedSkeleton: 'none' }
     );
   }
 }

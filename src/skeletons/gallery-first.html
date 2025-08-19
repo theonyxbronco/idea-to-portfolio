@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sofia Martinez - Visual Artist</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+
+        /* Project Detail Modal */
+        .project-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .project-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .project-modal-content {
+            max-width: 90vw;
+            max-height: 90vh;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .project-modal-image {
+            width: 100%;
+            max-width: 800px;
+            height: 600px;
+            object-fit: cover;
+            border-radius: 15px;
+        }
+
+        .project-modal-info {
+            background: rgba(20, 20, 20, 0.95);
+            padding: 2rem;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .project-modal-close {
+            position: absolute;
+            top: -3rem;
+            right: 0;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 2rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .project-modal-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .project-modal-subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+        }
+
+        .project-modal-category {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .project-modal-overview {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .project-modal-tags {
+            margin-bottom: 2rem;
+        }
+
+        .project-modal-tags h4 {
+            color: #fff;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .project-modal-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            margin: 0.2rem 0.3rem 0.2rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .project-modal-date {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.8rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Responsive modal */
+        @media (max-width: 768px) {
+            .project-modal-content {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                margin: 2rem;
+            }
+
+            .project-modal-image {
+                height: 300px;
+            }
+
+            .project-modal-info {
+                max-height: 400px;
+            }
+        }
+
+        /* Navigation - Minimal overlay */
+        .nav-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            padding: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-menu a {
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 400;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-menu a:hover {
+            opacity: 1;
+        }
+
+        /* Hero Section - Full screen gallery preview */
+        .hero {
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-gallery {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            height: 100%;
+            gap: 1px;
+        }
+
+        .hero-image {
+            background: linear-gradient(45deg, #333, #666, #999);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.6s ease;
+        }
+
+        .hero-image:hover {
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .hero-image::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            transition: opacity 0.3s ease;
+        }
+
+        .hero-image:hover::after {
+            opacity: 0;
+        }
+
+        .hero-image:nth-child(1) {
+            grid-column: 1 / 2;
+            grid-row: 1 / 3;
+            background-image: url('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-image:nth-child(2) {
+            background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-image:nth-child(3) {
+            background-image: url('https://images.unsplash.com/photo-1544552866-d3ed42536cfd?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-image:nth-child(4) {
+            background-image: url('https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-image:nth-child(5) {
+            background-image: url('https://images.unsplash.com/photo-1517960413843-0aee8e2b3285?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 3rem 4rem;
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 300;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+
+        .hero-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            font-weight: 300;
+            margin-bottom: 2rem;
+        }
+
+        .hero-cta {
+            background: transparent;
+            border: 1px solid #fff;
+            color: #fff;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .hero-cta:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        /* Main Gallery */
+        .gallery-section {
+            padding: 5rem 2rem;
+        }
+
+        .gallery-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .gallery-title {
+            font-size: 3rem;
+            font-weight: 300;
+            margin-bottom: 1rem;
+        }
+
+        .gallery-description {
+            font-size: 1.1rem;
+            opacity: 0.7;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Filter Tags */
+        .filter-tags {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 4rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            padding: 0.5rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .filter-tag:hover,
+        .filter-tag.active {
+            background: #fff;
+            color: #000;
+        }
+
+        /* Masonry Gallery */
+        .masonry-gallery {
+            columns: 4;
+            column-gap: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .gallery-item {
+            break-inside: avoid;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-10px);
+        }
+
+        .gallery-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.6s ease;
+        }
+
+        .gallery-item:hover .gallery-image {
+            transform: scale(1.05);
+        }
+
+        .gallery-item::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .gallery-item:hover::after {
+            opacity: 1;
+        }
+
+        .gallery-overlay {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 1.5rem;
+            right: 1.5rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .gallery-item:hover .gallery-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .gallery-overlay h3 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .gallery-overlay p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* Different heights for masonry effect */
+        .gallery-item:nth-child(3n+1) .gallery-image {
+            aspect-ratio: 3/4;
+            object-fit: cover;
+        }
+
+        .gallery-item:nth-child(3n+2) .gallery-image {
+            aspect-ratio: 4/5;
+            object-fit: cover;
+        }
+
+        .gallery-item:nth-child(3n+3) .gallery-image {
+            aspect-ratio: 1/1;
+            object-fit: cover;
+        }
+
+        /* Real images for demo */
+        .gallery-item:nth-child(1) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(2) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(3) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(4) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(5) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1539593395743-7da5ee10ff07?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(6) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1516281929807-3c1331dd2f2f?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(7) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(8) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1456327102063-fb5054efe647?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(9) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(10) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(11) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .gallery-item:nth-child(12) .gallery-image {
+            background-image: url('https://images.unsplash.com/photo-1544552866-d3ed42536cfd?w=800&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* About Section - Minimal */
+        .about-section {
+            padding: 8rem 2rem;
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .about-title {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 2rem;
+        }
+
+        .about-text {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            opacity: 0.8;
+            margin-bottom: 3rem;
+        }
+
+        .about-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .about-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 1rem 2rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+
+        .about-link:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        /* Lightbox */
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .lightbox.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .lightbox-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: -3rem;
+            right: 0;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 2rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .lightbox-nav:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .lightbox-prev {
+            left: -5rem;
+        }
+
+        .lightbox-next {
+            right: -5rem;
+        }
+
+        /* Contact Footer */
+        .contact-footer {
+            padding: 6rem 2rem 4rem;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .contact-title {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 1rem;
+        }
+
+        .contact-email {
+            font-size: 1.1rem;
+            color: #fff;
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .contact-email:hover {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .masonry-gallery {
+                columns: 3;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .masonry-gallery {
+                columns: 2;
+            }
+
+            .hero-gallery {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
+            }
+
+            .hero-image:nth-child(1) {
+                grid-column: 1 / 3;
+                grid-row: 1 / 2;
+            }
+
+            .filter-tags {
+                justify-content: flex-start;
+                overflow-x: auto;
+                padding-bottom: 1rem;
+            }
+
+            .about-links {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .nav-menu {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .masonry-gallery {
+                columns: 1;
+            }
+
+            .hero-overlay {
+                padding: 2rem;
+            }
+
+            .lightbox-prev {
+                left: 1rem;
+            }
+
+            .lightbox-next {
+                right: 1rem;
+            }
+        }
+
+        /* Loading Animation */
+        .gallery-item {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .gallery-item:nth-child(1) { animation-delay: 0.1s; }
+        .gallery-item:nth-child(2) { animation-delay: 0.2s; }
+        .gallery-item:nth-child(3) { animation-delay: 0.3s; }
+        .gallery-item:nth-child(4) { animation-delay: 0.4s; }
+        .gallery-item:nth-child(5) { animation-delay: 0.5s; }
+        .gallery-item:nth-child(6) { animation-delay: 0.6s; }
+        .gallery-item:nth-child(7) { animation-delay: 0.7s; }
+        .gallery-item:nth-child(8) { animation-delay: 0.8s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom Cursor -->
+
+    <!-- Navigation -->
+    <nav class="nav-overlay">
+        <div class="logo">Sofia Martinez</div>
+        <ul class="nav-menu">
+            <li><a href="#gallery">Gallery</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-gallery">
+            <div class="hero-image"></div>
+            <div class="hero-image"></div>
+            <div class="hero-image"></div>
+            <div class="hero-image"></div>
+            <div class="hero-image"></div>
+        </div>
+        <div class="hero-overlay">
+            <h1 class="hero-title">Sofia Martinez</h1>
+            <p class="hero-subtitle">Visual Storyteller & Portrait Photographer</p>
+            <a href="#gallery" class="hero-cta">Explore My Work</a>
+        </div>
+    </section>
+
+    <!-- Main Gallery -->
+    <section id="gallery" class="gallery-section">
+        <div class="gallery-header">
+            <h2 class="gallery-title">Portfolio</h2>
+            <p class="gallery-description">A curated collection of visual narratives spanning portrait photography, digital art, and abstract compositions. Each piece explores the delicate balance between light, emotion, and authentic human moments.</p>
+        </div>
+
+        <!-- Filter Tags -->
+        <div class="filter-tags">
+            <div class="filter-tag active" data-filter="all">All</div>
+            <div class="filter-tag" data-filter="photography">Photography</div>
+            <div class="filter-tag" data-filter="digital">Digital Art</div>
+            <div class="filter-tag" data-filter="portraits">Portraits</div>
+            <div class="filter-tag" data-filter="abstract">Abstract</div>
+        </div>
+
+        <!-- Masonry Gallery -->
+        <div class="masonry-gallery">
+            <div class="gallery-item" data-category="photography">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Mountain Solitude</h3>
+                    <p>Landscape Photography • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="portraits">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Behind the Lens</h3>
+                    <p>Portrait Series • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="digital">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Neon Reflections</h3>
+                    <p>Digital Composite • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="abstract">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Ocean Waves</h3>
+                    <p>Abstract Photography • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="photography">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Urban Dawn</h3>
+                    <p>Street Photography • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="digital">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Forest Dreams</h3>
+                    <p>Digital Art • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="portraits">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Silent Stories</h3>
+                    <p>Portrait Photography • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="abstract">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Golden Hour Study</h3>
+                    <p>Abstract Series • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="photography">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Coastal Serenity</h3>
+                    <p>Nature Photography • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="digital">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Digital Landscapes</h3>
+                    <p>Concept Art • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="portraits">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Authentic Moments</h3>
+                    <p>Documentary • 2024</p>
+                </div>
+            </div>
+
+            <div class="gallery-item" data-category="abstract">
+                <div class="gallery-image"></div>
+                <div class="gallery-overlay">
+                    <h3>Light & Shadow</h3>
+                    <p>Fine Art • 2024</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about-section">
+        <h2 class="about-title">About Sofia</h2>
+        <p class="about-text">
+            I'm a visual storyteller based in Portland, capturing the intersection of human emotion and natural beauty. 
+            With over 8 years behind the lens, I specialize in portrait photography, digital art, and abstract compositions 
+            that explore light, shadow, and authentic moments. My work has been featured in galleries across the Pacific Northwest 
+            and published in various photography magazines.
+        </p>
+        <div class="about-links">
+            <a href="https://instagram.com/sofiavisuals" class="about-link">Instagram</a>
+            <a href="https://behance.net/sofiamart" class="about-link">Behance</a>
+            <a href="/prints" class="about-link">Shop Prints</a>
+        </div>
+    </section>
+
+    <!-- Contact Footer -->
+    <footer id="contact" class="contact-footer">
+        <h2 class="contact-title">Let's Create Together</h2>
+        <a href="mailto:sofia.martinez.visuals@gmail.com" class="contact-email">sofia.martinez.visuals@gmail.com</a>
+        <p style="margin-top: 2rem; opacity: 0.6; font-size: 0.9rem;">Available for commissions, collaborations, and print sales</p>
+    </footer>
+
+    <!-- Project Detail Modal -->
+    <div class="project-modal">
+        <div class="project-modal-content">
+            <button class="project-modal-close">&times;</button>
+            <div class="project-modal-image-container">
+                <img class="project-modal-image" src="" alt="Project detail">
+            </div>
+            <div class="project-modal-info">
+                <div class="project-modal-category"></div>
+                <h2 class="project-modal-title"></h2>
+                <p class="project-modal-subtitle"></p>
+                <p class="project-modal-overview"></p>
+                <div class="project-modal-tags">
+                    <h4>Project Tags</h4>
+                    <div class="project-modal-tags-list"></div>
+                </div>
+                <div class="project-modal-date"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample project data (this would come from your Prizm database)
+        const projectData = {
+            'mountain-solitude': {
+                title: 'Mountain Solitude',
+                subtitle: 'Exploring isolation in natural landscapes',
+                category: 'Landscape Photography',
+                overview: 'This project captures the profound silence and isolation found in mountain environments. Shot over three months in the Pacific Northwest, each image explores the relationship between human scale and natural grandeur. The series examines themes of solitude, contemplation, and our connection to untouched wilderness. Using natural light and minimal post-processing, these photographs aim to preserve the authentic atmosphere of these remote locations.',
+                tags: ['Landscape', 'Nature Photography', 'Mountains', 'Solitude', 'Pacific Northwest', 'Film Photography', 'Natural Light', 'Wilderness'],
+                date: 'Completed March 2024',
+                image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&auto=format&fit=crop'
+            },
+            'behind-the-lens': {
+                title: 'Behind the Lens',
+                subtitle: 'Intimate portraits of fellow photographers',
+                category: 'Portrait Photography',
+                overview: 'A documentary series exploring the lives and perspectives of photographers in the creative community. Each portrait session was conducted in the subject\'s preferred working environment, revealing both their personality and artistic process. The project aims to capture the person behind the camera, showing vulnerability and passion that drives creative expression. Shot entirely with natural light to maintain authenticity.',
+                tags: ['Portrait', 'Documentary', 'Photographers', 'Creative Community', 'Natural Light', 'Behind the Scenes', 'Authentic Moments'],
+                date: 'Ongoing project - Started January 2024',
+                image: 'https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?w=800&auto=format&fit=crop'
+            },
+            'neon-reflections': {
+                title: 'Neon Reflections',
+                subtitle: 'Digital art meets urban photography',
+                category: 'Digital Art',
+                overview: 'A hybrid project combining street photography with digital art techniques. Each piece starts with urban night photography, capturing the glow of neon signs and city lights. These base images are then enhanced through digital compositing, color grading, and abstract elements to create surreal interpretations of city life. The series explores themes of technology, isolation in urban environments, and the intersection of digital and physical realities.',
+                tags: ['Digital Art', 'Urban Photography', 'Neon', 'Night Photography', 'Composite', 'Color Grading', 'Surreal', 'Technology'],
+                date: 'Completed February 2024',
+                image: 'https://images.unsplash.com/photo-1544552866-d3ed42536cfd?w=800&auto=format&fit=crop'
+            },
+            'ocean-waves': {
+                title: 'Ocean Waves',
+                subtitle: 'Abstract study of water movement',
+                category: 'Abstract Photography',
+                overview: 'An experimental photography series focusing on the abstract patterns and textures created by ocean waves. Using long exposure techniques and unconventional angles, these images transform familiar coastal scenes into abstract compositions. The project explores motion, rhythm, and the meditative qualities of water. Each photograph was taken during different weather conditions and times of day to capture varying moods and energy levels.',
+                tags: ['Abstract', 'Ocean', 'Long Exposure', 'Water', 'Motion', 'Experimental', 'Coastal', 'Meditation'],
+                date: 'Completed April 2024',
+                image: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=800&auto=format&fit=crop'
+            }
+        };
+
+        // Filter functionality
+        const filterTags = document.querySelectorAll('.filter-tag');
+        const galleryItems = document.querySelectorAll('.gallery-item');
+
+        filterTags.forEach(tag => {
+            tag.addEventListener('click', () => {
+                // Remove active class from all tags
+                filterTags.forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tag
+                tag.classList.add('active');
+
+                const filter = tag.dataset.filter;
+
+                galleryItems.forEach(item => {
+                    if (filter === 'all' || item.dataset.category === filter) {
+                        item.style.display = 'block';
+                        item.style.animation = 'fadeInUp 0.6s ease forwards';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // Project modal functionality
+        const projectModal = document.querySelector('.project-modal');
+        const projectModalClose = document.querySelector('.project-modal-close');
+        const projectModalImage = document.querySelector('.project-modal-image');
+        const projectModalTitle = document.querySelector('.project-modal-title');
+        const projectModalSubtitle = document.querySelector('.project-modal-subtitle');
+        const projectModalCategory = document.querySelector('.project-modal-category');
+        const projectModalOverview = document.querySelector('.project-modal-overview');
+        const projectModalTagsList = document.querySelector('.project-modal-tags-list');
+        const projectModalDate = document.querySelector('.project-modal-date');
+
+        // Add click listeners to gallery items for project modal
+        galleryItems.forEach((item, index) => {
+            item.addEventListener('click', () => {
+                const projectKey = Object.keys(projectData)[index % Object.keys(projectData).length];
+                const project = projectData[projectKey];
+                
+                if (project) {
+                    openProjectModal(project);
+                }
+            });
+        });
+
+        function openProjectModal(project) {
+            projectModalImage.src = project.image;
+            projectModalTitle.textContent = project.title;
+            projectModalSubtitle.textContent = project.subtitle;
+            projectModalCategory.textContent = project.category;
+            projectModalOverview.textContent = project.overview;
+            projectModalDate.textContent = project.date;
+            
+            // Clear and populate tags
+            projectModalTagsList.innerHTML = '';
+            project.tags.forEach(tag => {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'project-modal-tag';
+                tagElement.textContent = tag;
+                projectModalTagsList.appendChild(tagElement);
+            });
+            
+            projectModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeProjectModal() {
+            projectModal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        projectModalClose.addEventListener('click', closeProjectModal);
+
+        // Close modal on escape key or background click
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeProjectModal();
+        });
+
+        projectModal.addEventListener('click', (e) => {
+            if (e.target === projectModal) closeProjectModal();
+        });
+
+        // Smooth scrolling for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Hero gallery hover effects
+        const heroImages = document.querySelectorAll('.hero-image');
+        heroImages.forEach(image => {
+            image.addEventListener('mouseenter', () => {
+                heroImages.forEach(img => {
+                    if (img !== image) {
+                        img.style.opacity = '0.7';
+                        img.style.transform = 'scale(0.98)';
+                    }
+                });
+            });
+            
+            image.addEventListener('mouseleave', () => {
+                heroImages.forEach(img => {
+                    img.style.opacity = '1';
+                    img.style.transform = 'scale(1)';
+                });
+            });
+        });
+
+        // Scroll-based animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe sections for scroll animations
+        document.querySelectorAll('.gallery-header, .about-section, .contact-footer').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'all 0.8s ease';
+            observer.observe(el);
+        });
+
+        // Parallax effect for hero
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const heroGallery = document.querySelector('.hero-gallery');
+            const heroOverlay = document.querySelector('.hero-overlay');
+            
+            if (heroGallery) {
+                heroGallery.style.transform = `translateY(${scrolled * 0.5}px)`;
+                heroOverlay.style.transform = `translate(-50%, -50%) translateY(${scrolled * 0.3}px)`;
+            }
+        });
+    </script>
+</body>
+</html>
