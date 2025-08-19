@@ -1,4 +1,3 @@
-read these two versions one is meant to be "optimized but keeping functionality" what do we think:
 const fs = require('fs-extra');
 const path = require('path');
 
