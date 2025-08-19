@@ -81,6 +81,9 @@ function App() {
         <Navigation />
 
         <Routes>
+          {/* Main Route - Home page for everyone */}
+          <Route path="/" element={<Home />} />
+          
           {/* Public Landing Pages */}
           <Route path="/home" element={<Home />} />
           <Route path="/features" element={<Features />} />
@@ -96,18 +99,6 @@ function App() {
           
           {/* Support - Accessible to both signed in and out users */}
           <Route path="/support" element={<Support />} />
-          
-          {/* Main Route - Dashboard for logged in, Landing for logged out */}
-          <Route path="/" element={
-            <>
-              <SignedIn>
-                <Dashboard />
-              </SignedIn>
-              <SignedOut>
-                <Home />
-              </SignedOut>
-            </>
-          } />
           
           {/* Protected Routes */}
           <Route path="/dashboard" element={

@@ -63,7 +63,7 @@ const Pricing = () => {
   const parallaxOffset2 = useParallax(0.15);
 
   return (
-    <div className="min-h-screen bg-background py-20">
+    <div className="min-h-screen bg-background py-20 pt-36">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-28">

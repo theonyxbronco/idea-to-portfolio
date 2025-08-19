@@ -30,7 +30,7 @@ export const SignInPage = () => {
                   card: 'shadow-none border-0',
                 }
               }}
-              redirectUrl="/dashboard"
+              redirectUrl="/"
             />
           </CardContent>
         </Card>
@@ -57,7 +57,7 @@ export const SignUpPage = () => {
                   card: 'shadow-none border-0',
                 }
               }}
-              redirectUrl="/dashboard"
+              redirectUrl="/"
             />
           </CardContent>
         </Card>
