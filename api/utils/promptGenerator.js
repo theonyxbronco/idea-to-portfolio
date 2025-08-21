@@ -365,21 +365,21 @@ REQUIREMENTS:
 Create stunning production-ready portfolio`;
   }
 
-  /**
-   * 🖼️ MOODBOARD IMAGES - Enhanced integration with full error handling
-   */
-  async addMoodboardImages(contentArray, moodboardFiles) {
-    if (!moodboardFiles || moodboardFiles.length === 0) {
-      console.log('⚠️ No moodboard files provided to prompt generator');
-      return;
-    }
-    
-    console.log(`🖼️ Processing ${moodboardFiles.length} moodboard images for Claude Vision...`);
-    
-    // Add instruction text for moodboard analysis
-    contentArray.push({
-      type: "text",
-      text: `\n🎨 MOODBOARD ANALYSIS (${moodboardFiles.length} images):
+/**
+ * 🖼️ SAFE MOODBOARD IMAGES - FIXED WITH SHARP PROCESSING
+ */
+async addMoodboardImages(contentArray, moodboardFiles) {
+  if (!moodboardFiles || moodboardFiles.length === 0) {
+    console.log('⚠️ No moodboard files provided to prompt generator');
+    return;
+  }
+  
+  console.log(`🖼️ Processing ${moodboardFiles.length} moodboard images for Claude Vision...`);
+  
+  // Add instruction text for moodboard analysis
+  contentArray.push({
+    type: "text",
+    text: `\n🎨 MOODBOARD ANALYSIS (${moodboardFiles.length} images):
 Extract EXACT visual DNA from these reference images:
 - Color palettes (specific hex codes where visible)
 - Typography styles and font characteristics  
@@ -388,67 +388,130 @@ Extract EXACT visual DNA from these reference images:
 - Design elements and signature styles
 
 Apply this extracted aesthetic throughout the entire portfolio design.`
-    });
+  });
 
-    // 🔧 FIX: Handle both file objects and uploaded file objects
-    for (const [index, file] of moodboardFiles.entries()) {
-      try {
-        let imageBuffer;
-        let mediaType;
-        
-        // Handle different file object structures
-        if (file.buffer) {
-          // Uploaded file from multer
-          imageBuffer = file.buffer;
-          mediaType = this.getMediaType(file.mimetype);
-        } else if (file.data) {
-          // File with data property
-          imageBuffer = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data);
-          mediaType = this.getMediaType(file.mimetype || file.type);
-        } else {
-          console.warn(`⚠️ File ${index + 1} has unknown structure:`, Object.keys(file));
-          continue;
-        }
-        
-        if (!imageBuffer || imageBuffer.length === 0) {
-          console.warn(`⚠️ File ${index + 1} has empty buffer`);
-          continue;
-        }
-        
-        const base64Image = imageBuffer.toString('base64');
-        
-        // 🔧 FIX: Validate base64 data
-        if (!base64Image || base64Image.length < 100) {
-          console.warn(`⚠️ File ${index + 1} produced invalid base64`);
-          continue;
-        }
-        
-        contentArray.push({
-          type: "image",
-          source: {
-            type: "base64", 
-            media_type: mediaType,
-            data: base64Image
-          }
-        });
-        
-        const sizeKB = Math.round(base64Image.length / 1024);
-        console.log(`✅ Added moodboard image ${index + 1}: ${mediaType} (${sizeKB}KB)`);
-        
-        // 🔧 FIX: Prevent oversized requests (4 images max for efficiency)
-        if (index >= 3) {
-          console.log(`📏 Limiting to 4 images for API efficiency`);
-          break;
-        }
-        
-      } catch (error) {
-        console.error(`❌ Failed to process moodboard image ${index + 1}:`, error.message);
+  const sharp = require('sharp');
+  let processedCount = 0;
+
+  // Process each image with Sharp normalization
+  for (const [index, file] of moodboardFiles.entries()) {
+    try {
+      let imageBuffer;
+      
+      // Handle different file object structures
+      if (file.buffer) {
+        imageBuffer = file.buffer;
+      } else if (file.data) {
+        imageBuffer = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data);
+      } else {
+        console.warn(`⚠️ File ${index + 1} has unknown structure:`, Object.keys(file));
         continue;
       }
+      
+      if (!imageBuffer || imageBuffer.length === 0) {
+        console.warn(`⚠️ File ${index + 1} has empty buffer`);
+        continue;
+      }
+
+      console.log(`🔍 Processing moodboard image ${index + 1}: ${file.originalname || `image_${index + 1}`}`);
+
+      // Use Sharp to normalize the image (same as ImageParser)
+      const image = sharp(imageBuffer);
+      const metadata = await image.metadata();
+      
+      if (!metadata.format) {
+        console.warn(`⚠️ Could not detect format for image ${index + 1}, skipping`);
+        continue;
+      }
+
+      // Always convert to JPEG for consistency
+      const normalizedBuffer = await image
+        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toBuffer();
+
+      const base64Image = normalizedBuffer.toString('base64');
+      
+      // Validate base64 data
+      if (!base64Image || base64Image.length < 100) {
+        console.warn(`⚠️ Image ${index + 1} produced invalid base64`);
+        continue;
+      }
+      
+      contentArray.push({
+        type: "image",
+        source: {
+          type: "base64", 
+          media_type: "image/jpeg", // Always use JPEG
+          data: base64Image
+        }
+      });
+      
+      processedCount++;
+      const sizeKB = Math.round(normalizedBuffer.length / 1024);
+      console.log(`✅ Added moodboard image ${index + 1}: JPEG (${sizeKB}KB)`);
+      
+      // Limit to 4 images for API efficiency
+      if (processedCount >= 4) {
+        console.log(`📏 Limiting to 4 images for API efficiency`);
+        break;
+      }
+      
+    } catch (error) {
+      console.error(`❌ Failed to process moodboard image ${index + 1}:`, error.message);
+      continue;
     }
-    
-    console.log(`✅ Successfully processed ${Math.min(moodboardFiles.length, 4)} moodboard images for Claude Vision`);
   }
+  
+  console.log(`✅ Successfully processed ${processedCount} moodboard images for Claude Vision`);
+}
+
+/**
+ * 🛡️ SAFE ANTHROPIC MESSAGES GENERATION WITH SHARP PROCESSING
+ */
+async generateEnhancedAnthropicMessagesWithSafeImages(portfolioData, projectImages, enhancedAnalysis, moodboardFiles = [], designOptions = {}) {
+  console.log('🛡️ Using safe image processing for Anthropic messages');
+  
+  const { selectedSkeleton = 'none', customDesignRequest = '' } = designOptions;
+  
+  try {
+    // Use the existing method which now has safe image processing
+    return await this.generateEnhancedAnthropicMessages(
+      portfolioData, 
+      projectImages, 
+      enhancedAnalysis, 
+      moodboardFiles, 
+      designOptions
+    );
+  } catch (error) {
+    console.error('❌ Safe message generation failed:', error);
+    
+    // Ultimate fallback - text only
+    console.log('⚠️ Falling back to text-only prompt');
+    
+    const compressedData = this.compressPortfolioData(portfolioData, projectImages, enhancedAnalysis);
+    
+    const fallbackPrompt = `${this.systemPrompt}
+
+USER: ${compressedData.u.n} - ${compressedData.u.t}
+EMAIL: ${compressedData.u.e}
+SKILLS: ${compressedData.u.s.join(', ')}
+${compressedData.u.b ? `BIO: ${compressedData.u.b}` : ''}
+
+PROJECTS (${compressedData.meta.projectCount}):
+${compressedData.p.slice(0, 6).map(p => `• ${p.t} [${p.c}] - ${p.d}`).join('\n')}
+
+${selectedSkeleton !== 'none' ? `SKELETON: ${selectedSkeleton}` : 'STYLE: Modern Professional'}
+${customDesignRequest ? `CUSTOM: "${customDesignRequest}"` : ''}
+
+BUILD: Complete responsive HTML portfolio with embedded CSS/JS`;
+
+    return [{
+      role: 'user',
+      content: fallbackPrompt
+    }];
+  }
+}
 
   /**
    * 🗂️ LOAD SKELETON HTML - File loading capability

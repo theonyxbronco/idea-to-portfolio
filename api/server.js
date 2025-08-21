@@ -1305,23 +1305,28 @@ app.post('/api/save-project', upload.any(), async (req, res) => {
     }
 
     // Check user limits before saving
-    const limitsCheckResponse = await fetch(`${req.protocol}://${req.get('host')}/api/check-user-limits?email=${encodeURIComponent(projectData.userEmail)}`);
-    
-    if (limitsCheckResponse.ok) {
-      const limitsData = await limitsCheckResponse.json();
-      if (limitsData.success && !limitsData.data.canCreate.projects) {
-        return res.status(403).json({
-          success: false,
-          error: 'Project limit reached',
-          details: `${limitsData.data.tier} users can only have ${limitsData.data.limits.maxProjects} projects. Please upgrade to Pro for unlimited projects.`,
-          tier: limitsData.data.tier,
-          limits: limitsData.data.limits,
-          usage: limitsData.data.usage
-        });
+    try {
+      const limitsCheckResponse = await fetch(`${req.protocol}://${req.get('host')}/api/check-user-limits?email=${encodeURIComponent(projectData.userEmail)}`);
+      
+      if (limitsCheckResponse.ok) {
+        const limitsData = await limitsCheckResponse.json();
+        if (limitsData.success && !limitsData.data.canCreate.projects) {
+          return res.status(403).json({
+            success: false,
+            error: 'Project limit reached',
+            details: `${limitsData.data.tier} users can only have ${limitsData.data.limits.maxProjects} projects. Please upgrade to Pro for unlimited projects.`,
+            tier: limitsData.data.tier,
+            limits: limitsData.data.limits,
+            usage: limitsData.data.usage
+          });
+        }
       }
+    } catch (limitError) {
+      console.warn('Could not check user limits:', limitError.message);
+      // Continue with save if limit check fails
     }
 
-    // Continue with existing save-project logic...
+    // Initialize Google Sheets tracker
     const projectsTracker = new GoogleSheetsTracker({
       clientEmail: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
       privateKey: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
@@ -1339,8 +1344,161 @@ app.post('/api/save-project', upload.any(), async (req, res) => {
     // Generate unique project ID
     const projectId = `${projectData.userEmail.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Rest of the save logic remains the same...
-    // [Previous save-project implementation continues here]
+    // Handle image uploads
+    let savedImages = null;
+    const projectFolder = path.join(tempDir, 'projects', projectId);
+
+    if (files.length > 0) {
+      try {
+        if (cloudinaryUploader.initialized) {
+          console.log('🌩️ Uploading images to Cloudinary...');
+          savedImages = await cloudinaryUploader.uploadProjectImages(files, projectId, projectData.userEmail);
+        } else {
+          console.log('📁 Using local storage for images...');
+          await fs.ensureDir(projectFolder);
+          
+          savedImages = {
+            process: [],
+            final: null,
+            projectFolder: projectFolder
+          };
+
+          for (const file of files) {
+            const fieldName = file.fieldname || '';
+            
+            if (fieldName === 'final_image') {
+              const fileExt = path.extname(file.originalname);
+              const fileName = `final${fileExt}`;
+              const filePath = path.join(projectFolder, fileName);
+              
+              await fs.writeFile(filePath, file.buffer);
+              savedImages.final = {
+                filename: fileName,
+                originalName: file.originalname,
+                path: filePath,
+                relativePath: `./${fileName}`
+              };
+            } else if (fieldName.startsWith('process_')) {
+              const fileExt = path.extname(file.originalname);
+              const fileName = `process_${savedImages.process.length + 1}${fileExt}`;
+              const filePath = path.join(projectFolder, fileName);
+              
+              await fs.writeFile(filePath, file.buffer);
+              savedImages.process.push({
+                filename: fileName,
+                originalName: file.originalname,
+                path: filePath,
+                relativePath: `./${fileName}`
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to save project images:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to save project images',
+          details: error.message
+        });
+      }
+    }
+
+    // Prepare image metadata for Google Sheets
+    let imageMetadata = {};
+    if (savedImages) {
+      if (cloudinaryUploader.initialized) {
+        // Cloudinary format
+        imageMetadata = {
+          processImages: savedImages.process ? savedImages.process.map(img => ({
+            filename: img.originalName,
+            url: img.cloudinaryUrl,
+            publicId: img.publicId,
+            width: img.width,
+            height: img.height,
+            format: img.format
+          })) : [],
+          finalImages: savedImages.final ? (Array.isArray(savedImages.final) ? 
+            savedImages.final.map(img => ({
+              filename: img.originalName,
+              url: img.cloudinaryUrl,
+              publicId: img.publicId,
+              width: img.width,
+              height: img.height,
+              format: img.format
+            })) : [{
+              filename: savedImages.final.originalName,
+              url: savedImages.final.cloudinaryUrl,
+              publicId: savedImages.final.publicId,
+              width: savedImages.final.width,
+              height: savedImages.final.height,
+              format: savedImages.final.format
+            }]) : [],
+          folder: `portfolio${projectId}`,
+          storageType: 'cloudinary'
+        };
+      } else {
+        // Local storage format
+        imageMetadata = {
+          processImages: savedImages.process ? savedImages.process.map(img => ({
+            filename: img.originalName,
+            path: img.relativePath
+          })) : [],
+          finalImages: savedImages.final ? [{
+            filename: savedImages.final.originalName,
+            path: savedImages.final.relativePath
+          }] : [],
+          folder: projectId,
+          storageType: 'local'
+        };
+      }
+    }
+
+    // Prepare project data for Google Sheets
+    // Note: Code 1 combines problem, solution, reflection into overview
+    const overview = projectData.problem && projectData.solution && projectData.reflection 
+      ? `Problem: ${projectData.problem}\n\nSolution: ${projectData.solution}\n\nReflection: ${projectData.reflection}`
+      : projectData.overview || '';
+
+    const sheetData = [
+      new Date().toISOString(),                                           // A: Timestamp
+      projectData.userEmail,                                             // B: Email
+      projectId,                                                         // C: Project ID
+      projectData.title || '',                                          // D: Title
+      projectData.subtitle || '',                                       // E: Subtitle
+      overview,                                                         // F: Overview (combined from problem/solution/reflection)
+      projectData.category || projectData.customCategory || '',        // G: Category
+      projectData.customCategory || '',                                // H: Custom Category
+      (projectData.tags || []).join(', '),                            // I: Tags
+      savedImages ? (savedImages.process ? savedImages.process.length : 0) : 0,  // J: Process images count
+      savedImages ? (savedImages.final ? (Array.isArray(savedImages.final) ? savedImages.final.length : 1) : 0) : 0,  // K: Final images count
+      JSON.stringify(imageMetadata),                                   // L: Image metadata
+      'active'                                                         // M: Status
+    ];
+
+    // Save to Google Sheets
+    await projectsTracker.sheets.spreadsheets.values.append({
+      spreadsheetId: projectsTracker.sheetId,
+      range: `${projectsTracker.sheetName}!A:M`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: [sheetData],
+      },
+    });
+
+    console.log(`✅ Successfully saved project: ${projectData.title} for: ${projectData.userEmail}`);
+    
+    res.json({
+      success: true,
+      message: 'Project saved successfully',
+      projectId: projectId,
+      timestamp: new Date().toISOString(),
+      storageType: cloudinaryUploader.initialized ? 'cloudinary' : 'local',
+      imageCount: {
+        process: savedImages ? (savedImages.process ? savedImages.process.length : 0) : 0,
+        final: savedImages ? (savedImages.final ? (Array.isArray(savedImages.final) ? savedImages.final.length : 1) : 0) : 0
+      }
+    });
 
   } catch (error) {
     console.error('Error saving project:', error);
@@ -2507,38 +2665,38 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
       }
     }
 
-    // STEP 4: Generate Enhanced Anthropic Messages
-    console.log('🤖 Generating enhanced Anthropic messages...');
-    
-    let anthropicMessages;
-    try {
-      // Use the enhanced prompt generator with all analysis data
-      anthropicMessages = await promptGenerator.generateEnhancedAnthropicMessages(
-        portfolioData, 
-        completeProjectData,
-        comprehensiveAnalysis,
-        moodboardFiles,
-        {
-          selectedSkeleton,
-          customDesignRequest,
-          hasProjectImages: projectImageFiles.length > 0,
-          systemStatus: comprehensiveAnalysis?.systemStatus || 'BASIC'
-        }
-      );
-      
-      console.log(`✅ Enhanced prompt generated successfully:
-      - Message count: ${anthropicMessages.length}
-      - Has moodboard images: ${moodboardFiles.length > 0}
-      - Skeleton: ${selectedSkeleton}
-      - Custom request: ${customDesignRequest ? 'Yes' : 'No'}`);
-      
-    } catch (promptError) {
-      console.error('❌ Enhanced prompt generation failed:', promptError);
-      
-      // Fallback to basic prompt
-      console.log('⚠️ Using fallback prompt generation');
-      const basicPrompt = `Create a professional portfolio website for ${portfolioData.personalInfo?.name || 'Creative Professional'}.
-      
+// STEP 4: Generate Enhanced Anthropic Messages (FIXED VERSION)
+console.log('🤖 Generating enhanced Anthropic messages...');
+
+let anthropicMessages;
+try {
+  // Use the safe image processing method
+  anthropicMessages = await promptGenerator.generateEnhancedAnthropicMessagesWithSafeImages(
+    portfolioData, 
+    completeProjectData,
+    comprehensiveAnalysis,
+    moodboardFiles, // Pass raw files, let the generator handle processing safely
+    {
+      selectedSkeleton,
+      customDesignRequest,
+      hasProjectImages: projectImageFiles.length > 0,
+      systemStatus: comprehensiveAnalysis?.systemStatus || 'BASIC'
+    }
+  );
+  
+  console.log(`✅ Enhanced prompt generated successfully:
+  - Message count: ${anthropicMessages.length}
+  - Has moodboard images: ${moodboardFiles.length > 0}
+  - Skeleton: ${selectedSkeleton}
+  - Custom request: ${customDesignRequest ? 'Yes' : 'No'}`);
+  
+} catch (promptError) {
+  console.error('❌ Enhanced prompt generation failed:', promptError);
+  
+  // Fallback to basic text-only prompt
+  console.log('⚠️ Using fallback text-only prompt generation');
+  const basicPrompt = `Create a professional portfolio website for ${portfolioData.personalInfo?.name || 'Creative Professional'}.
+
 User Details:
 - Name: ${portfolioData.personalInfo?.name || 'Creative Professional'}
 - Title: ${portfolioData.personalInfo?.title || 'Designer'}
@@ -2551,12 +2709,12 @@ ${selectedSkeleton !== 'none' ? `Design Style: ${selectedSkeleton} skeleton` : '
 ${customDesignRequest ? `Custom Request: ${customDesignRequest}` : ''}
 
 Create a complete, responsive HTML portfolio with embedded CSS and JavaScript. Include project galleries, contact section, and professional navigation.`;
-      
-      anthropicMessages = [{
-        role: 'user',
-        content: basicPrompt
-      }];
-    }
+  
+  anthropicMessages = [{
+    role: 'user',
+    content: basicPrompt
+  }];
+}
     
     // STEP 5: Call Anthropic API
     if (!process.env.ANTHROPIC_API_KEY) {

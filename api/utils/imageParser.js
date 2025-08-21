@@ -217,36 +217,93 @@ class ImageParser {
     return this.combineAnalysisResults(claudeAnalysis, sharpAnalysis, uploadedFiles.length);
   }
 
-  /**
-   * 🤖 CLAUDE VISION ANALYSIS
-   */
-  async runClaudeVisionAnalysis(uploadedFiles, type) {
-    const imageContents = uploadedFiles.slice(0, 4).map(file => ({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: this.getMediaTypeFromMimetype(file.mimetype || file.type),
-        data: file.buffer.toString('base64')
-      }
-    }));
-
-    const visionPrompt = this.generateEnhancedVisionPrompt(type, uploadedFiles.length);
+/**
+ * 🤖 CLAUDE VISION ANALYSIS - FIXED VERSION WITH SHARP PROCESSING
+ */
+async runClaudeVisionAnalysis(uploadedFiles, type) {
+  const sharp = require('sharp');
+  const imageContents = [];
+  
+  console.log(`🤖 Running Claude Vision analysis on ${uploadedFiles.length} files...`);
+  
+  // Process up to 4 images with proper Sharp normalization
+  for (let i = 0; i < Math.min(uploadedFiles.length, 4); i++) {
+    const file = uploadedFiles[i];
     
-    const response = await this.anthropicClient.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2000,
-      temperature: 0.3, // Lower temperature for more consistent analysis
-      messages: [{
-        role: "user",
-        content: [
-          { type: "text", text: visionPrompt },
-          ...imageContents
-        ]
-      }]
-    });
+    try {
+      // Validate the file has buffer data
+      if (!file.buffer || file.buffer.length === 0) {
+        console.warn(`⚠️ File ${file.originalname} has no buffer data, skipping`);
+        continue;
+      }
 
-    return this.parseEnhancedVisionResponse(response.content[0].text);
+      console.log(`🔍 Processing ${file.originalname}: ${file.mimetype}, ${Math.round(file.buffer.length / 1024)}KB`);
+
+      // Use Sharp to normalize and re-encode the image
+      const image = sharp(file.buffer);
+      const metadata = await image.metadata();
+      
+      if (!metadata.format) {
+        console.warn(`⚠️ Could not detect format for ${file.originalname}, skipping`);
+        continue;
+      }
+
+      // Always convert to JPEG for consistency and smaller size
+      const normalizedBuffer = await image
+        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toBuffer();
+
+      // Convert to base64
+      const base64Data = normalizedBuffer.toString('base64');
+      
+      // Validate base64 data
+      if (!base64Data || base64Data.length < 100) {
+        console.warn(`⚠️ Invalid base64 data for ${file.originalname}, skipping`);
+        continue;
+      }
+
+      console.log(`✅ Processed image ${i + 1}: ${file.originalname} → JPEG (${Math.round(normalizedBuffer.length / 1024)}KB)`);
+
+      imageContents.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: "image/jpeg", // Always use JPEG for consistency
+          data: base64Data
+        }
+      });
+
+    } catch (error) {
+      console.error(`❌ Error processing image ${file.originalname}:`, error.message);
+      continue; // Skip this image and continue with others
+    }
   }
+
+  // Check if we have any valid images
+  if (imageContents.length === 0) {
+    throw new Error('No valid images could be processed for Claude Vision analysis');
+  }
+
+  console.log(`📤 Sending ${imageContents.length} normalized JPEG images to Claude Vision`);
+
+  const visionPrompt = this.generateEnhancedVisionPrompt(type, imageContents.length);
+  
+  const response = await this.anthropicClient.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 2000,
+    temperature: 0.3,
+    messages: [{
+      role: "user",
+      content: [
+        { type: "text", text: visionPrompt },
+        ...imageContents
+      ]
+    }]
+  });
+
+  return this.parseEnhancedVisionResponse(response.content[0].text);
+}
 
   /**
    * 🎨 ENHANCED VISION PROMPT

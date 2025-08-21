@@ -4,7 +4,6 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  assetsInclude: ['**/*.html'],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -13,7 +12,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      }
+    },
+    assetsDir: 'assets',
+    emptyOutDir: true
   },
+  // Remove base: './' - this can cause issues with absolute paths
   server: {
     port: 5173,
     proxy: {

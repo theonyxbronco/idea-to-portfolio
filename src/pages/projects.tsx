@@ -218,7 +218,9 @@ const ProjectsPage = () => {
     if (files) {
       const validFiles = Array.from(files).filter(file => {
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        if (!validTypes.includes(file.mimetype)) {
+        
+        // ✅ Use 'type' instead of 'mimetype'
+        if (!validTypes.includes(file.type)) {
           toast({
             title: "Invalid File Type",
             description: `${file.name} is not a valid image format`,
@@ -226,6 +228,7 @@ const ProjectsPage = () => {
           });
           return false;
         }
+        
         if (file.size > 5 * 1024 * 1024) {
           toast({
             title: "File Too Large",
@@ -234,9 +237,10 @@ const ProjectsPage = () => {
           });
           return false;
         }
+        
         return true;
       });
-
+  
       if (type === 'process') {
         updateProject('processImages', [...project.processImages, ...validFiles]);
       } else if (type === 'final' && validFiles[0]) {
