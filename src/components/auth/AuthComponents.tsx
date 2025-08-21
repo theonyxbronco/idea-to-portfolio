@@ -152,3 +152,6 @@ export const DashboardWelcome = () => {
     </div>
   );
 };
+
+// Export AuthRedirectHelper from its own file
+export { AuthRedirectHelper } from './AuthRedirectHelper';

@@ -27,10 +27,10 @@ const Pricing = () => {
       name: "Student",
       price: "7",
       period: "month",
-      description: "Ideal for students growing their presense, or building their portfolio",
+      description: "Ideal for students growing their presence, or building their portfolio",
       features: [
         "Up to 20 projects",
-        "3 portfolio website",
+        "3 portfolio websites",
         "Edit features",
         "Analytics",
         "Priority support",
@@ -45,7 +45,7 @@ const Pricing = () => {
       description: "Complete solution for professional creatives, or those who value organization",
       features: [
         "Unlimited projects",
-        "10 portfolio website",
+        "10 portfolio websites",
         "Edit features",
         "Analytics",
         "Priority support",
@@ -63,20 +63,20 @@ const Pricing = () => {
   const parallaxOffset2 = useParallax(0.15);
 
   return (
-    <div className="min-h-screen bg-background py-20 pt-36">
+    <div className="min-h-screen bg-[#FFFEEA] dark:bg-[#06070A] py-20 pt-36 transition-colors duration-500">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-28">
-          <h1 className="text-5xl md:text-6xl font-semibold mb-3 bg-primary bg-clip-text text-transparent">
+        <div className="text-center mb-16">
+          <h1 className="text-5xl md:text-6xl font-light mb-3 text-[#06070A] dark:text-[#FFFEEA]" style={{ fontFamily: 'Waldenburg, system-ui, sans-serif' }}>
             Pricing in Your Interest
           </h1>
-          <p className="text-xl text-primary font-regular opacity-60 max-w-3xl mx-auto">
+          <p className="text-xl text-[#06070A]/60 dark:text-[#FFFEEA]/60 max-w-3xl mx-auto font-light">
             Choose the perfect plan for your needs. We make sure you never have to put a thought into worrying about your portfolio again.
           </p>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8 mb-48 max-w-7xl mx-auto" 
+        <div className="grid md:grid-cols-3 gap-6 mb-20 max-w-7xl mx-auto" 
           style={{ 
           transform: `translateY(${parallaxOffset}px)`,
           willChange: 'transform'
@@ -84,47 +84,50 @@ const Pricing = () => {
           {plans.map((plan, index) => (
             <Card 
               key={index}
-              className={`relative bg-gradient-card border-0 shadow-elegant hover:shadow-glow transition-all duration-300 ${
-                plan.isPopular ? 'ring-2 ring-primary scale-105' : ''
+              className={`relative bg-white dark:bg-[#FFFEEA]/5 border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl transition-all duration-300 hover:shadow-lg ${
+                plan.isPopular ? 'ring-2 ring-[#06070A] dark:ring-[#FFFEEA] scale-105' : ''
               }`}
             >
               {plan.isPopular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-primary text-white px-6 py-2">
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <Badge className="bg-[#06070A] dark:bg-[#FFFEEA] text-[#FFFEEA] dark:text-[#06070A] px-4 py-1 text-xs font-light border-0">
                     Most Popular
                   </Badge>
                 </div>
               )}
               
-              <CardHeader className="text-center p-8 mb-2">
-                <h3 className="text-2xl font-bold mb-1">{plan.name}</h3>
+              <CardHeader className="text-center p-6 mb-2">
+                <h3 className="text-2xl font-light mb-1 text-[#06070A] dark:text-[#FFFEEA]">{plan.name}</h3>
                 <div className="mb-4">
                   {plan.price === "0" ? (
-                    <span className="text-4xl font-bold">Free</span>
+                    <span className="text-4xl font-light text-[#06070A] dark:text-[#FFFEEA]">Free</span>
                   ) : (
                     <>
-                      <span className="text-4xl font-bold">€{plan.price}</span>
-                      <span className="text-primary opacity-50">/{plan.period}</span>
+                      <span className="text-4xl font-light text-[#06070A] dark:text-[#FFFEEA]">€{plan.price}</span>
+                      <span className="text-[#06070A]/60 dark:text-[#FFFEEA]/60">/{plan.period}</span>
                     </>
                   )}
                 </div>
-                <p className="text-primary opacity-60 pt-5">{plan.description}</p>
+                <p className="text-[#06070A]/60 dark:text-[#FFFEEA]/60 pt-4 font-light text-sm">{plan.description}</p>
               </CardHeader>
               
-              <CardContent className="p-8 pt-0 flex flex-col justify-between flex-1 h-[400px]">
+              <CardContent className="p-6 pt-0 flex flex-col justify-between flex-1 h-[400px]">
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="flex items-center">
-                      <Check className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
+                      <Check className="w-4 h-4 text-[#06070A] dark:text-[#FFFEEA] mr-3 flex-shrink-0" />
+                      <span className="text-sm text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">{feature}</span>
                     </li>
                   ))}
                 </ul>
                 
                 <Button 
                   onClick={() => navigate('/sign-in')}
-                  variant={plan.isPopular ? "default" : "outline"} 
-                  className="w-full"
+                  className={`w-full rounded-full font-light transition-all duration-300 hover:scale-105 ${
+                    plan.isPopular 
+                      ? 'bg-[#06070A] dark:bg-[#FFFEEA] text-[#FFFEEA] dark:text-[#06070A] hover:shadow-lg' 
+                      : 'bg-transparent border border-[#06070A] dark:border-[#FFFEEA] text-[#06070A] dark:text-[#FFFEEA] hover:bg-[#06070A] hover:text-[#FFFEEA] dark:hover:bg-[#FFFEEA] dark:hover:text-[#06070A]'
+                  }`}
                   size="lg"
                 >
                   {plan.isPopular ? "Get Started" : "Choose Plan"}
@@ -135,45 +138,47 @@ const Pricing = () => {
         </div>
 
         {/* FAQ Section */}
-        <div className="max-w-3xl mx-auto mb-80 mt-50" 
+        <div className="max-w-3xl mx-auto mb-20" 
           style={{ 
           transform: `translateY(${parallaxOffset2}px)`,
           willChange: 'transform'
         }}>
-          <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
-          <div className="space-y-6">
-            <Card className="bg-gradient-card border-0 shadow-elegant">
+          <h2 className="text-3xl font-light text-center mb-12 text-[#06070A] dark:text-[#FFFEEA]" style={{ fontFamily: 'Waldenburg, system-ui, sans-serif' }}>
+            Frequently Asked Questions
+          </h2>
+          <div className="space-y-4">
+            <Card className="bg-white dark:bg-[#FFFEEA]/5 border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl">
               <CardContent className="p-6">
-                <h3 className="font-semibold mb-2">Can I change my plan anytime?</h3>
-                <p className="text-muted-foreground">Yes, you can upgrade or downgrade your plan at any time. Changes will be reflected in your next billing cycle.</p>
+                <h3 className="font-light mb-2 text-[#06070A] dark:text-[#FFFEEA]">Can I change my plan anytime?</h3>
+                <p className="text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">Yes, you can upgrade or downgrade your plan at any time. Changes will be reflected in your next billing cycle.</p>
               </CardContent>
             </Card>
             
-            <Card className="bg-gradient-card border-0 shadow-elegant">
+            <Card className="bg-white dark:bg-[#FFFEEA]/5 border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl">
               <CardContent className="p-6">
-                <h3 className="font-semibold mb-2">Is there a free trial?</h3>
-                <p className="text-muted-foreground">We offer a 14-day free trial for all plans. No credit card required to get started.</p>
+                <h3 className="font-light mb-2 text-[#06070A] dark:text-[#FFFEEA]">Is there a free trial?</h3>
+                <p className="text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">We offer a 14-day free trial for all plans. No credit card required to get started.</p>
               </CardContent>
             </Card>
             
-            <Card className="bg-gradient-card border-0 shadow-elegant">
+            <Card className="bg-white dark:bg-[#FFFEEA]/5 border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl">
               <CardContent className="p-6">
-                <h3 className="font-semibold mb-2">What payment methods do you accept?</h3>
-                <p className="text-muted-foreground">We accept all major credit cards, PayPal, and bank transfers for annual plans.</p>
+                <h3 className="font-light mb-2 text-[#06070A] dark:text-[#FFFEEA]">What payment methods do you accept?</h3>
+                <p className="text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">We accept all major credit cards, PayPal, and bank transfers for annual plans.</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-card border-0 shadow-elegant">
+            <Card className="bg-white dark:bg-[#FFFEEA]/5 border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl">
               <CardContent className="p-6">
-                <h3 className="font-semibold mb-2">Underwhelmed?</h3>
-                <p className="text-muted-foreground">We're just getting started. We're building this better every day, every minute, every second.</p>
+                <h3 className="font-light mb-2 text-[#06070A] dark:text-[#FFFEEA]">Underwhelmed?</h3>
+                <p className="text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">We're just getting started. We're building this better every day, every minute, every second.</p>
               </CardContent>
             </Card>
           </div>
         </div>
 
         {/* Beta Waitlist Section */}
-        <div className="md:py-20 pt-52 max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto pt-12">
           <WaitlistForm 
             title="Join the pro waitlist"
             subtitle="Get early access to all features at a special discounted rate"

@@ -8,6 +8,7 @@ import {
   SignInPage, 
   SignUpPage, 
   ProtectedRoute,
+  AuthRedirectHelper, // Import the new helper
 } from '@/components/auth/AuthComponents';
 
 // Existing Pages
@@ -24,11 +25,12 @@ import Navigation from "./components/Navigation";
 import Home from "@/pages/Home";
 import Features from "@/pages/Features";
 import Pricing from "@/pages/Pricing";
-import Showroom from "@/pages/Showroom"; // New Showroom page
+import Showroom from "@/pages/Showroom";
 
 // New Modular Pages
 import UserPage from "@/pages/user";
 import ProjectsPage from "@/pages/projects";
+import OnboardingFlow from "@/pages/Onboarding";
 
 // Updated Components
 import ProjectDetailsForm from "@/components/ProjectDetailsForm";
@@ -77,84 +79,104 @@ function App() {
   return (
     <div className="min-h-screen bg-background font-sans antialiased">
       <SmoothScrollWrapper>
-        {/* Top Navigation Bar */}
-        <Navigation />
+        {/* Wrap everything in AuthRedirectHelper for smart flow management */}
+        <AuthRedirectHelper>
+          {/* Top Navigation Bar */}
+          <Navigation />
 
-        <Routes>
-          {/* Main Route - Home page for everyone */}
-          <Route path="/" element={<Home />} />
-          
-          {/* Public Landing Pages */}
-          <Route path="/home" element={<Home />} />
-          <Route path="/features" element={<Features />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/showroom" element={<Showroom />} />
-          
-          {/* Public Routes */}
-          <Route path="/sign-in/*" element={<SignInPage />} />
-          <Route path="/sign-up/*" element={<SignUpPage />} />
-          
-          {/* Pro Waitlist - Accessible to both signed in and out users */}
-          <Route path="/pro-waitlist" element={<ProWaitlist />} />
-          
-          {/* Support - Accessible to both signed in and out users */}
-          <Route path="/support" element={<Support />} />
-          
-          {/* Protected Routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/create" element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          } />
-          
-          {/* New Modular Routes */}
-          <Route path="/user" element={
-            <ProtectedRoute>
-              <UserPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/projects" element={
-            <ProtectedRoute>
-              <ProjectsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/portfolio-builder" element={
-            <ProtectedRoute>
-              <ProjectDetailsForm />
-            </ProtectedRoute>
-          } />
-          
-          {/* Existing Portfolio Routes */}
-          <Route path="/preview" element={
-            <ProtectedRoute>
-              <Preview />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/deployment" element={
-            <ProtectedRoute>
-              <Deployment />
-            </ProtectedRoute>
-          } />
-          
-          {/* Legacy route - redirect to new modular flow */}
-          <Route path="/create-portfolio" element={
-            <ProtectedRoute>
-              <UserPage />
-            </ProtectedRoute>
-          } />
-          
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+          <Routes>
+            {/* Main Route - Home page for everyone */}
+            <Route path="/" element={<Home />} />
+            
+            {/* Public Landing Pages */}
+            <Route path="/home" element={<Home />} />
+            <Route path="/features" element={<Features />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/showroom" element={<Showroom />} />
+            
+            {/* Public Routes */}
+            <Route path="/sign-in/*" element={<SignInPage />} />
+            <Route path="/sign-up/*" element={<SignUpPage />} />
+            
+            {/* Pro Waitlist - Accessible to both signed in and out users */}
+            <Route path="/pro-waitlist" element={<ProWaitlist />} />
+            
+            {/* Support - Accessible to both signed in and out users */}
+            <Route path="/support" element={<Support />} />
+            
+            {/* NEW UX FLOW: Onboarding after signup */}
+            <Route path="/onboarding" element={
+              <ProtectedRoute>
+                <OnboardingFlow />
+              </ProtectedRoute>
+            } />
+            
+            {/* Step 1: User Info Collection */}
+            <Route path="/user" element={
+              <ProtectedRoute>
+                <UserPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Step 2: Projects Collection */}
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Step 3: Portfolio Builder/Details Form */}
+            <Route path="/portfolio-builder" element={
+              <ProtectedRoute>
+                <ProjectDetailsForm />
+              </ProtectedRoute>
+            } />
+            
+            {/* Step 4: Preview */}
+            <Route path="/preview" element={
+              <ProtectedRoute>
+                <Preview />
+              </ProtectedRoute>
+            } />
+            
+            {/* Step 5: Deployment */}
+            <Route path="/deployment" element={
+              <ProtectedRoute>
+                <Deployment />
+              </ProtectedRoute>
+            } />
+            
+            {/* Dashboard - For returning users */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            
+            {/* Legacy redirects */}
+            <Route path="/create" element={
+              <ProtectedRoute>
+                <OnboardingFlow />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/create-portfolio" element={
+              <ProtectedRoute>
+                <OnboardingFlow />
+              </ProtectedRoute>
+            } />
+            
+            {/* Old Index route - redirect to onboarding for new flow */}
+            <Route path="/index" element={
+              <ProtectedRoute>
+                <OnboardingFlow />
+              </ProtectedRoute>
+            } />
+            
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthRedirectHelper>
         
         <Toaster />
       </SmoothScrollWrapper>

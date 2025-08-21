@@ -5,87 +5,156 @@ class PromptGenerator {
   constructor() {
     this.skeletonsPath = path.join(__dirname, '..', 'api', 'skeletons');
     
-    // 🎯 CORE SYSTEM PROMPT - Compressed but complete
+    // 🎯 ULTRA-COMPRESSED SYSTEM PROMPT - Maximum efficiency
     this.systemPrompt = `You are an elite portfolio AI. Create custom HTML portfolios matching user aesthetic precisely.
 
 CRITICAL: Response = ONLY HTML. No explanations. Start with <!DOCTYPE html>, end with </html>.`;
 
-    // 🏗️ SKELETON TEMPLATES - Reference by ID, not full HTML
+    // 🗂️ COMPRESSED SKELETON DEFINITIONS - Structure only, no bloat
     this.skeletonTemplates = {
       'creative-professional': {
-        structure: 'hero-about-portfolio-contact',
-        style: 'modern-minimal',
-        features: ['smooth-scroll', 'image-gallery', 'contact-form']
+        name: 'Creative Professional',
+        structure: 'hero-about-projects-skills-contact',
+        style: 'glassmorphism + grain texture',
+        sections: {
+          hero: 'full-height intro + 3 floating shapes',
+          about: 'side-by-side + image + story',
+          projects: 'expandable timeline',
+          skills: 'two-column + animated bars',
+          contact: 'multiple methods in cards'
+        },
+        animations: 'loading fade, floating shapes 12s infinite, project expand, scroll reveals, magnetic buttons',
+        interactions: 'smooth scroll, project expand, skill bars animate, magnetic effect',
+        technical: 'responsive 768px, a11y, no deps, single HTML'
       },
+
       'gallery-first': {
-        structure: 'hero-gallery-about-contact', 
-        style: 'image-focused',
-        features: ['masonry-grid', 'lightbox', 'filter-tabs']
+        name: 'Photography Gallery',
+        structure: 'hero-gallery-about-contact',
+        style: 'dark minimal image-focused',
+        sections: {
+          hero: 'mosaic grid 5 images + central text (3×2 grid, first spans 2 rows)',
+          gallery: 'masonry layout + filter tags + hover overlays',
+          about: 'centered text + social links',
+          contact: 'simple email + availability'
+        },
+        animations: 'staggered fadeInUp 0.6s, masonry 4cols→1, hover scale(1.05), filter fadeIn, modal scale entry, parallax hero',
+        gallery: 'aspectRatios: 3:4,4:5,1:1 rotating, categories: Photography,Digital,Portraits,Abstract, count: 12',
+        technical: 'CSS columns, parallax, modal, filter'
       },
+
       'newspaper': {
-        structure: 'header-columns-sidebar',
-        style: 'editorial',
-        features: ['text-heavy', 'multi-column', 'typography-focus']
+        name: 'Editorial Newspaper',
+        structure: 'masthead-articles-sidebar',
+        style: 'vintage newspaper authentic',
+        sections: {
+          masthead: 'newspaper header + volume + date + taglines',
+          articles: 'portfolio as news stories',
+          sidebar: 'stats + quotes + contact + metrics',
+          layout: '3 columns (1.5fr 2px 2fr 2px 1.5fr)'
+        },
+        animations: 'staggered article loading, newspaper lines overlay, hover translateY(-5px), modal slide center, counter animate 0→target, aged paper gradients',
+        interactions: 'article expansion, counter trigger, responsive collapse',
+        technical: 'multi-column CSS grid, modal, counter animations'
       },
+
       'storyteller': {
-        structure: 'narrative-flow',
-        style: 'story-driven',
-        features: ['scroll-narrative', 'timeline', 'process-showcase']
+        name: 'Documentary Filmmaker',
+        structure: 'hero-chapters-timeline-process-about',
+        style: 'cinematic narrative flow',
+        sections: {
+          hero: 'full-height + filmmaker mission',
+          chapters: 'narrative documentary projects',
+          timeline: 'impact metrics + recognition',
+          process: 'behind-scenes methodology',
+          about: 'personal story + contact'
+        },
+        animations: 'chapter nav fixed right, parallax images, timeline alternating, floating images, metrics counters, video play button, navigation blur backdrop',
+        interactions: 'chapter progression, timeline reveals, video modal, metrics animation',
+        technical: 'intersection observer, backdrop filters, cinematic treatment'
       }
     };
 
-    // 🎨 COMPRESSED PATTERN SYSTEM
+    // 📊 ULTRA-COMPRESSED DATA PATTERNS - Maximum token efficiency
     this.dataPatterns = {
-      // Basic user info (U = User)
+      // User info - Single letters for maximum compression
       UN: (d) => d.personalInfo?.name || 'Creative Professional',
       UT: (d) => d.personalInfo?.title || 'Designer',
       UE: (d) => d.personalInfo?.email || 'contact@portfolio.com',
       UB: (d) => this.compressBio(d.personalInfo?.bio),
       US: (d) => (d.personalInfo?.skills || []).slice(0, 6).join(','),
+      UL: (d) => d.personalInfo?.linkedin || '',
+      UI: (d) => d.personalInfo?.instagram || '',
+      UP: (d) => d.personalInfo?.phone || '',
       
-      // Contact info (C = Contact)
-      CL: (d) => d.personalInfo?.linkedin || '',
-      CI: (d) => d.personalInfo?.instagram || '',
-      CP: (d) => d.personalInfo?.phone || '',
-      
-      // Projects summary (P = Projects)
+      // Project info - Compressed arrays
       PC: (d) => (d.projects || []).length,
       PT: (d) => this.compressProjects(d.projects),
-      PG: (d) => this.getProjectCategories(d.projects)
+      PG: (d) => this.getProjectCategories(d.projects),
+      
+      // Analysis - Compressed intelligence
+      AS: (analysis) => analysis?.analysisLevels?.visualIntelligence?.visualDNA?.category || 'modern',
+      AM: (analysis) => analysis?.analysisLevels?.visualIntelligence?.visualDNA?.mood || 'professional',
+      AI: (analysis) => analysis?.analysisLevels?.industryIntelligence?.detectedIndustry || 'creative',
+      AC: (analysis) => Math.round((analysis?.overallConfidence || 0.5) * 100)
     };
   }
 
   /**
-   * 🎯 MAIN METHOD - Dramatically optimized
+   * 🚀 MAIN METHOD - Enhanced with full server.js compatibility
    */
-  async generateEnhancedAnthropicMessages(portfolioData, projectImages, insaneAnalysis, moodboardFiles = [], designOptions = {}) {
+  async generateEnhancedAnthropicMessages(portfolioData, projectImages, enhancedAnalysis, moodboardFiles = [], designOptions = {}) {
     const { selectedSkeleton = 'none', customDesignRequest = '' } = designOptions;
     
-    console.log(`🚀 Optimized generation - Skeleton: ${selectedSkeleton}`);
+    console.log(`🚀 V1 Enhanced Prompt Generation:
+      - Skeleton: ${selectedSkeleton}
+      - Custom request: ${customDesignRequest ? 'Yes' : 'No'}
+      - Moodboard files: ${moodboardFiles?.length || 0}
+      - Analysis status: ${enhancedAnalysis?.systemStatus || 'None'}`);
     
-    // 📊 COMPRESSED DATA EXTRACTION
-    const compressedData = this.compressPortfolioData(portfolioData, projectImages, insaneAnalysis);
+    // 🔧 FIX: Debug moodboard files structure  
+    if (moodboardFiles && moodboardFiles.length > 0) {
+      console.log('📋 Moodboard files debug:');
+      moodboardFiles.forEach((file, index) => {
+        const hasBuffer = !!file.buffer;
+        const hasData = !!file.data;
+        const mimetype = file.mimetype || file.type || 'unknown';
+        const size = file.buffer ? file.buffer.length : (file.data ? file.data.length : 0);
+        console.log(`  ${index + 1}. ${file.originalname || 'unnamed'} - ${mimetype} - ${size} bytes - buffer:${hasBuffer} data:${hasData}`);
+      });
+    }
+      
+    const compressedData = this.compressPortfolioData(portfolioData, projectImages, enhancedAnalysis);
     
     if (selectedSkeleton !== 'none') {
-      return this.generateSkeletonMessages(selectedSkeleton, compressedData, moodboardFiles, customDesignRequest);
+      return this.generateSkeletonMessages(selectedSkeleton, compressedData, moodboardFiles, customDesignRequest, enhancedAnalysis);
     }
     
-    return this.generateCreativeMessages(compressedData, moodboardFiles, customDesignRequest);
+    return this.generateCreativeMessages(compressedData, moodboardFiles, customDesignRequest, enhancedAnalysis);
   }
 
   /**
-   * 🗂️ SKELETON MODE - 70% token reduction
+   * 🗂️ SKELETON MODE - Ultra-compressed with full HTML loading
    */
-  async generateSkeletonMessages(skeletonId, compressedData, moodboardFiles, customRequest) {
+  async generateSkeletonMessages(skeletonId, compressedData, moodboardFiles, customRequest, enhancedAnalysis) {
     const template = this.skeletonTemplates[skeletonId];
     if (!template) {
       console.warn(`⚠️ Unknown skeleton: ${skeletonId}, falling back to creative mode`);
-      return this.generateCreativeMessages(compressedData, moodboardFiles, customRequest);
+      return this.generateCreativeMessages(compressedData, moodboardFiles, customRequest, enhancedAnalysis);
+    }
+
+    // Try to load actual skeleton HTML file
+    let skeletonHTML = null;
+    try {
+      skeletonHTML = await this.loadSkeletonHTML(skeletonId);
+      console.log(`✅ Loaded skeleton HTML: ${skeletonId}`);
+    } catch (error) {
+      console.warn(`⚠️ Could not load skeleton HTML: ${error.message}`);
     }
 
     const contentArray = [
       { type: "text", text: this.systemPrompt },
-      { type: "text", text: `\n🗂️ SKELETON: ${skeletonId}` }
+      { type: "text", text: `\n🗂️ SKELETON: ${template.name}` }
     ];
 
     // Add moodboard images efficiently
@@ -94,53 +163,327 @@ CRITICAL: Response = ONLY HTML. No explanations. Start with <!DOCTYPE html>, end
     }
 
     // Build ultra-compressed skeleton instruction
-    contentArray.push({
-      type: "text", 
-      text: this.buildSkeletonInstruction(skeletonId, template, compressedData, customRequest, moodboardFiles.length > 0)
-    });
+    if (skeletonHTML) {
+      // HTML preprocessing mode
+      const processedHTML = this.preprocessSkeletonHTML(skeletonHTML, compressedData);
+      contentArray.push({
+        type: "text", 
+        text: this.buildHTMLCustomizationInstruction(processedHTML, compressedData, customRequest, enhancedAnalysis, moodboardFiles.length > 0)
+      });
+    } else {
+      // Template-based mode (fallback)
+      contentArray.push({
+        type: "text", 
+        text: this.buildCompressedSkeletonInstruction(skeletonId, template, compressedData, customRequest, enhancedAnalysis, moodboardFiles.length > 0)
+      });
+    }
 
     return [{ role: "user", content: contentArray }];
   }
 
   /**
-   * 🎨 CREATIVE MODE - 60% token reduction
+   * 🗃️ HTML PREPROCESSING - Process skeleton HTML with user data
    */
-  async generateCreativeMessages(compressedData, moodboardFiles, customRequest) {
+  preprocessSkeletonHTML(skeletonHTML, data) {
+    let processedHTML = skeletonHTML;
+    const { u: user, p: projects } = data;
+    
+    // Replace basic user patterns
+    const userReplacements = {
+      '[USER_NAME]': user.n,
+      '[USER_TITLE]': user.t,
+      '[USER_EMAIL]': user.e,
+      '[USER_BIO]': user.b || this.generateDefaultBio(user.n, user.t),
+      '[USER_SKILLS]': user.s.join(', '),
+      '[USER_LINKEDIN]': user.l,
+      '[USER_INSTAGRAM]': user.i,
+      '[USER_PHONE]': user.p
+    };
+
+    Object.entries(userReplacements).forEach(([pattern, replacement]) => {
+      processedHTML = processedHTML.replace(new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), replacement || '');
+    });
+
+    // Replace project patterns (up to 8 projects)
+    projects.forEach((project, index) => {
+      const projectNum = index + 1;
+      if (projectNum <= 8) { // Limit to avoid bloat
+        const projectReplacements = {
+          [`[PROJECT_${projectNum}_TITLE]`]: project.t,
+          [`[PROJECT_${projectNum}_CATEGORY]`]: project.c,
+          [`[PROJECT_${projectNum}_OVERVIEW]`]: project.d,
+          [`[PROJECT_${projectNum}_TAGS]`]: project.tags.join(', ')
+        };
+
+        Object.entries(projectReplacements).forEach(([pattern, replacement]) => {
+          processedHTML = processedHTML.replace(new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), replacement || '');
+        });
+      }
+    });
+
+    return processedHTML;
+  }
+
+  /**
+   * 🎨 HTML CUSTOMIZATION INSTRUCTION - Ultra-compressed
+   */
+  buildHTMLCustomizationInstruction(processedHTML, data, customRequest, enhancedAnalysis, hasMoodboard) {
+    const { meta } = data;
+    
+    return `TASK: Customize skeleton HTML with user data + ${hasMoodboard ? 'moodboard aesthetic' : 'professional styling'}
+
+${hasMoodboard ? `🎨 MOODBOARD: Extract ALL colors/typography from images. Apply to CSS variables.` : ''}
+
+${enhancedAnalysis ? `🧠 AI: ${this.dataPatterns.AS(enhancedAnalysis)}+${this.dataPatterns.AM(enhancedAnalysis)} ${this.dataPatterns.AI(enhancedAnalysis)} (${this.dataPatterns.AC(enhancedAnalysis)}%)` : ''}
+
+📊 DATA: ${meta.projectCount} projects, ${meta.imageCount} images
+
+${customRequest ? `🔥 CUSTOM: "${customRequest}" - PRIORITY: HIGH - Apply throughout` : ''}
+
+🚨 SKELETON HTML:
+\`\`\`html
+${processedHTML}
+\`\`\`
+
+CUSTOMIZE:
+${hasMoodboard ? '- Replace MOODBOARD_* colors with extracted palette' : '- Apply professional color scheme'}
+- Replace [PROJECT_*] with real project data
+- No placeholders remain
+- Mobile responsive
+- ${customRequest ? 'Custom styling integrated' : 'Clean modern design'}`;
+  }
+
+  /**
+   * 🗂️ COMPRESSED SKELETON INSTRUCTION - Template-based fallback
+   */
+  buildCompressedSkeletonInstruction(skeletonId, template, compressedData, customRequest, enhancedAnalysis, hasMoodboard) {
+    const { u: user, p: projects, meta } = compressedData;
+    
+    let instruction = `TASK: Build ${template.name} using compressed data
+  
+  USER: ${user.n} | ${user.t} | ${user.e}
+  ${user.b ? `Bio: ${user.b}` : ''}
+  Skills: ${user.s.join(', ')}
+  
+  PROJECTS (${meta.projectCount}):
+  ${projects.slice(0, 6).map(p => `${p.i}. ${p.t} [${p.c}] - ${p.d} (${p.imgs.f}F+${p.imgs.p}P)`).join('\n')}
+  
+  SKELETON: ${template.structure}
+  Style: ${template.style}
+  Sections: ${Object.entries(template.sections).map(([k,v]) => `${k}:${v}`).join(' | ')}
+  Animations: ${template.animations}`;
+  
+    // Add enhanced analysis insights
+    if (enhancedAnalysis) {
+      const visual = enhancedAnalysis.analysisLevels?.visualIntelligence;
+      const industry = enhancedAnalysis.analysisLevels?.industryIntelligence;
+      const content = enhancedAnalysis.analysisLevels?.contentQuality;
+      
+      instruction += `\n\nAI ANALYSIS (${enhancedAnalysis.systemStatus}):
+  Visual DNA: ${visual?.visualDNA?.category || 'modern'} + ${visual?.visualDNA?.mood || 'professional'}
+  Industry: ${industry?.detectedIndustry || 'creative'}
+  Content Strategy: ${content?.strategy || 'balanced'}`;
+  
+      if (enhancedAnalysis.skeletonIntegration?.hasInfluence) {
+        instruction += `\nSkeleton Integration: Enhanced blend detected`;
+      }
+  
+      if (enhancedAnalysis.customDesignIntegration?.confidence > 0.5) {
+        const custom = enhancedAnalysis.customDesignIntegration;
+        instruction += `\nCustom Style: ${custom.primaryStyle} detected`;
+      }
+    }
+  
+    instruction += `\n\n${hasMoodboard ? 'AESTHETIC: Extract colors/typography from moodboard images' : 'AESTHETIC: Modern professional'}`;
+  
+    if (customRequest) {
+      instruction += `\n\nCUSTOM REQUEST: "${customRequest}" - PRIORITY: HIGH - Apply throughout`;
+    }
+  
+    instruction += `\n\nBUILD: Single HTML with embedded CSS/JS, mobile responsive, professional quality`;
+  
+    return instruction;
+  }
+
+  /**
+   * 🎨 CREATIVE MODE - Ultra-compressed
+   */
+  async generateCreativeMessages(compressedData, moodboardFiles, customRequest, enhancedAnalysis) {
     const contentArray = [
       { type: "text", text: this.systemPrompt },
       { type: "text", text: "\n🎨 CREATIVE MODE" }
     ];
 
-    // Add intelligence summary if available
-    if (compressedData.intelligence) {
+    if (enhancedAnalysis) {
       contentArray.push({
         type: "text",
-        text: this.buildIntelligenceSummary(compressedData.intelligence)
+        text: `🧠 AI: ${this.dataPatterns.AS(enhancedAnalysis)}+${this.dataPatterns.AM(enhancedAnalysis)} ${this.dataPatterns.AI(enhancedAnalysis)} (${this.dataPatterns.AC(enhancedAnalysis)}%)`
       });
     }
 
-    // Add moodboard images
     if (moodboardFiles?.length > 0) {
       await this.addMoodboardImages(contentArray, moodboardFiles);
     }
 
-    // Build compressed creative instruction
     contentArray.push({
       type: "text",
-      text: this.buildCreativeInstruction(compressedData, customRequest, moodboardFiles.length > 0)
+      text: this.buildCompressedCreativeInstruction(compressedData, customRequest, moodboardFiles.length > 0, enhancedAnalysis)
     });
 
     return [{ role: "user", content: contentArray }];
   }
 
   /**
-   * 📊 DATA COMPRESSION SYSTEM
+   * 🎨 COMPRESSED CREATIVE INSTRUCTION
    */
-  compressPortfolioData(portfolioData, projectImages, insaneAnalysis) {
+  buildCompressedCreativeInstruction(data, customRequest, hasMoodboard, enhancedAnalysis) {
+    const { u: user, p: projects, meta } = data;
+    
+    return `TASK: Custom portfolio
+
+USER: ${user.n} - ${user.t} | ${user.e}
+Skills: ${user.s.join(', ')}
+${user.b ? `About: ${user.b}` : ''}
+
+PROJECTS (${meta.projectCount}):
+${projects.slice(0, 8).map(p => `• ${p.t} [${p.c}] - ${p.d} | ${p.tags.join(' ')}`).join('\n')}
+
+${hasMoodboard ? 'AESTHETIC: Extract colors/style from moodboard images' : 'AESTHETIC: Modern professional'}
+
+${enhancedAnalysis ? `STRATEGY: ${this.dataPatterns.AS(enhancedAnalysis)} + ${this.dataPatterns.AM(enhancedAnalysis)} for ${this.dataPatterns.AI(enhancedAnalysis)}` : ''}
+
+${customRequest ? `CUSTOM: "${customRequest}" - Apply as core design philosophy` : ''}
+
+REQUIREMENTS:
+- Single HTML + embedded CSS/JS
+- Mobile responsive
+- Project galleries with image placeholders
+- Contact section
+- Professional navigation
+- Smooth animations
+
+Create stunning production-ready portfolio`;
+  }
+
+  /**
+   * 🖼️ MOODBOARD IMAGES - Enhanced integration with full error handling
+   */
+  async addMoodboardImages(contentArray, moodboardFiles) {
+    if (!moodboardFiles || moodboardFiles.length === 0) {
+      console.log('⚠️ No moodboard files provided to prompt generator');
+      return;
+    }
+    
+    console.log(`🖼️ Processing ${moodboardFiles.length} moodboard images for Claude Vision...`);
+    
+    // Add instruction text for moodboard analysis
+    contentArray.push({
+      type: "text",
+      text: `\n🎨 MOODBOARD ANALYSIS (${moodboardFiles.length} images):
+Extract EXACT visual DNA from these reference images:
+- Color palettes (specific hex codes where visible)
+- Typography styles and font characteristics  
+- Layout patterns and spacing principles
+- Visual mood and aesthetic direction
+- Design elements and signature styles
+
+Apply this extracted aesthetic throughout the entire portfolio design.`
+    });
+
+    // 🔧 FIX: Handle both file objects and uploaded file objects
+    for (const [index, file] of moodboardFiles.entries()) {
+      try {
+        let imageBuffer;
+        let mediaType;
+        
+        // Handle different file object structures
+        if (file.buffer) {
+          // Uploaded file from multer
+          imageBuffer = file.buffer;
+          mediaType = this.getMediaType(file.mimetype);
+        } else if (file.data) {
+          // File with data property
+          imageBuffer = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data);
+          mediaType = this.getMediaType(file.mimetype || file.type);
+        } else {
+          console.warn(`⚠️ File ${index + 1} has unknown structure:`, Object.keys(file));
+          continue;
+        }
+        
+        if (!imageBuffer || imageBuffer.length === 0) {
+          console.warn(`⚠️ File ${index + 1} has empty buffer`);
+          continue;
+        }
+        
+        const base64Image = imageBuffer.toString('base64');
+        
+        // 🔧 FIX: Validate base64 data
+        if (!base64Image || base64Image.length < 100) {
+          console.warn(`⚠️ File ${index + 1} produced invalid base64`);
+          continue;
+        }
+        
+        contentArray.push({
+          type: "image",
+          source: {
+            type: "base64", 
+            media_type: mediaType,
+            data: base64Image
+          }
+        });
+        
+        const sizeKB = Math.round(base64Image.length / 1024);
+        console.log(`✅ Added moodboard image ${index + 1}: ${mediaType} (${sizeKB}KB)`);
+        
+        // 🔧 FIX: Prevent oversized requests (4 images max for efficiency)
+        if (index >= 3) {
+          console.log(`📏 Limiting to 4 images for API efficiency`);
+          break;
+        }
+        
+      } catch (error) {
+        console.error(`❌ Failed to process moodboard image ${index + 1}:`, error.message);
+        continue;
+      }
+    }
+    
+    console.log(`✅ Successfully processed ${Math.min(moodboardFiles.length, 4)} moodboard images for Claude Vision`);
+  }
+
+  /**
+   * 🗂️ LOAD SKELETON HTML - File loading capability
+   */
+  async loadSkeletonHTML(selectedSkeleton) {
+    const skeletonFiles = {
+      'creative-professional': 'creative-professional.html',
+      'gallery-first': 'gallery-first.html',
+      'newspaper': 'newspaper.html',
+      'storyteller': 'storyteller.html'
+    };
+
+    const fileName = skeletonFiles[selectedSkeleton];
+    if (!fileName) {
+      throw new Error(`Unknown skeleton: ${selectedSkeleton}`);
+    }
+
+    const skeletonPath = path.join(this.skeletonsPath, fileName);
+    
+    if (await fs.pathExists(skeletonPath)) {
+      const html = await fs.readFile(skeletonPath, 'utf8');
+      console.log(`✅ Loaded skeleton: ${selectedSkeleton} (${Math.round(html.length / 1024)}KB)`);
+      return html;
+    } else {
+      throw new Error(`Skeleton file not found: ${skeletonPath}`);
+    }
+  }
+
+  /**
+   * 🔧 ULTRA-COMPRESSED DATA PROCESSING
+   */
+  compressPortfolioData(portfolioData, projectImages, enhancedAnalysis) {
     const projects = projectImages?.projectImages || [];
     
     return {
-      // User essentials (U)
       u: {
         n: portfolioData.personalInfo?.name || 'Creative Professional',
         t: portfolioData.personalInfo?.title || 'Designer', 
@@ -151,14 +494,8 @@ CRITICAL: Response = ONLY HTML. No explanations. Start with <!DOCTYPE html>, end
         i: portfolioData.personalInfo?.instagram || '',
         p: portfolioData.personalInfo?.phone || ''
       },
-      
-      // Projects compressed (P)
       p: this.compressProjectsData(projects),
-      
-      // Intelligence summary (I)
-      intelligence: insaneAnalysis ? this.compressIntelligence(insaneAnalysis) : null,
-      
-      // Metadata
+      intelligence: enhancedAnalysis ? this.compressIntelligence(enhancedAnalysis) : null,
       meta: {
         projectCount: projects.length,
         imageCount: projects.reduce((sum, p) => sum + (p.processImages?.length || 0) + (p.finalImages?.length || 0), 0)
@@ -168,15 +505,14 @@ CRITICAL: Response = ONLY HTML. No explanations. Start with <!DOCTYPE html>, end
 
   compressProjectsData(projects) {
     return projects.slice(0, 8).map((p, i) => ({
-      i: i + 1, // index
-      t: p.title || `Project ${i + 1}`, // title
-      c: p.category || p.customCategory || 'Creative', // category
-      d: this.compressDescription(p.overview || p.description), // description
-      tags: (p.tags || []).slice(0, 4), // tags (max 4)
+      i: i + 1,
+      t: p.title || `Project ${i + 1}`,
+      c: p.category || p.customCategory || 'Creative',
+      d: this.compressDescription(p.overview || p.description),
+      tags: (p.tags || []).slice(0, 4),
       imgs: {
-        f: p.finalImages?.length || 0, // final count
-        p: p.processImages?.length || 0, // process count
-        main: p.finalImages?.[0]?.url || p.processImages?.[0]?.url || '' // main image
+        f: p.finalImages?.length || 0,
+        p: p.processImages?.length || 0
       }
     }));
   }
@@ -195,104 +531,8 @@ CRITICAL: Response = ONLY HTML. No explanations. Start with <!DOCTYPE html>, end
     };
   }
 
-  /**
-   * 🏗️ SKELETON INSTRUCTION BUILDER - Ultra compressed
-   */
-  buildSkeletonInstruction(skeletonId, template, data, customRequest, hasMoodboard) {
-    const { u: user, p: projects, intelligence, meta } = data;
-    
-    return `TASK: Customize ${skeletonId} skeleton
-
-USER: ${user.n} | ${user.t} | ${user.e}
-${user.b ? `BIO: ${user.b}` : ''}
-SKILLS: ${user.s.join(',')}
-SOCIAL: ${[user.l && `li:${user.l}`, user.i && `ig:${user.i}`, user.p && `ph:${user.p}`].filter(Boolean).join('|')}
-
-PROJECTS (${meta.projectCount}):
-${projects.map(p => `${p.i}.${p.t}[${p.c}]${p.imgs.f}f+${p.imgs.p}p|${p.tags.join(',')}`).join('\n')}
-
-STRUCTURE: ${template.structure}
-STYLE: ${template.style}
-FEATURES: ${template.features.join(',')}
-
-${intelligence ? `AI: ${intelligence.style}+${intelligence.mood} ${intelligence.industry} (${intelligence.confidence}%)` : ''}
-
-${hasMoodboard ? 'COLORS: Extract from moodboard images and apply throughout' : ''}
-
-${customRequest ? `CUSTOM: ${customRequest}` : ''}
-
-Generate complete HTML with embedded CSS/JS. All placeholders filled. Production ready.`;
-  }
-
-  /**
-   * 🎨 CREATIVE INSTRUCTION BUILDER - Compressed
-   */
-  buildCreativeInstruction(data, customRequest, hasMoodboard) {
-    const { u: user, p: projects, intelligence, meta } = data;
-    
-    return `TASK: Create custom portfolio
-
-USER: ${user.n}(${user.t}) | ${user.e}
-${user.s.length > 0 ? `SKILLS: ${user.s.join(',')}` : ''}
-${user.b ? `BIO: ${user.b}` : ''}
-
-PROJECTS(${meta.projectCount}):
-${projects.map(p => `${p.t}[${p.c}]:${p.d}|tags:${p.tags.join(',')}|imgs:${p.imgs.f}f+${p.imgs.p}p`).join('\n')}
-
-${intelligence ? `STYLE: ${intelligence.style} ${intelligence.mood} for ${intelligence.industry} (${intelligence.confidence}% confidence)` : ''}
-
-${hasMoodboard ? 'COLORS: Match moodboard aesthetic exactly' : ''}
-
-${customRequest ? `CUSTOM: ${customRequest}` : ''}
-
-REQ: Modern responsive HTML+CSS+JS. Mobile-first. Professional. Image galleries for projects. Contact form. Smooth animations.`;
-  }
-
-  /**
-   * 🧠 INTELLIGENCE SUMMARY - Compressed
-   */
-  buildIntelligenceSummary(intelligence) {
-    return `🧠 AI ANALYSIS: ${intelligence.style}+${intelligence.mood} ${intelligence.industry} portfolio (${intelligence.confidence}% confidence)
-Strategy: ${intelligence.strategy}`;
-  }
-
-  /**
-   * 🖼️ MOODBOARD IMAGES - Streamlined
-   */
-  async addMoodboardImages(contentArray, moodboardFiles) {
-    console.log(`🖼️ Adding ${moodboardFiles.length} moodboard images`);
-    
-    contentArray.push({
-      type: "text",
-      text: `\n🎨 MOODBOARD(${moodboardFiles.length}): Extract colors+style+layout. Apply aesthetic throughout.`
-    });
-
-    for (const [index, file] of moodboardFiles.entries()) {
-      try {
-        const base64Image = file.buffer.toString('base64');
-        const mediaType = this.getMediaType(file.mimetype);
-        
-        contentArray.push({
-          type: "image",
-          source: {
-            type: "base64", 
-            media_type: mediaType,
-            data: base64Image
-          }
-        });
-      } catch (error) {
-        console.warn(`⚠️ Failed to load moodboard ${index + 1}:`, error.message);
-      }
-    }
-  }
-
-  /**
-   * 🔧 COMPRESSION UTILITIES
-   */
   compressBio(bio) {
     if (!bio) return '';
-    
-    // Compress to max 100 chars, preserve key info
     if (bio.length <= 100) return bio;
     
     const sentences = bio.split(/[.!?]+/).filter(s => s.trim());
@@ -311,6 +551,10 @@ Strategy: ${intelligence.strategy}`;
     return desc.substring(0, 57) + '...';
   }
 
+  generateDefaultBio(name, title) {
+    return `${name || 'I'} am a passionate ${title || 'creative professional'} dedicated to crafting memorable experiences through innovative design and strategic thinking.`;
+  }
+
   getProjectCategories(projects) {
     if (!projects || projects.length === 0) return 'creative work';
     
@@ -321,7 +565,12 @@ Strategy: ${intelligence.strategy}`;
     return categories.slice(0, 2).join(', ') + ` +${categories.length - 2}`;
   }
 
+  /**
+   * 🔧 ENHANCED MEDIA TYPE DETECTION
+   */
   getMediaType(mimetype) {
+    if (!mimetype) return 'image/jpeg';
+    
     const types = {
       'image/jpeg': 'image/jpeg',
       'image/jpg': 'image/jpeg',
@@ -329,41 +578,44 @@ Strategy: ${intelligence.strategy}`;
       'image/gif': 'image/gif',
       'image/webp': 'image/webp'
     };
-    return types[mimetype] || 'image/jpeg';
+    
+    const normalizedType = mimetype.toLowerCase();
+    return types[normalizedType] || 'image/jpeg';
   }
 
+  // 🔧 BACKWARD COMPATIBILITY - All existing methods maintained for server.js compatibility
+
   /**
-   * 🔄 BACKWARD COMPATIBILITY METHODS
+   * 📄 SKELETON-AWARE MESSAGES - V1 Compatibility
    */
   async generateSkeletonAwareMessages(portfolioData, projectImages, designStyle, designOptions = {}) {
-    console.log('🔄 Legacy compatibility mode');
+    console.log('🔄 V1 Skeleton-aware generation (compatibility mode)');
     return this.generateEnhancedAnthropicMessages(portfolioData, projectImages, null, [], designOptions);
   }
 
-  async generateStyledPrompt(portfolioData, projectImages, designStyle, insaneAnalysis, designOptions = {}) {
-    console.log('🔄 Legacy text prompt mode');
-    const compressed = this.compressPortfolioData(portfolioData, projectImages, insaneAnalysis);
+  /**
+   * 📝 STYLED PROMPT - V1 Compatibility
+   */
+  async generateStyledPrompt(portfolioData, projectImages, designStyle, enhancedAnalysis, designOptions = {}) {
+    console.log('🔄 V1 Text prompt generation (compatibility mode)');
+    const compressed = this.compressPortfolioData(portfolioData, projectImages, enhancedAnalysis);
     const { selectedSkeleton = 'none', customDesignRequest = '' } = designOptions || {};
     
     if (selectedSkeleton !== 'none') {
       const template = this.skeletonTemplates[selectedSkeleton];
       if (template) {
-        return this.buildSkeletonInstruction(selectedSkeleton, template, compressed, customDesignRequest, false);
+        return this.buildCompressedSkeletonInstruction(selectedSkeleton, template, compressed, customDesignRequest, enhancedAnalysis, false);
       }
     }
     
-    return `${this.systemPrompt}
-
-STYLE: ${designStyle}
-USER: ${compressed.u.n} - ${compressed.u.t}
-PROJECTS: ${compressed.meta.projectCount}
-${customDesignRequest ? `CUSTOM: ${customDesignRequest}` : ''}
-
-Create professional portfolio with ${designStyle} aesthetic.`;
+    return `${this.systemPrompt}\n\nSTYLE: ${designStyle}\nUSER: ${compressed.u.n} - ${compressed.u.t}\nPROJECTS: ${compressed.meta.projectCount}\n${customDesignRequest ? `CUSTOM: ${customDesignRequest}` : ''}\n\nCreate professional portfolio with ${designStyle} aesthetic.`;
   }
 
+  /**
+   * 📬 ANTHROPIC MESSAGES - V1 Compatibility
+   */
   async generateAnthropicMessages(portfolioData, projectImages, designStyle = 'modern', analysisResults = null) {
-    console.log('🔄 Legacy message generation');
+    console.log('🔄 V1 Legacy message generation (compatibility mode)');
     return this.generateEnhancedAnthropicMessages(
       portfolioData,
       projectImages, 
@@ -374,16 +626,19 @@ Create professional portfolio with ${designStyle} aesthetic.`;
   }
 
   /**
-   * 📊 PERFORMANCE METRICS
+   * 📊 TOKEN ESTIMATION - Utility function
    */
   estimateTokens(data) {
     const text = JSON.stringify(data);
-    return Math.ceil(text.length / 4); // Rough token estimate
+    return Math.ceil(text.length / 4);
   }
 
+  /**
+   * 📈 OPTIMIZATION METRICS - Logging utility
+   */
   logOptimizationMetrics(originalSize, optimizedSize) {
     const reduction = Math.round(((originalSize - optimizedSize) / originalSize) * 100);
-    console.log(`📊 Token optimization: ${originalSize} → ${optimizedSize} (${reduction}% reduction)`);
+    console.log(`📊 V1 Token optimization: ${originalSize} → ${optimizedSize} (${reduction}% reduction)`);
   }
 }
 

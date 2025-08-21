@@ -24,7 +24,12 @@ import {
   Edit3,
   Crown,
   Lock,
-  AlertTriangle
+  AlertTriangle,
+  ArrowRight,
+  Palette,
+  Target,
+  User,
+  Play
 } from 'lucide-react';
 import { API_BASE_URL } from '@/services/api';
 
@@ -309,14 +314,14 @@ const Dashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background-shadow">
+      <div className="min-h-screen bg-[#FFFEEA]">
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-6xl mx-auto">
             <div className="animate-pulse">
-              <div className="h-32 bg-gray-200 rounded-lg mb-8"></div>
+              <div className="h-32 bg-[#06070A]/5 rounded-lg mb-8"></div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
+                  <div key={i} className="h-48 bg-[#06070A]/5 rounded-lg"></div>
                 ))}
               </div>
             </div>
@@ -330,21 +335,26 @@ const Dashboard = () => {
   const portfoliosUsage = getUsageStatus('portfolios');
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-[#FFFEEA] relative overflow-hidden">
+      {/* Subtle noise effect */}
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+      }} />
+      
+      <div className="container mx-auto px-4 py-12 relative z-10">
         <div className="max-w-6xl mx-auto">
           {/* Welcome Section */}
           <DashboardWelcome />
 
           {/* Current Plan Section with Usage */}
-          <Card className="shadow-medium border-0 mb-6">
+          <Card className="shadow-sm border border-[#06070A]/10 mb-6 bg-[#FFFEEA]">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Current Plan</p>
-                  <p className="text-xl font-bold flex items-center">
+                  <p className="text-sm text-[#06070A]/50 font-light">Current Plan</p>
+                  <p className="text-xl font-light flex items-center text-[#06070A]">
                     {tier}
-                    <Badge variant="outline" className="ml-2">
+                    <Badge variant="outline" className="ml-2 border-[#06070A]/20 text-[#06070A] font-light">
                       {tier === 'Free' ? 'Upgrade Available' : 'Active'}
                     </Badge>
                   </p>
@@ -352,22 +362,26 @@ const Dashboard = () => {
                   {/* Usage Information for Free Users */}
                   {tier === 'Free' && (
                     <div className="mt-3 space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Projects:</span>
-                        <span className={projectsUsage.isAtLimit ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                      <div className="flex items-center justify-between text-sm font-light">
+                        <span className="text-[#06070A]/50">Projects:</span>
+                        <span className={projectsUsage.isAtLimit ? 'text-red-600 font-medium' : 'text-[#06070A]/50'}>
                           {projectsUsage.current}/{projectsUsage.max}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Portfolios:</span>
-                        <span className={portfoliosUsage.isAtLimit ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                      <div className="flex items-center justify-between text-sm font-light">
+                        <span className="text-[#06070A]/50">Portfolios:</span>
+                        <span className={portfoliosUsage.isAtLimit ? 'text-red-600 font-medium' : 'text-[#06070A]/50'}>
                           {portfoliosUsage.current}/{portfoliosUsage.max}
                         </span>
                       </div>
                     </div>
                   )}
                 </div>
-                <Button variant="outline" onClick={() => navigate('/pro-waitlist')}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/pro-waitlist')}
+                  className="border-[#06070A]/20 text-[#06070A] hover:bg-[#06070A] hover:text-[#FFFEEA] font-light"
+                >
                   <Sparkles className="h-4 w-4 mr-2" />
                   {tier === 'Free' ? 'Upgrade to Pro' : 'Manage Plan'}
                 </Button>
@@ -377,64 +391,64 @@ const Dashboard = () => {
 
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="shadow-medium border-0">
+            <Card className="shadow-sm border border-[#06070A]/10 bg-[#FFFEEA]">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <FileText className="h-6 w-6 text-blue-600" />
+                  <div className="w-12 h-12 bg-[#06070A]/10 rounded-lg flex items-center justify-center">
+                    <FileText className="h-6 w-6 text-[#06070A]" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{portfolios.length + drafts.length}</p>
-                    <p className="text-sm text-muted-foreground">Portfolios</p>
+                    <p className="text-2xl font-light text-[#06070A]">{portfolios.length + drafts.length}</p>
+                    <p className="text-sm text-[#06070A]/50 font-light">Portfolios</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-medium border-0">
+            <Card className="shadow-sm border border-[#06070A]/10 bg-[#FFFEEA]">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <FolderOpen className="h-6 w-6 text-purple-600" />
+                  <div className="w-12 h-12 bg-[#06070A]/10 rounded-lg flex items-center justify-center">
+                    <FolderOpen className="h-6 w-6 text-[#06070A]" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold flex items-center">
+                    <p className="text-2xl font-light text-[#06070A] flex items-center">
                       {projects.length}
                       {tier === 'Free' && projectsUsage.isAtLimit && (
                         <Lock className="h-4 w-4 ml-1 text-red-500" />
                       )}
                     </p>
-                    <p className="text-sm text-muted-foreground">Projects</p>
+                    <p className="text-sm text-[#06070A]/50 font-light">Projects</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-medium border-0">
+            <Card className="shadow-sm border border-[#06070A]/10 bg-[#FFFEEA]">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <ExternalLink className="h-6 w-6 text-green-600" />
+                  <div className="w-12 h-12 bg-[#06070A]/10 rounded-lg flex items-center justify-center">
+                    <ExternalLink className="h-6 w-6 text-[#06070A]" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">
+                    <p className="text-2xl font-light text-[#06070A]">
                       {portfolios.filter(p => p.status === 'deployed').length}
                     </p>
-                    <p className="text-sm text-muted-foreground">Live Sites</p>
+                    <p className="text-sm text-[#06070A]/50 font-light">Live Sites</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-medium border-0">
+            <Card className="shadow-sm border border-[#06070A]/10 bg-[#FFFEEA]">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Zap className="h-6 w-6 text-orange-600" />
+                  <div className="w-12 h-12 bg-[#06070A]/10 rounded-lg flex items-center justify-center">
+                    <Zap className="h-6 w-6 text-[#06070A]" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">AI</p>
-                    <p className="text-sm text-muted-foreground">Powered</p>
+                    <p className="text-2xl font-light text-[#06070A]">AI</p>
+                    <p className="text-sm text-[#06070A]/50 font-light">Powered</p>
                   </div>
                 </div>
               </CardContent>
@@ -442,19 +456,19 @@ const Dashboard = () => {
           </div>
 
           {/* SHOWROOM CTA SECTION */}
-          <Card className="shadow-large border-0 mb-12 bg-gradient-to-r from-purple-50 via-blue-50 to-indigo-50">
+          <Card className="shadow-sm border border-[#06070A]/10 mb-12 bg-gradient-to-r from-[#06070A]/5 to-[#06070A]/10">
             <CardContent className="p-8">
               <div className="text-center space-y-4">
                 <div className="flex justify-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
-                    <Eye className="h-8 w-8 text-white" />
+                  <div className="w-16 h-16 bg-[#06070A] rounded-full flex items-center justify-center">
+                    <Eye className="h-8 w-8 text-[#FFFEEA]" />
                   </div>
                 </div>
                 
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-light text-[#06070A]">
                   🌟 Discover Amazing Portfolios
                 </h2>
-                <p className="text-gray-600 max-w-2xl mx-auto">
+                <p className="text-[#06070A]/60 max-w-2xl mx-auto font-light">
                   Get inspired by portfolios created with Prism. See what other creatives are building 
                   and discover new talent from around the world.
                 </p>
@@ -462,14 +476,14 @@ const Dashboard = () => {
                 <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
                   <Button
                     onClick={() => navigate('/showroom')}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold px-8 py-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                    className="bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light px-8 py-3 rounded-full shadow-sm hover:shadow-md transition-all duration-200"
                     size="lg"
                   >
                     <Eye className="h-5 w-5 mr-2" />
                     Explore Portfolio Showroom
                   </Button>
                   
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center space-x-4 text-sm text-[#06070A]/50 font-light">
                     <div className="flex items-center">
                       <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                       <span>Live Portfolios</span>
@@ -486,12 +500,11 @@ const Dashboard = () => {
 
           {/* Your Projects Section */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Your Projects</h2>
+            <h2 className="text-2xl font-light text-[#06070A]">Your Projects</h2>
             <div className="flex gap-3">
               <Button 
                 onClick={handleCreateNewPortfolio} 
-                variant="build" 
-                className="shadow-medium"
+                className="bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light shadow-sm border-0"
                 disabled={tier === 'Free' && portfoliosUsage.isAtLimit}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -503,7 +516,7 @@ const Dashboard = () => {
               <Button 
                 onClick={handleEditProjects} 
                 variant="outline" 
-                className="shadow-medium"
+                className="border-[#06070A]/20 text-[#06070A] hover:bg-[#06070A] hover:text-[#FFFEEA] font-light shadow-sm"
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Manage Projects
@@ -513,18 +526,18 @@ const Dashboard = () => {
 
           {/* Projects Grid */}
           {projects.length === 0 ? (
-            <Card className="shadow-large border-0 mb-8">
+            <Card className="shadow-sm border border-[#06070A]/10 mb-8 bg-[#FFFEEA]">
               <CardContent className="p-12 text-center">
-                <div className="w-24 h-24 bg-gradient-secondary rounded-full flex items-center justify-center mx-auto mb-6">
-                  <FolderOpen className="h-12 w-12 text-white" />
+                <div className="w-24 h-24 bg-[#06070A] rounded-full flex items-center justify-center mx-auto mb-6">
+                  <FolderOpen className="h-12 w-12 text-[#FFFEEA]" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">No Projects Yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                <h3 className="text-xl font-light text-[#06070A] mb-2">No Projects Yet</h3>
+                <p className="text-[#06070A]/60 mb-6 max-w-md mx-auto font-light">
                   Start by adding your creative projects. These will be used to generate your AI-powered portfolio.
                 </p>
                 <Button 
                   onClick={handleAddProject} 
-                  variant="build" 
+                  className="bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                   size="lg"
                   disabled={tier === 'Free' && projectsUsage.isAtLimit}
                 >
@@ -536,7 +549,7 @@ const Dashboard = () => {
                 </Button>
                 
                 {tier === 'Free' && projectsUsage.isAtLimit && (
-                  <p className="text-sm text-red-600 mt-3">
+                  <p className="text-sm text-red-600 mt-3 font-light">
                     You've reached the limit of {TIER_LIMITS.Free.maxProjects} projects for free users
                   </p>
                 )}
@@ -546,11 +559,11 @@ const Dashboard = () => {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {projects.slice(0, 6).map((project) => (
-                  <Card key={project.id} className="shadow-medium border-0 hover:shadow-large transition-shadow">
+                  <Card key={project.id} className="shadow-sm border border-[#06070A]/10 bg-[#FFFEEA] hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg truncate">{project.title}</CardTitle>
-                        <Badge variant="outline" className="text-xs">
+                        <CardTitle className="text-lg font-light truncate text-[#06070A]">{project.title}</CardTitle>
+                        <Badge variant="outline" className="text-xs border-[#06070A]/20 text-[#06070A] font-light">
                           {project.category || project.customCategory}
                         </Badge>
                       </div>
@@ -558,32 +571,32 @@ const Dashboard = () => {
                     
                     <CardContent className="space-y-4">
                       {/* Project Preview */}
-                      <div className="aspect-video bg-gradient-accent/10 rounded-lg flex items-center justify-center">
+                      <div className="aspect-video bg-[#06070A]/10 rounded-lg flex items-center justify-center">
                         {project.imageMetadata?.finalImage ? (
                           <div className="text-center">
                             <ImageIcon className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                            <p className="text-xs text-muted-foreground">Has Images</p>
+                            <p className="text-xs text-[#06070A]/50 font-light">Has Images</p>
                           </div>
                         ) : (
                           <div className="text-center">
-                            <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-xs text-muted-foreground">Project Preview</p>
+                            <FileText className="h-8 w-8 text-[#06070A]/50 mx-auto mb-2" />
+                            <p className="text-xs text-[#06070A]/50 font-light">Project Preview</p>
                           </div>
                         )}
                       </div>
 
                       {/* Project Info */}
                       <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground line-clamp-2">{project.subtitle}</p>
+                        <p className="text-sm text-[#06070A]/60 font-light line-clamp-2">{project.subtitle}</p>
                         <div className="flex flex-wrap gap-1">
                           {project.tags.slice(0, 3).map((tag, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
+                            <Badge key={idx} variant="secondary" className="text-xs bg-[#06070A]/10 text-[#06070A] font-light">{tag}</Badge>
                           ))}
                           {project.tags.length > 3 && (
-                            <Badge variant="secondary" className="text-xs">+{project.tags.length - 3}</Badge>
+                            <Badge variant="secondary" className="text-xs bg-[#06070A]/10 text-[#06070A] font-light">+{project.tags.length - 3}</Badge>
                           )}
                         </div>
-                        <div className="flex items-center text-xs text-muted-foreground">
+                        <div className="flex items-center text-xs text-[#06070A]/50 font-light">
                           <Calendar className="h-3 w-3 mr-1" />
                           {new Date(project.createdAt || '').toLocaleDateString()}
                         </div>
@@ -595,33 +608,33 @@ const Dashboard = () => {
                 {/* Add Project Card - Only show if not at limit */}
                 {tier !== 'Free' || !projectsUsage.isAtLimit ? (
                   <Card 
-                    className="shadow-medium border-2 border-dashed border-gray-300 hover:border-primary hover:shadow-large transition-all cursor-pointer"
+                    className="shadow-sm border-2 border-dashed border-[#06070A]/30 hover:border-[#06070A] hover:shadow-md transition-all cursor-pointer bg-[#FFFEEA]"
                     onClick={handleAddProject}
                   >
                     <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-[250px]">
-                      <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                        <Plus className="h-8 w-8 text-primary" />
+                      <div className="w-16 h-16 bg-[#06070A]/10 rounded-full flex items-center justify-center mb-4">
+                        <Plus className="h-8 w-8 text-[#06070A]" />
                       </div>
-                      <h3 className="text-lg font-semibold mb-2">Add New Project</h3>
-                      <p className="text-sm text-muted-foreground text-center">
+                      <h3 className="text-lg font-light text-[#06070A] mb-2">Add New Project</h3>
+                      <p className="text-sm text-[#06070A]/60 text-center font-light">
                         Click to add another project to your portfolio
                       </p>
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="shadow-medium border-2 border-dashed border-red-300 bg-red-50">
+                  <Card className="shadow-sm border-2 border-dashed border-red-300 bg-red-50">
                     <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-[250px]">
                       <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                         <Lock className="h-8 w-8 text-red-600" />
                       </div>
-                      <h3 className="text-lg font-semibold mb-2 text-red-800">Project Limit Reached</h3>
-                      <p className="text-sm text-red-600 text-center mb-4">
+                      <h3 className="text-lg font-light text-red-800 mb-2">Project Limit Reached</h3>
+                      <p className="text-sm text-red-600 text-center mb-4 font-light">
                         Free users can have up to {TIER_LIMITS.Free.maxProjects} projects
                       </p>
                       <Button 
                         size="sm" 
                         onClick={() => handleUpgradeModal('projects')}
-                        className="bg-red-600 hover:bg-red-700"
+                        className="bg-red-600 hover:bg-red-700 text-[#FFFEEA] font-light border-0"
                       >
                         <Crown className="h-4 w-4 mr-2" />
                         Upgrade to Pro
@@ -633,7 +646,11 @@ const Dashboard = () => {
 
               {projects.length > 6 && (
                 <div className="text-center mb-8">
-                  <Button variant="outline" onClick={() => navigate('/projects')}>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/projects')}
+                    className="border-[#06070A]/20 text-[#06070A] hover:bg-[#06070A] hover:text-[#FFFEEA] font-light"
+                  >
                     View All {projects.length} Projects
                   </Button>
                 </div>
@@ -643,23 +660,23 @@ const Dashboard = () => {
 
           {/* Your Portfolios Section */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Your Portfolios</h2>
+            <h2 className="text-2xl font-light text-[#06070A]">Your Portfolios</h2>
           </div>
 
           {/* Portfolios Grid */}
           {portfolios.length === 0 && drafts.length === 0 ? (
-            <Card className="shadow-large border-0 mb-8">
+            <Card className="shadow-sm border border-[#06070A]/10 mb-8 bg-[#FFFEEA]">
               <CardContent className="p-12 text-center">
-                <div className="w-24 h-24 bg-gradient-accent rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Sparkles className="h-12 w-12 text-white" />
+                <div className="w-24 h-24 bg-[#06070A] rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="h-12 w-12 text-[#FFFEEA]" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">No Portfolios Yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                <h3 className="text-xl font-light text-[#06070A] mb-2">No Portfolios Yet</h3>
+                <p className="text-[#06070A]/60 mb-6 max-w-md mx-auto font-light">
                   Create your first AI-powered portfolio to showcase your work and land your dream opportunities.
                 </p>
                 <Button 
                   onClick={handleCreateNewPortfolio} 
-                  variant="build" 
+                  className="bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                   size="lg" 
                   disabled={projects.length === 0 || (tier === 'Free' && portfoliosUsage.isAtLimit)}
                 >
@@ -671,7 +688,7 @@ const Dashboard = () => {
                 </Button>
                 
                 {tier === 'Free' && portfoliosUsage.isAtLimit && (
-                  <p className="text-sm text-red-600 mt-3">
+                  <p className="text-sm text-red-600 mt-3 font-light">
                     You've reached the limit of {TIER_LIMITS.Free.maxPortfolios} portfolio for free users
                   </p>
                 )}
@@ -681,11 +698,11 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {/* Render drafts first */}
               {drafts.map((draft) => (
-                <Card key={draft.id} className="shadow-medium border-0 hover:shadow-large transition-shadow">
+                <Card key={draft.id} className="shadow-sm border border-[#06070A]/10 bg-[#FFFEEA] hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg truncate">{draft.name}</CardTitle>
-                      <Badge className="bg-yellow-100 text-yellow-800">
+                      <CardTitle className="text-lg font-light truncate text-[#06070A]">{draft.name}</CardTitle>
+                      <Badge className="bg-yellow-100 text-yellow-800 font-light">
                         <span className="flex items-center space-x-1">
                           <FileText className="h-3 w-3" />
                           <span className="capitalize">Draft</span>
@@ -697,22 +714,22 @@ const Dashboard = () => {
                   <CardContent className="space-y-4">
                     {/* Draft Preview */}
                     <div 
-                      className="aspect-video bg-gradient-accent/10 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gradient-accent/20"
+                      className="aspect-video bg-[#06070A]/10 rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#06070A]/20"
                       onClick={() => handlePreviewDraft(draft)}
                     >
                       <div className="text-center">
-                        <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-xs text-muted-foreground">Click to Preview Draft</p>
+                        <FileText className="h-8 w-8 text-[#06070A]/50 mx-auto mb-2" />
+                        <p className="text-xs text-[#06070A]/50 font-light">Click to Preview Draft</p>
                       </div>
                     </div>
 
                     {/* Draft Info */}
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center text-muted-foreground">
+                    <div className="space-y-2 text-sm font-light">
+                      <div className="flex items-center text-[#06070A]/50">
                         <Calendar className="h-4 w-4 mr-2" />
                         Created {new Date(draft.createdAt).toLocaleDateString()}
                       </div>
-                      <div className="flex items-center text-muted-foreground">
+                      <div className="flex items-center text-[#06070A]/50">
                         <FileText className="h-4 w-4 mr-2" />
                         Modified {new Date(draft.lastModified).toLocaleDateString()}
                       </div>
@@ -721,9 +738,8 @@ const Dashboard = () => {
                     {/* Actions */}
                     <div className="flex space-x-2">
                       <Button 
-                        variant="default" 
+                        className="flex-1 bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                         size="sm" 
-                        className="flex-1"
                         onClick={() => handleLoadDraft(draft)}
                       >
                         <Edit3 className="h-4 w-4 mr-1" />
@@ -736,11 +752,11 @@ const Dashboard = () => {
 
               {/* Render regular portfolios */}
               {portfolios.map((portfolio) => (
-                <Card key={portfolio.id} className="shadow-medium border-0 hover:shadow-large transition-shadow">
+                <Card key={portfolio.id} className="shadow-sm border border-[#06070A]/10 bg-[#FFFEEA] hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg truncate">{portfolio.name}</CardTitle>
-                      <Badge className={getStatusColor(portfolio.status)}>
+                      <CardTitle className="text-lg font-light truncate text-[#06070A]">{portfolio.name}</CardTitle>
+                      <Badge className={getStatusColor(portfolio.status) + " font-light"}>
                         <span className="flex items-center space-x-1">
                           {getStatusIcon(portfolio.status)}
                           <span className="capitalize">{portfolio.status}</span>
@@ -751,7 +767,7 @@ const Dashboard = () => {
                   
                   <CardContent className="space-y-4">
                     {/* Portfolio Preview/Thumbnail */}
-                    <div className="aspect-video bg-gradient-accent/10 rounded-lg flex items-center justify-center">
+                    <div className="aspect-video bg-[#06070A]/10 rounded-lg flex items-center justify-center">
                       {portfolio.thumbnail ? (
                         <img 
                           src={portfolio.thumbnail} 
@@ -760,19 +776,19 @@ const Dashboard = () => {
                         />
                       ) : (
                         <div className="text-center">
-                          <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-xs text-muted-foreground">Portfolio Preview</p>
+                          <FileText className="h-8 w-8 text-[#06070A]/50 mx-auto mb-2" />
+                          <p className="text-xs text-[#06070A]/50 font-light">Portfolio Preview</p>
                         </div>
                       )}
                     </div>
 
                     {/* Portfolio Info */}
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center text-muted-foreground">
+                    <div className="space-y-2 text-sm font-light">
+                      <div className="flex items-center text-[#06070A]/50">
                         <Calendar className="h-4 w-4 mr-2" />
                         Created {new Date(portfolio.createdAt).toLocaleDateString()}
                       </div>
-                      <div className="flex items-center text-muted-foreground">
+                      <div className="flex items-center text-[#06070A]/50">
                         <FileText className="h-4 w-4 mr-2" />
                         Modified {new Date(portfolio.lastModified).toLocaleDateString()}
                       </div>
@@ -782,9 +798,8 @@ const Dashboard = () => {
                     <div className="flex space-x-2">
                       {portfolio.status === 'deployed' && portfolio.deployUrl ? (
                         <Button 
-                          variant="default" 
+                          className="flex-1 bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                           size="sm" 
-                          className="flex-1"
                           onClick={() => window.open(portfolio.deployUrl, '_blank')}
                         >
                           <ExternalLink className="h-4 w-4 mr-1" />
@@ -792,9 +807,8 @@ const Dashboard = () => {
                         </Button>
                       ) : (
                         <Button 
-                          variant="default" 
+                          className="flex-1 bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                           size="sm" 
-                          className="flex-1"
                           onClick={() => navigate('/preview', { 
                             state: { portfolioId: portfolio.id } 
                           })}
@@ -804,7 +818,11 @@ const Dashboard = () => {
                         </Button>
                       )}
                       
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="border-[#06070A]/20 text-[#06070A] hover:bg-[#06070A] hover:text-[#FFFEEA] font-light"
+                      >
                         <Download className="h-4 w-4" />
                       </Button>
                     </div>
@@ -813,34 +831,35 @@ const Dashboard = () => {
               ))}
             </div>
           )}
-
+          
           {/* Project Selection Modal */}
           <Dialog open={showProjectSelector} onOpenChange={setShowProjectSelector}>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-[#FFFEEA] border border-[#06070A]/10">
               <DialogHeader>
-                <DialogTitle>Select Projects for Your Portfolio</DialogTitle>
-                <p className="text-sm text-muted-foreground">
+                <DialogTitle className="text-[#06070A] font-light">Select Projects for Your Portfolio</DialogTitle>
+                <p className="text-sm text-[#06070A]/60 font-light">
                   Choose which projects you'd like to showcase in your new portfolio
                 </p>
               </DialogHeader>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                 {projects.map((project) => (
-                  <div key={project.id} className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/5">
+                  <div key={project.id} className="flex items-start space-x-3 p-4 border border-[#06070A]/10 rounded-lg hover:bg-[#06070A]/5 bg-[#FFFEEA]">
                     <Checkbox
                       checked={selectedProjects.includes(project.id!)}
                       onCheckedChange={(checked) => handleProjectSelection(project.id!, checked as boolean)}
+                      className="border-[#06070A]/30 data-[state=checked]:bg-[#06070A] data-[state=checked]:border-[#06070A]"
                     />
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{project.title}</h4>
-                      <p className="text-sm text-muted-foreground truncate">{project.subtitle}</p>
+                      <h4 className="font-light text-[#06070A] truncate">{project.title}</h4>
+                      <p className="text-sm text-[#06070A]/60 font-light truncate">{project.subtitle}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
-                        <Badge variant="outline" className="text-xs">{project.category || project.customCategory}</Badge>
+                        <Badge variant="outline" className="text-xs border-[#06070A]/20 text-[#06070A] font-light">{project.category || project.customCategory}</Badge>
                         {project.tags.slice(0, 2).map((tag, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
+                          <Badge key={idx} variant="secondary" className="text-xs bg-[#06070A]/10 text-[#06070A] font-light">{tag}</Badge>
                         ))}
                         {project.tags.length > 2 && (
-                          <Badge variant="secondary" className="text-xs">+{project.tags.length - 2}</Badge>
+                          <Badge variant="secondary" className="text-xs bg-[#06070A]/10 text-[#06070A] font-light">+{project.tags.length - 2}</Badge>
                         )}
                       </div>
                     </div>
@@ -849,13 +868,17 @@ const Dashboard = () => {
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowProjectSelector(false)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowProjectSelector(false)}
+                  className="border-[#06070A]/20 text-[#06070A] hover:bg-[#06070A] hover:text-[#FFFEEA] font-light"
+                >
                   Cancel
                 </Button>
                 <Button 
                   onClick={handleProceedToPortfolioBuilder} 
                   disabled={selectedProjects.length === 0}
-                  variant="build"
+                  className="bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                 >
                   Continue with {selectedProjects.length} Project{selectedProjects.length !== 1 ? 's' : ''}
                 </Button>
@@ -865,10 +888,10 @@ const Dashboard = () => {
 
           {/* Draft Preview Modal */}
           <Dialog open={!!previewDraft} onOpenChange={(open) => !open && setPreviewDraft(null)}>
-            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+            <DialogContent className="max-w-4xl h-[80vh] flex flex-col bg-[#FFFEEA] border border-[#06070A]/10">
               <DialogHeader>
-                <DialogTitle>Preview: {previewDraft?.name}</DialogTitle>
-                <p className="text-sm text-muted-foreground">
+                <DialogTitle className="text-[#06070A] font-light">Preview: {previewDraft?.name}</DialogTitle>
+                <p className="text-sm text-[#06070A]/60 font-light">
                   This is a preview of your draft portfolio
                 </p>
               </DialogHeader>
@@ -876,24 +899,28 @@ const Dashboard = () => {
                 {previewDraft && (
                   <iframe 
                     srcDoc={previewDraft.htmlContent}
-                    className="w-full h-full border rounded-lg"
+                    className="w-full h-full border border-[#06070A]/10 rounded-lg"
                     sandbox="allow-same-origin"
                     title="Draft Preview"
                   />
                 )}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setPreviewDraft(null)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPreviewDraft(null)}
+                  className="border-[#06070A]/20 text-[#06070A] hover:bg-[#06070A] hover:text-[#FFFEEA] font-light"
+                >
                   Close
                 </Button>
                 <Button 
-                  variant="build"
                   onClick={() => {
                     if (previewDraft) {
                       handleLoadDraft(previewDraft);
                       setPreviewDraft(null);
                     }
                   }}
+                  className="bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
                   Continue Editing
@@ -903,18 +930,18 @@ const Dashboard = () => {
           </Dialog>
 
           {/* Recent Activity Section */}
-          <Card className="shadow-medium border-0 mt-8">
+          <Card className="shadow-sm border border-[#06070A]/10 mt-8 bg-[#FFFEEA]">
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
+              <CardTitle className="text-[#06070A] font-light">Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {(portfolios.length > 0 || drafts.length > 0) && (
                   <>
-                    <div className="flex items-center text-sm">
-                      <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <div className="flex items-center text-sm font-light text-[#06070A]">
+                      <Calendar className="h-4 w-4 mr-2 text-[#06070A]/50" />
                       <span>
-                        Last modified: <strong>{
+                        Last modified: <strong className="font-normal">{
                           drafts.length > 0 && portfolios.length > 0 
                             ? new Date(drafts[0].lastModified) > new Date(portfolios[0].lastModified)
                               ? `Draft "${drafts[0].name}"`
@@ -936,10 +963,10 @@ const Dashboard = () => {
                   </>
                 )}
                 {projects.length > 0 && (
-                  <div className="flex items-center text-sm">
-                    <FolderOpen className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <div className="flex items-center text-sm font-light text-[#06070A]">
+                    <FolderOpen className="h-4 w-4 mr-2 text-[#06070A]/50" />
                     <span>
-                      Latest project: <strong>{projects[0].title}</strong> on {new Date(projects[0].createdAt || '').toLocaleDateString()}
+                      Latest project: <strong className="font-normal">{projects[0].title}</strong> on {new Date(projects[0].createdAt || '').toLocaleDateString()}
                     </span>
                   </div>
                 )}
@@ -949,14 +976,14 @@ const Dashboard = () => {
 
           {/* User Tags Section */}
           {userTags.length > 0 && (
-            <Card className="shadow-medium border-0 mt-8">
+            <Card className="shadow-sm border border-[#06070A]/10 mt-8 bg-[#FFFEEA]">
               <CardHeader>
-                <CardTitle>Your Portfolio Tags</CardTitle>
+                <CardTitle className="text-[#06070A] font-light">Your Portfolio Tags</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {userTags.map(tag => (
-                    <Badge key={tag} variant="outline">
+                    <Badge key={tag} variant="outline" className="border-[#06070A]/20 text-[#06070A] font-light">
                       {tag}
                     </Badge>
                   ))}
@@ -967,15 +994,15 @@ const Dashboard = () => {
 
           {/* Pro Features Teaser - Only show for Free tier */}
           {tier === 'Free' && (
-            <Card className="shadow-medium border-0 mt-8 bg-gradient-to-r from-purple-50 to-blue-50">
+            <Card className="shadow-sm border border-[#06070A]/10 mt-8 bg-gradient-to-r from-[#06070A]/5 to-[#06070A]/10">
               <CardContent className="p-6">
                 <div className="text-center space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-900">Ready for More?</h3>
-                  <p className="text-gray-600 max-w-2xl mx-auto">
+                  <h3 className="text-xl font-light text-[#06070A]">Ready for More?</h3>
+                  <p className="text-[#06070A]/60 max-w-2xl mx-auto font-light">
                     Upgrade to Pro for unlimited portfolios, advanced editing, custom domains, analytics, and priority AI generation.
                   </p>
                   <Button 
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    className="bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                     onClick={() => navigate('/pro-waitlist')}
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
@@ -988,9 +1015,9 @@ const Dashboard = () => {
 
           {/* Upgrade Modal */}
           <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md bg-[#FFFEEA] border border-[#06070A]/10">
               <DialogHeader>
-                <DialogTitle className="flex items-center">
+                <DialogTitle className="flex items-center text-[#06070A] font-light">
                   <Crown className="h-6 w-6 mr-2 text-yellow-500" />
                   Upgrade to Pro
                 </DialogTitle>
@@ -1000,12 +1027,12 @@ const Dashboard = () => {
                 <div className="flex items-center space-x-3 p-4 bg-red-50 rounded-lg border border-red-200">
                   <AlertTriangle className="h-8 w-8 text-red-600 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-red-800">
+                    <h3 className="font-light text-red-800">
                       {upgradeReason === 'projects' && 'Project Limit Reached'}
                       {upgradeReason === 'portfolios' && 'Portfolio Limit Reached'}
                       {upgradeReason === 'drafts' && 'Draft Limit Reached'}
                     </h3>
-                    <p className="text-sm text-red-600">
+                    <p className="text-sm text-red-600 font-light">
                       {upgradeReason === 'projects' && `Free users can only have ${TIER_LIMITS.Free.maxProjects} projects. Upgrade to Pro for unlimited projects.`}
                       {upgradeReason === 'portfolios' && `Free users can only have ${TIER_LIMITS.Free.maxPortfolios} portfolio. Upgrade to Pro for unlimited portfolios.`}
                       {upgradeReason === 'drafts' && `Free users can only have ${TIER_LIMITS.Free.maxDrafts} draft. Upgrade to Pro for unlimited drafts.`}
@@ -1014,8 +1041,8 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="font-semibold">Pro Plan Includes:</h4>
-                  <ul className="space-y-2 text-sm">
+                  <h4 className="font-light text-[#06070A]">Pro Plan Includes:</h4>
+                  <ul className="space-y-2 text-sm font-light text-[#06070A]">
                     <li className="flex items-center">
                       <Sparkles className="h-4 w-4 mr-2 text-green-600" />
                       Unlimited projects and portfolios
@@ -1037,7 +1064,11 @@ const Dashboard = () => {
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="border-[#06070A]/20 text-[#06070A] hover:bg-[#06070A] hover:text-[#FFFEEA] font-light"
+                >
                   Cancel
                 </Button>
                 <Button 
@@ -1045,7 +1076,7 @@ const Dashboard = () => {
                     setShowUpgradeModal(false);
                     navigate('/pro-waitlist');
                   }}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  className="bg-[#06070A] hover:bg-[#06070A]/90 text-[#FFFEEA] font-light border-0"
                 >
                   <Crown className="h-4 w-4 mr-2" />
                   Upgrade to Pro

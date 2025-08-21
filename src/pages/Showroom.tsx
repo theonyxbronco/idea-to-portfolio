@@ -15,7 +15,9 @@ import {
   Calendar,
   Tag,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  Globe
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { API_BASE_URL } from '@/services/api';
@@ -67,25 +69,6 @@ const Showroom = () => {
       setIsLoading(true);
       setError(null);
 
-      // This would be your API call to get deployed portfolios
-      // For now, I'll create a mock API call structure
-      const response = await fetch(`${import.meta.env.VITE_API_URL || API_BASE_URL}/api/get-showroom-portfolios`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load portfolios: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setPortfolios(result.data || []);
-      } else {
-        throw new Error(result.error || 'Failed to load portfolios');
-      }
-    } catch (err) {
-      console.error('Error loading portfolios:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load portfolios');
-      
       // Mock data for development/demo purposes
       const mockPortfolios: Portfolio[] = [
         {
@@ -182,89 +165,6 @@ const Showroom = () => {
               finalImagesCount: 5
             }
           ]
-        },
-        {
-          id: '4',
-          personName: 'James Wilson',
-          title: 'Graphic Designer',
-          email: 'james@example.com',
-          instagram: '@jameswilsonart',
-          bio: 'Freelance graphic designer with a passion for bold, impactful visual communication.',
-          portfolioUrl: 'https://james-wilson-graphics.netlify.app',
-          deployedAt: '2025-01-20T16:10:00Z',
-          skills: ['Adobe Creative Suite', 'Print Design', 'Digital Art', 'Illustration'],
-          projects: [
-            {
-              id: 'p6',
-              title: 'Music Festival Branding',
-              subtitle: 'Visual identity for summer festival',
-              overview: 'Complete visual identity and promotional materials for a 3-day music festival.',
-              category: 'Event Branding',
-              tags: ['Music', 'Festival', 'Poster Design', 'Social Media'],
-              createdAt: '2025-01-18T00:00:00Z',
-              processImagesCount: 18,
-              finalImagesCount: 7
-            }
-          ]
-        },
-        {
-          id: '5',
-          personName: 'Aisha Patel',
-          title: 'Web Designer',
-          email: 'aisha@example.com',
-          linkedin: 'linkedin.com/in/aishapatel',
-          bio: 'Full-stack designer who bridges the gap between design and development.',
-          portfolioUrl: 'https://aisha-patel-web.netlify.app',
-          deployedAt: '2025-01-22T11:30:00Z',
-          skills: ['Web Design', 'Frontend Development', 'React', 'CSS Animation'],
-          projects: [
-            {
-              id: 'p7',
-              title: 'SaaS Landing Page',
-              subtitle: 'Conversion-optimized design',
-              overview: 'High-converting landing page design for a B2B SaaS platform with focus on user onboarding.',
-              category: 'Web Design',
-              tags: ['SaaS', 'Landing Page', 'Conversion Optimization'],
-              createdAt: '2025-01-20T00:00:00Z',
-              processImagesCount: 12,
-              finalImagesCount: 4
-            },
-            {
-              id: 'p8',
-              title: 'Interactive Portfolio',
-              subtitle: 'Creative developer showcase',
-              overview: 'Interactive portfolio website with custom animations and micro-interactions.',
-              category: 'Interactive Design',
-              tags: ['Interactive', 'Animation', 'Portfolio', 'JavaScript'],
-              createdAt: '2025-01-17T00:00:00Z',
-              processImagesCount: 14,
-              finalImagesCount: 6
-            }
-          ]
-        },
-        {
-          id: '6',
-          personName: 'David Kim',
-          title: 'Motion Designer',
-          email: 'david@example.com',
-          instagram: '@davidkimmotion',
-          bio: 'Motion graphics designer creating engaging animations for digital and broadcast media.',
-          portfolioUrl: 'https://david-kim-motion.netlify.app',
-          deployedAt: '2025-01-25T13:45:00Z',
-          skills: ['After Effects', '3D Animation', 'Cinema 4D', 'Motion Graphics'],
-          projects: [
-            {
-              id: 'p9',
-              title: 'Brand Animation Series',
-              subtitle: 'Animated logo transitions',
-              overview: 'Series of animated logo transitions and brand elements for various client projects.',
-              category: 'Motion Graphics',
-              tags: ['Animation', 'Branding', 'Logo Animation'],
-              createdAt: '2025-01-22T00:00:00Z',
-              processImagesCount: 25,
-              finalImagesCount: 10
-            }
-          ]
         }
       ];
       setPortfolios(mockPortfolios);
@@ -274,6 +174,13 @@ const Showroom = () => {
       const uniqueTags = [...new Set(mockPortfolios.flatMap(p => p.projects.flatMap(pr => pr.tags)))].sort();
       setAllSkills(uniqueSkills);
       setAllTags(uniqueTags);
+    } catch (err) {
+      console.error('Error loading portfolios:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load portfolios');
+      toast({
+        title: "Demo Mode",
+        description: "Using sample portfolio data for demonstration",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -337,26 +244,26 @@ const Showroom = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[#FFFEEA] dark:bg-[#06070A] flex items-center justify-center transition-colors duration-500">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading portfolio showroom...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-[#06070A] dark:text-[#FFFEEA] mx-auto mb-4" />
+          <p className="text-[#06070A]/60 dark:text-[#FFFEEA]/60">Loading portfolio showroom...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pt-16">
+    <div className="min-h-screen bg-[#FFFEEA] dark:bg-[#06070A] pt-20 transition-colors duration-500">
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-4">
+            <h1 className="text-4xl md:text-5xl font-light mb-4 text-[#06070A] dark:text-[#FFFEEA]" style={{ fontFamily: 'Waldenburg, system-ui, sans-serif' }}>
               Portfolio Showroom
             </h1>
-            <p className="text-xl text-muted-foreground mb-6">
-              Discover amazing portfolios created with Moodi AI
+            <p className="text-xl text-[#06070A]/60 dark:text-[#FFFEEA]/60 mb-6 font-light">
+              Discover amazing portfolios created with Prism AI
             </p>
             
             {error && (
@@ -370,7 +277,7 @@ const Showroom = () => {
               </div>
             )}
 
-            <div className="flex justify-center space-x-8 text-sm text-muted-foreground">
+            <div className="flex justify-center space-x-8 text-sm text-[#06070A]/60 dark:text-[#FFFEEA]/60">
               <div className="flex items-center">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                 <span>{filteredPortfolios.length} Live Portfolios</span>
@@ -390,12 +297,12 @@ const Showroom = () => {
                 variant={showSkillsFilter ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowSkillsFilter(!showSkillsFilter)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 rounded-full font-light"
               >
                 <User className="h-4 w-4" />
                 Filter by Skills
                 {selectedSkills.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 px-1 py-0 text-xs min-w-[20px] h-5">
+                  <Badge className="ml-1 px-1 py-0 text-xs min-w-[20px] h-5 bg-[#06070A] dark:bg-[#FFFEEA] text-[#FFFEEA] dark:text-[#06070A] border-0">
                     {selectedSkills.length}
                   </Badge>
                 )}
@@ -405,12 +312,12 @@ const Showroom = () => {
                 variant={showTagsFilter ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowTagsFilter(!showTagsFilter)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 rounded-full font-light"
               >
                 <Tag className="h-4 w-4" />
                 Filter by Project Tags
                 {selectedTags.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 px-1 py-0 text-xs min-w-[20px] h-5">
+                  <Badge className="ml-1 px-1 py-0 text-xs min-w-[20px] h-5 bg-[#06070A] dark:bg-[#FFFEEA] text-[#FFFEEA] dark:text-[#06070A] border-0">
                     {selectedTags.length}
                   </Badge>
                 )}
@@ -421,7 +328,7 @@ const Showroom = () => {
                   variant="ghost" 
                   size="sm" 
                   onClick={clearAllFilters}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-[#06070A]/60 dark:text-[#FFFEEA]/60 hover:text-[#06070A] dark:hover:text-[#FFFEEA] rounded-full font-light"
                 >
                   Clear All Filters
                 </Button>
@@ -432,22 +339,20 @@ const Showroom = () => {
             <div className="space-y-4">
               {/* Skills Filter */}
               {showSkillsFilter && (
-                <div className="border border-border rounded-lg p-4 bg-card">
-                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center">
+                <div className="border border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl p-4 bg-white dark:bg-[#FFFEEA]/5">
+                  <h3 className="text-sm font-light text-[#06070A] dark:text-[#FFFEEA] mb-3 flex items-center">
                     <User className="h-4 w-4 mr-2" />
                     Skills & Expertise
                   </h3>
-                  <div 
-                    className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-muted/30 rounded border-2 border-dashed border-border"
-                  >
+                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-[#06070A]/5 dark:bg-[#FFFEEA]/5 rounded border-2 border-dashed border-[#06070A]/10 dark:border-[#FFFEEA]/10">
                     {allSkills.map((skill) => (
                       <Badge
                         key={skill}
                         variant={selectedSkills.includes(skill) ? "default" : "outline"}
-                        className={`cursor-pointer transition-all hover:scale-105 ${
+                        className={`cursor-pointer transition-all hover:scale-105 font-light text-xs ${
                           selectedSkills.includes(skill) 
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
-                            : 'hover:bg-secondary'
+                            ? 'bg-[#06070A] dark:bg-[#FFFEEA] text-[#FFFEEA] dark:text-[#06070A] hover:bg-[#06070A]/90 dark:hover:bg-[#FFFEEA]/90' 
+                            : 'hover:bg-[#06070A]/10 dark:hover:bg-[#FFFEEA]/10'
                         }`}
                         onClick={() => handleSkillToggle(skill)}
                       >
@@ -460,22 +365,20 @@ const Showroom = () => {
 
               {/* Tags Filter */}
               {showTagsFilter && (
-                <div className="border border-border rounded-lg p-4 bg-card">
-                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center">
+                <div className="border border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl p-4 bg-white dark:bg-[#FFFEEA]/5">
+                  <h3 className="text-sm font-light text-[#06070A] dark:text-[#FFFEEA] mb-3 flex items-center">
                     <Tag className="h-4 w-4 mr-2" />
                     Project Tags
                   </h3>
-                  <div 
-                    className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-muted/30 rounded border-2 border-dashed border-border"
-                  >
+                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-[#06070A]/5 dark:bg-[#FFFEEA]/5 rounded border-2 border-dashed border-[#06070A]/10 dark:border-[#FFFEEA]/10">
                     {allTags.map((tag) => (
                       <Badge
                         key={tag}
                         variant={selectedTags.includes(tag) ? "default" : "outline"}
-                        className={`cursor-pointer transition-all hover:scale-105 ${
+                        className={`cursor-pointer transition-all hover:scale-105 font-light text-xs ${
                           selectedTags.includes(tag) 
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
-                            : 'hover:bg-secondary'
+                            ? 'bg-[#06070A] dark:bg-[#FFFEEA] text-[#FFFEEA] dark:text-[#06070A] hover:bg-[#06070A]/90 dark:hover:bg-[#FFFEEA]/90' 
+                            : 'hover:bg-[#06070A]/10 dark:hover:bg-[#FFFEEA]/10'
                         }`}
                         onClick={() => handleTagToggle(tag)}
                       >
@@ -494,22 +397,13 @@ const Showroom = () => {
               filteredPortfolios.map((portfolio) => (
               <Card 
                 key={portfolio.id} 
-                className="group relative overflow-hidden border-0 shadow-medium hover:shadow-large transition-all duration-300 hover:transform hover:scale-[1.02]"
+                className="group relative overflow-hidden border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl bg-white dark:bg-[#FFFEEA]/5 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
               >
                 {/* Portfolio Preview - Main Content */}
-                <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-lg overflow-hidden">
-                  <iframe
-                    src={portfolio.portfolioUrl}
-                    className="w-full h-full border-0 pointer-events-none scale-[0.3] origin-top-left transform translate-x-0 translate-y-0"
-                    style={{ 
-                      width: '300%', 
-                      height: '300%',
-                      transform: 'scale(0.33) translate(-50%, -50%)',
-                      transformOrigin: 'top left'
-                    }}
-                    title={`${portfolio.personName} Portfolio Preview`}
-                    sandbox="allow-same-origin"
-                  />
+                <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl overflow-hidden">
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                    <Globe className="h-12 w-12 text-gray-400" />
+                  </div>
                   
                   {/* Overlay with actions */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -517,7 +411,7 @@ const Showroom = () => {
                       <Button
                         onClick={() => handleVisitPortfolio(portfolio.portfolioUrl)}
                         size="sm"
-                        className="bg-white/90 text-black hover:bg-white"
+                        className="bg-white/90 text-[#06070A] hover:bg-white rounded-full font-light"
                       >
                         <ExternalLink className="h-4 w-4 mr-1" />
                         Visit
@@ -526,7 +420,7 @@ const Showroom = () => {
                         onClick={() => handleViewInfo(portfolio)}
                         size="sm"
                         variant="outline"
-                        className="bg-white/90 hover:bg-white border-white/50"
+                        className="bg-white/90 hover:bg-white border-white/50 text-[#06070A] rounded-full font-light"
                       >
                         <Info className="h-4 w-4 mr-1" />
                         Info
@@ -547,24 +441,24 @@ const Showroom = () => {
                 <CardContent className="p-6">
                   <div className="space-y-3">
                     <div>
-                      <h3 className="font-bold text-lg text-foreground">{portfolio.personName}</h3>
-                      <p className="text-muted-foreground">{portfolio.title}</p>
+                      <h3 className="font-light text-lg text-[#06070A] dark:text-[#FFFEEA]">{portfolio.personName}</h3>
+                      <p className="text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">{portfolio.title}</p>
                     </div>
                     
                     <div className="flex flex-wrap gap-1">
                       {portfolio.skills.slice(0, 3).map((skill, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
+                        <Badge key={idx} variant="secondary" className="text-xs font-light bg-[#06070A]/10 dark:bg-[#FFFEEA]/10 text-[#06070A] dark:text-[#FFFEEA] border-0">
                           {skill}
                         </Badge>
                       ))}
                       {portfolio.skills.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs font-light bg-[#06070A]/10 dark:bg-[#FFFEEA]/10 text-[#06070A] dark:text-[#FFFEEA] border-0">
                           +{portfolio.skills.length - 3}
                         </Badge>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="flex items-center justify-between text-sm text-[#06070A]/60 dark:text-[#FFFEEA]/60">
                       <div className="flex items-center">
                         <FolderOpen className="h-4 w-4 mr-1" />
                         <span>{portfolio.projects.length} project{portfolio.projects.length !== 1 ? 's' : ''}</span>
@@ -580,11 +474,11 @@ const Showroom = () => {
             ))
             ) : (
               <div className="col-span-full text-center py-12">
-                <div className="text-muted-foreground">
+                <div className="text-[#06070A]/60 dark:text-[#FFFEEA]/60">
                   <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium mb-2">No portfolios match your filters</h3>
-                  <p className="text-sm mb-4">Try adjusting your filter criteria or clear all filters to see all portfolios.</p>
-                  <Button variant="outline" onClick={clearAllFilters}>
+                  <h3 className="text-lg font-light mb-2">No portfolios match your filters</h3>
+                  <p className="text-sm mb-4 font-light">Try adjusting your filter criteria or clear all filters to see all portfolios.</p>
+                  <Button variant="outline" onClick={clearAllFilters} className="rounded-full font-light">
                     Clear All Filters
                   </Button>
                 </div>
@@ -594,15 +488,15 @@ const Showroom = () => {
 
           {/* Info Dialog */}
           <Dialog open={!!selectedPortfolio} onOpenChange={() => setSelectedPortfolio(null)}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-[#06070A] border-[#06070A]/10 dark:border-[#FFFEEA]/20 rounded-xl">
               {selectedPortfolio && (
                 <>
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl flex items-center">
+                  <DialogHeader className="border-b border-[#06070A]/10 dark:border-[#FFFEEA]/20 pb-4">
+                    <DialogTitle className="text-2xl flex items-center font-light text-[#06070A] dark:text-[#FFFEEA]">
                       <User className="h-6 w-6 mr-3" />
                       {selectedPortfolio.personName}
                     </DialogTitle>
-                    <DialogDescription className="text-lg">
+                    <DialogDescription className="text-lg text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">
                       {selectedPortfolio.title}
                     </DialogDescription>
                   </DialogHeader>
@@ -611,30 +505,30 @@ const Showroom = () => {
                        style={{ maxHeight: 'calc(90vh - 120px)' }}>
                     {/* Personal Info */}
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold border-b border-border pb-2">
+                      <h3 className="text-lg font-light border-b border-[#06070A]/10 dark:border-[#FFFEEA]/20 pb-2 text-[#06070A] dark:text-[#FFFEEA]">
                         Personal Information
                       </h3>
                       
                       {selectedPortfolio.bio && (
-                        <p className="text-muted-foreground">{selectedPortfolio.bio}</p>
+                        <p className="text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">{selectedPortfolio.bio}</p>
                       )}
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex items-center space-x-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{selectedPortfolio.email}</span>
+                          <Mail className="h-4 w-4 text-[#06070A]/60 dark:text-[#FFFEEA]/60" />
+                          <span className="text-sm text-[#06070A] dark:text-[#FFFEEA]">{selectedPortfolio.email}</span>
                         </div>
                         
                         {selectedPortfolio.phone && (
                           <div className="flex items-center space-x-2">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{selectedPortfolio.phone}</span>
+                            <Phone className="h-4 w-4 text-[#06070A]/60 dark:text-[#FFFEEA]/60" />
+                            <span className="text-sm text-[#06070A] dark:text-[#FFFEEA]">{selectedPortfolio.phone}</span>
                           </div>
                         )}
                         
                         {selectedPortfolio.linkedin && (
                           <div className="flex items-center space-x-2">
-                            <Linkedin className="h-4 w-4 text-muted-foreground" />
+                            <Linkedin className="h-4 w-4 text-[#06070A]/60 dark:text-[#FFFEEA]/60" />
                             <a 
                               href={`https://${selectedPortfolio.linkedin}`} 
                               target="_blank" 
@@ -648,7 +542,7 @@ const Showroom = () => {
                         
                         {selectedPortfolio.instagram && (
                           <div className="flex items-center space-x-2">
-                            <Instagram className="h-4 w-4 text-muted-foreground" />
+                            <Instagram className="h-4 w-4 text-[#06070A]/60 dark:text-[#FFFEEA]/60" />
                             <a 
                               href={`https://instagram.com/${selectedPortfolio.instagram.replace('@', '')}`}
                               target="_blank" 
@@ -663,10 +557,10 @@ const Showroom = () => {
 
                       {/* Skills */}
                       <div>
-                        <h4 className="font-medium mb-2">Skills & Expertise</h4>
+                        <h4 className="font-light mb-2 text-[#06070A] dark:text-[#FFFEEA]">Skills & Expertise</h4>
                         <div className="flex flex-wrap gap-2">
                           {selectedPortfolio.skills.map((skill, idx) => (
-                            <Badge key={idx} variant="secondary">
+                            <Badge key={idx} variant="secondary" className="font-light bg-[#06070A]/10 dark:bg-[#FFFEEA]/10 text-[#06070A] dark:text-[#FFFEEA] border-0">
                               {skill}
                             </Badge>
                           ))}
@@ -676,28 +570,28 @@ const Showroom = () => {
 
                     {/* Projects */}
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold border-b border-border pb-2">
+                      <h3 className="text-lg font-light border-b border-[#06070A]/10 dark:border-[#FFFEEA]/20 pb-2 text-[#06070A] dark:text-[#FFFEEA]">
                         Portfolio Projects ({selectedPortfolio.projects.length})
                       </h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {selectedPortfolio.projects.map((project) => (
-                          <Card key={project.id} className="border border-border">
+                          <Card key={project.id} className="border border-[#06070A]/10 dark:border-[#FFFEEA]/20 bg-white dark:bg-[#FFFEEA]/5">
                             <CardContent className="p-4">
                               <div className="space-y-3">
                                 <div>
-                                  <h4 className="font-semibold">{project.title}</h4>
+                                  <h4 className="font-light text-[#06070A] dark:text-[#FFFEEA]">{project.title}</h4>
                                   {project.subtitle && (
-                                    <p className="text-sm text-muted-foreground">{project.subtitle}</p>
+                                    <p className="text-sm text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">{project.subtitle}</p>
                                   )}
                                 </div>
                                 
                                 {project.overview && (
-                                  <p className="text-sm">{project.overview}</p>
+                                  <p className="text-sm text-[#06070A]/60 dark:text-[#FFFEEA]/60 font-light">{project.overview}</p>
                                 )}
                                 
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                  <Badge variant="outline" className="text-xs">
+                                <div className="flex items-center justify-between text-xs text-[#06070A]/60 dark:text-[#FFFEEA]/60">
+                                  <Badge variant="outline" className="text-xs font-light bg-[#06070A]/10 dark:bg-[#FFFEEA]/10 text-[#06070A] dark:text-[#FFFEEA] border-0">
                                     {project.category}
                                   </Badge>
                                   <div className="flex items-center space-x-3">
@@ -708,7 +602,7 @@ const Showroom = () => {
                                 
                                 <div className="flex flex-wrap gap-1">
                                   {project.tags.map((tag, idx) => (
-                                    <Badge key={idx} variant="secondary" className="text-xs">
+                                    <Badge key={idx} variant="secondary" className="text-xs font-light bg-[#06070A]/10 dark:bg-[#FFFEEA]/10 text-[#06070A] dark:text-[#FFFEEA] border-0">
                                       {tag}
                                     </Badge>
                                   ))}
@@ -721,11 +615,11 @@ const Showroom = () => {
                     </div>
 
                     {/* Portfolio Link */}
-                    <div className="flex justify-center pt-4 border-t border-border">
+                    <div className="flex justify-center pt-4 border-t border-[#06070A]/10 dark:border-[#FFFEEA]/20">
                       <Button
                         onClick={() => handleVisitPortfolio(selectedPortfolio.portfolioUrl)}
                         size="lg"
-                        className="px-8"
+                        className="px-8 rounded-full font-light bg-[#06070A] dark:bg-[#FFFEEA] text-[#FFFEEA] dark:text-[#06070A] hover:scale-105 transition-all"
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Visit Live Portfolio
@@ -738,14 +632,14 @@ const Showroom = () => {
           </Dialog>
 
           {/* Footer Call to Action */}
-          <div className="text-center mt-16 py-12 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <div className="text-center mt-16 py-12 bg-[#06070A] dark:bg-[#FFFEEA] rounded-2xl">
+            <h2 className="text-2xl font-light mb-4 text-[#FFFEEA] dark:text-[#06070A]" style={{ fontFamily: 'Waldenburg, system-ui, sans-serif' }}>
               Ready to Create Your Own Portfolio?
             </h2>
-            <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+            <p className="text-[#FFFEEA]/60 dark:text-[#06070A]/60 mb-6 max-w-2xl mx-auto font-light">
               Join these talented creatives and showcase your work with an AI-generated portfolio in minutes.
             </p>
-            <Button size="lg" className="px-8 py-3">
+            <Button size="lg" className="px-8 py-3 rounded-full font-light bg-[#FFFEEA] dark:bg-[#06070A] text-[#06070A] dark:text-[#FFFEEA] hover:scale-105 transition-all">
               Start Creating Now
             </Button>
           </div>

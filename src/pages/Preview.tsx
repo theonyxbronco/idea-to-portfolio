@@ -9,7 +9,8 @@ import {
   ArrowLeft, Rocket, Eye, Edit3, Check, X, 
   Smartphone, Tablet, Monitor, Crown, Lock, Lightbulb,
   Type, Palette, Layout, Zap, AlertCircle, Save,
-  Sparkles, ChevronRight, ExternalLink, Undo2, FileArchive
+  Sparkles, ChevronRight, ExternalLink, Undo2, FileArchive,
+  User, Target, Calendar, FolderOpen, Star, Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -146,110 +147,128 @@ const Preview = () => {
   // Paywall Modal Component
   const PaywallModal = () => (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Crown className="h-5 w-5 mr-2 text-yellow-500" />
-            Upgrade Required
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="bg-[#FFFEEA] rounded-xl p-8 w-full max-w-lg border border-[#06070A]/10 shadow-xl">
+        <div className="space-y-6">
+          <div className="flex items-center space-x-3">
+            <Crown className="h-6 w-6 text-yellow-500" />
+            <h2 className="text-2xl font-light text-[#06070A]">Upgrade Required</h2>
+          </div>
+          
           {userLimits?.tier === 'Free' ? (
             <>
-              <div className="text-center p-4 bg-red-50 rounded-lg">
-                <Lock className="h-8 w-8 text-red-500 mx-auto mb-2" />
-                <h3 className="font-semibold text-red-900">Deployment Locked</h3>
-                <p className="text-sm text-red-700">
+              <div className="text-center p-6 bg-red-50 rounded-lg border border-red-200">
+                <Lock className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h3 className="font-light text-red-900 text-lg mb-2">Deployment Locked</h3>
+                <p className="text-sm text-red-700 font-light leading-relaxed">
                   Free users cannot deploy portfolios. Upgrade to Student or Pro to make your portfolio live!
                 </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold text-blue-900 mb-2">Student Plan</h4>
-                    <div className="text-sm text-blue-700 space-y-1">
-                      <p>✓ 3 deployments</p>
-                      <p>✓ 20 projects</p>
-                      <p>✓ AI editing</p>
-                      <p>✓ Email support</p>
-                    </div>
-                    <Button className="w-full mt-3 bg-blue-600 hover:bg-blue-700" size="sm">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-light text-blue-900 mb-3">Student Plan</h4>
+                  <div className="text-sm text-blue-700 space-y-2 font-light">
+                    <p>✓ 3 deployments</p>
+                    <p>✓ 20 projects</p>
+                    <p>✓ AI editing</p>
+                    <p>✓ Email support</p>
+                  </div>
+                  <div 
+                    className="group cursor-pointer mt-4"
+                    onClick={() => navigate('/pro-waitlist')}
+                  >
+                    <div className="w-full text-center bg-blue-600 text-white py-2 rounded-lg transition-all duration-200 hover:bg-blue-700 group-hover:scale-105 text-sm font-light">
                       Upgrade to Student
-                    </Button>
-                  </CardContent>
-                </Card>
-                
-                <Card className="border-purple-200 bg-purple-50">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold text-purple-900 mb-2">Pro Plan</h4>
-                    <div className="text-sm text-purple-700 space-y-1">
-                      <p>✓ Unlimited deployments</p>
-                      <p>✓ Unlimited projects</p>
-                      <p>✓ Custom styling</p>
-                      <p>✓ Priority support</p>
                     </div>
-                    <Button className="w-full mt-3 bg-purple-600 hover:bg-purple-700" size="sm">
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <h4 className="font-light text-purple-900 mb-3">Pro Plan</h4>
+                  <div className="text-sm text-purple-700 space-y-2 font-light">
+                    <p>✓ Unlimited deployments</p>
+                    <p>✓ Unlimited projects</p>
+                    <p>✓ Custom styling</p>
+                    <p>✓ Priority support</p>
+                  </div>
+                  <div 
+                    className="group cursor-pointer mt-4"
+                    onClick={() => navigate('/pro-waitlist')}
+                  >
+                    <div className="w-full text-center bg-purple-600 text-white py-2 rounded-lg transition-all duration-200 hover:bg-purple-700 group-hover:scale-105 text-sm font-light">
                       Upgrade to Pro
-                    </Button>
-                  </CardContent>
-                </Card>
+                    </div>
+                  </div>
+                </div>
               </div>
             </>
           ) : (
             <>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <AlertCircle className="h-8 w-8 text-orange-500 mx-auto mb-2" />
-                <h3 className="font-semibold text-orange-900">Deployment Limit Reached</h3>
-                <p className="text-sm text-orange-700">
+              <div className="text-center p-6 bg-orange-50 rounded-lg border border-orange-200">
+                <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+                <h3 className="font-light text-orange-900 text-lg mb-2">Deployment Limit Reached</h3>
+                <p className="text-sm text-orange-700 font-light leading-relaxed">
                   You've used all {TIER_LIMITS[userLimits.tier].maxDeployments} deployments for {userLimits.tier} tier. 
                   Upgrade to Pro for unlimited deployments!
                 </p>
               </div>
               
-              <Card className="border-purple-200 bg-purple-50">
-                <CardContent className="p-4">
-                  <h4 className="font-semibold text-purple-900 mb-2">Pro Plan</h4>
-                  <div className="text-sm text-purple-700 space-y-1">
-                    <p>✓ Unlimited deployments</p>
-                    <p>✓ Unlimited projects</p>
-                    <p>✓ Custom styling</p>
-                    <p>✓ Priority support</p>
-                    <p>✓ Custom domains</p>
-                  </div>
-                  <Button className="w-full mt-3 bg-purple-600 hover:bg-purple-700">
+              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <h4 className="font-light text-purple-900 mb-3">Pro Plan</h4>
+                <div className="text-sm text-purple-700 space-y-2 font-light">
+                  <p>✓ Unlimited deployments</p>
+                  <p>✓ Unlimited projects</p>
+                  <p>✓ Custom styling</p>
+                  <p>✓ Priority support</p>
+                  <p>✓ Custom domains</p>
+                </div>
+                <div 
+                  className="group cursor-pointer mt-4"
+                  onClick={() => navigate('/pro-waitlist')}
+                >
+                  <div className="w-full text-center bg-purple-600 text-white py-2 rounded-lg transition-all duration-200 hover:bg-purple-700 group-hover:scale-105 font-light">
                     Upgrade to Pro
-                  </Button>
-                </CardContent>
-              </Card>
+                  </div>
+                </div>
+              </div>
             </>
           )}
           
-          <div className="flex space-x-2 pt-4">
-            <Button variant="outline" onClick={() => setShowPaywallModal(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button onClick={() => navigate('/pro-waitlist')} className="flex-1">
-              Learn More
-            </Button>
+          <div className="flex space-x-3 pt-4">
+            <div 
+              className="group cursor-pointer flex-1"
+              onClick={() => setShowPaywallModal(false)}
+            >
+              <div className="text-center py-2 border border-[#06070A]/10 rounded-lg transition-all duration-200 hover:bg-[#06070A]/5 group-hover:scale-105 font-light">
+                Cancel
+              </div>
+            </div>
+            <div 
+              className="group cursor-pointer flex-1"
+              onClick={() => navigate('/pro-waitlist')}
+            >
+              <div className="text-center py-2 bg-[#06070A] text-[#FFFEEA] rounded-lg transition-all duration-200 hover:bg-[#06070A]/80 group-hover:scale-105 font-light">
+                Learn More
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 
   // Tier Badge Component
   const TierBadge = ({ tier }: { tier: string }) => {
     const colors = {
-      Free: 'bg-gray-100 text-gray-800',
-      Student: 'bg-blue-100 text-blue-800',
-      Pro: 'bg-purple-100 text-purple-800'
+      Free: 'bg-gray-100 text-gray-800 border-gray-200',
+      Student: 'bg-blue-100 text-blue-800 border-blue-200',
+      Pro: 'bg-purple-100 text-purple-800 border-purple-200'
     };
     
     return (
-      <Badge className={`${colors[tier]} font-medium`}>
+      <div className={`px-3 py-1 rounded-full border text-xs font-light ${colors[tier]}`}>
         {tier} Tier
-      </Badge>
+      </div>
     );
   };
 
@@ -260,26 +279,25 @@ const Preview = () => {
     const limits = TIER_LIMITS[userLimits.tier];
     
     return (
-      <Card className="shadow-medium border-0">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center justify-between">
-            <span className="flex items-center">
-              <Crown className="h-5 w-5 mr-2" />
-              Your Plan
-            </span>
+      <div className="bg-white rounded-xl p-6 border border-[#06070A]/10 shadow-lg">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Crown className="h-5 w-5 text-[#06070A]" />
+              <span className="font-light text-lg text-[#06070A]">Your Plan</span>
+            </div>
             <TierBadge tier={userLimits.tier} />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-4">
+          </div>
+          
           {/* Deployment Status */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-sm">
-              <span>Deployments</span>
-              <span className="font-medium">
+              <span className="font-light text-[#06070A]">Deployments</span>
+              <span className="font-light text-[#06070A]">
                 {userLimits.usage.portfolios} / {limits.maxDeployments === Infinity ? '∞' : limits.maxDeployments}
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-[#06070A]/10 rounded-full h-2">
               <div 
                 className={`h-2 rounded-full ${
                   userLimits.canDeploy ? 'bg-green-500' : 'bg-red-500'
@@ -295,12 +313,12 @@ const Preview = () => {
           {/* Projects Status */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-sm">
-              <span>Projects</span>
-              <span className="font-medium">
+              <span className="font-light text-[#06070A]">Projects</span>
+              <span className="font-light text-[#06070A]">
                 {userLimits.usage.projects} / {limits.maxProjects === Infinity ? '∞' : limits.maxProjects}
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-[#06070A]/10 rounded-full h-2">
               <div 
                 className="bg-blue-500 h-2 rounded-full"
                 style={{ 
@@ -313,19 +331,20 @@ const Preview = () => {
 
           {/* Upgrade CTA */}
           {userLimits.tier !== 'Pro' && (
-            <div className="pt-2 border-t">
-              <Button 
-                size="sm" 
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            <div className="pt-3 border-t border-[#06070A]/10">
+              <div 
+                className="group cursor-pointer"
                 onClick={() => navigate('/pro-waitlist')}
               >
-                <Crown className="h-3 w-3 mr-1" />
-                Upgrade to {userLimits.tier === 'Free' ? 'Student or ' : ''}Pro
-              </Button>
+                <div className="text-center py-2 bg-[#06070A] text-[#FFFEEA] rounded-lg transition-all duration-200 hover:bg-[#06070A]/80 group-hover:scale-105 text-sm font-light flex items-center justify-center space-x-1">
+                  <Crown className="h-3 w-3" />
+                  <span>Upgrade to {userLimits.tier === 'Free' ? 'Student or ' : ''}Pro</span>
+                </div>
+              </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   };
 
@@ -952,42 +971,53 @@ const Preview = () => {
   // Loading state
   if (isLoadingLimits) {
     return (
-      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
-        <Card className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span>Loading user information...</span>
+      <div className="min-h-screen bg-[#FFFEEA] flex items-center justify-center">
+        {/* Subtle noise effect */}
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+        }} />
+        
+        <div className="bg-white rounded-xl p-8 border border-[#06070A]/10 shadow-lg relative">
+          <div className="flex items-center space-x-4">
+            <Loader2 className="h-8 w-8 animate-spin text-[#06070A]" />
+            <span className="text-[#06070A] font-light text-lg">Loading user information...</span>
           </div>
-        </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-[#FFFEEA] relative overflow-hidden">
+      {/* Subtle noise effect */}
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+      }} />
+
       {/* Paywall Modal */}
       {showPaywallModal && <PaywallModal />}
       
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-6 py-8 relative">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-6">
+              <div 
+                className="group cursor-pointer"
                 onClick={() => navigate('/', { state: location.state })}
-                className="shadow-soft"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
+                <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/90 backdrop-blur-sm border border-[#06070A]/10 rounded-full transition-all duration-200 hover:bg-[#06070A]/5 group-hover:scale-105 shadow-sm">
+                  <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                  <span className="font-light text-sm">Back to Dashboard</span>
+                </div>
+              </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground flex items-center">
-                  <Edit3 className="h-5 w-5 mr-2" />
-                  Quick Edit
+                <h1 className="text-3xl xl:text-4xl font-light text-[#06070A] leading-tight flex items-center space-x-3">
+                  <Edit3 className="h-6 w-6" />
+                  <span>Quick Edit</span>
                   {userLimits && <TierBadge tier={userLimits.tier} />}
                 </h1>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-[#06070A]/60 text-sm font-light mt-1">
                   Click on any text to edit • {hasChanges ? 'Unsaved changes' : 'No changes'}
                   {userLimits && userLimits.tier !== 'Pro' && userLimits.deploymentsRemaining !== Infinity && (
                     <span className="ml-2 text-orange-600 font-medium">
@@ -1001,182 +1031,204 @@ const Preview = () => {
             {/* Status and Actions */}
             <div className="flex items-center space-x-3">
               {hasChanges && (
-                <Button variant="outline" onClick={handleResetChanges}>
-                  <Undo2 className="h-4 w-4 mr-2" />
-                  Reset Changes
-                </Button>
+                <div 
+                  className="group cursor-pointer"
+                  onClick={handleResetChanges}
+                >
+                  <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white border border-[#06070A]/10 rounded-lg transition-all duration-200 hover:bg-[#06070A]/5 group-hover:scale-105 shadow-sm">
+                    <Undo2 className="h-4 w-4" />
+                    <span className="font-light text-sm">Reset Changes</span>
+                  </div>
+                </div>
               )}
-              <Button
-                variant="outline"
+              <div 
+                className="group cursor-pointer"
                 onClick={handleSaveDraft}
-                disabled={isSavingDraft}
-                className="flex items-center"
               >
-                {isSavingDraft ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save as Draft
-                  </>
-                )}
-              </Button>
-              <Button
+                <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white border border-[#06070A]/10 rounded-lg transition-all duration-200 hover:bg-[#06070A]/5 group-hover:scale-105 shadow-sm">
+                  {isSavingDraft ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="font-light text-sm">Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span className="font-light text-sm">Save as Draft</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div 
+                className="group cursor-pointer"
                 onClick={handleDeploy}
-                variant={userLimits?.canDeploy ? "build" : "outline"}
-                disabled={isDeploying || isIncomplete || !userLimits?.canDeploy}
-                className={cn(
-                  "relative",
-                  !userLimits?.canDeploy && "opacity-60"
-                )}
               >
-                {!userLimits?.canDeploy && (
-                  <Lock className="h-4 w-4 mr-2" />
-                )}
-                {isDeploying ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Deploying...
-                  </>
-                ) : (
-                  <>
-                    {userLimits?.canDeploy && <Rocket className="h-4 w-4 mr-2" />}
-                    {userLimits?.canDeploy ? 'Deploy to Web' : 'Upgrade to Deploy'}
-                  </>
-                )}
-              </Button>
+                <div className={cn(
+                  "inline-flex items-center space-x-2 px-6 py-2 rounded-lg transition-all duration-200 group-hover:scale-105 shadow-sm font-light",
+                  userLimits?.canDeploy 
+                    ? "bg-[#06070A] text-[#FFFEEA] hover:bg-[#06070A]/80" 
+                    : "bg-white border border-[#06070A]/10 text-[#06070A] opacity-60 cursor-not-allowed"
+                )}>
+                  {!userLimits?.canDeploy && <Lock className="h-4 w-4" />}
+                  {isDeploying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Deploying...</span>
+                    </>
+                  ) : (
+                    <>
+                      {userLimits?.canDeploy && <Rocket className="h-4 w-4" />}
+                      <span>{userLimits?.canDeploy ? 'Deploy to Web' : 'Upgrade to Deploy'}</span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Preview Area */}
             <div className="lg:col-span-3">
               {/* Viewport Controls */}
-              <div className="flex items-center justify-between mb-4 p-3 bg-card rounded-lg border shadow-soft">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium">Device Preview:</span>
-                  <Button
-                    variant={viewportSize === 'desktop' ? 'default' : 'outline'}
-                    size="sm"
+              <div className="flex items-center justify-between mb-6 p-4 bg-white/90 backdrop-blur-sm rounded-xl border border-[#06070A]/10 shadow-sm">
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm font-light text-[#06070A]">Device Preview:</span>
+                  <div 
+                    className={cn(
+                      "group cursor-pointer px-3 py-1 rounded-lg transition-all duration-200 text-sm font-light",
+                      viewportSize === 'desktop' 
+                        ? "bg-[#06070A] text-[#FFFEEA]" 
+                        : "bg-white border border-[#06070A]/10 text-[#06070A] hover:bg-[#06070A]/5"
+                    )}
                     onClick={() => setViewportSize('desktop')}
                   >
-                    <Monitor className="h-4 w-4 mr-1" />
-                    Desktop
-                  </Button>
-                  <Button
-                    variant={viewportSize === 'tablet' ? 'default' : 'outline'}
-                    size="sm"
+                    <div className="flex items-center space-x-1">
+                      <Monitor className="h-4 w-4" />
+                      <span>Desktop</span>
+                    </div>
+                  </div>
+                  <div 
+                    className={cn(
+                      "group cursor-pointer px-3 py-1 rounded-lg transition-all duration-200 text-sm font-light",
+                      viewportSize === 'tablet' 
+                        ? "bg-[#06070A] text-[#FFFEEA]" 
+                        : "bg-white border border-[#06070A]/10 text-[#06070A] hover:bg-[#06070A]/5"
+                    )}
                     onClick={() => setViewportSize('tablet')}
                   >
-                    <Tablet className="h-4 w-4 mr-1" />
-                    Tablet
-                  </Button>
-                  <Button
-                    variant={viewportSize === 'mobile' ? 'default' : 'outline'}
-                    size="sm"
+                    <div className="flex items-center space-x-1">
+                      <Tablet className="h-4 w-4" />
+                      <span>Tablet</span>
+                    </div>
+                  </div>
+                  <div 
+                    className={cn(
+                      "group cursor-pointer px-3 py-1 rounded-lg transition-all duration-200 text-sm font-light",
+                      viewportSize === 'mobile' 
+                        ? "bg-[#06070A] text-[#FFFEEA]" 
+                        : "bg-white border border-[#06070A]/10 text-[#06070A] hover:bg-[#06070A]/5"
+                    )}
                     onClick={() => setViewportSize('mobile')}
                   >
-                    <Smartphone className="h-4 w-4 mr-1" />
-                    Mobile
-                  </Button>
+                    <div className="flex items-center space-x-1">
+                      <Smartphone className="h-4 w-4" />
+                      <span>Mobile</span>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="text-xs text-muted-foreground flex items-center">
+                <div className="text-xs text-[#06070A]/60 flex items-center font-light">
                   <Edit3 className="h-3 w-3 mr-1" />
                   Click text to edit
                 </div>
               </div>
 
               {/* Preview Container */}
-              <Card className="shadow-large border-0">
-                <CardContent className="p-6">
-                  <div className="flex justify-center">
-                    <div className={`${getViewportClasses()} transition-all duration-300 bg-white rounded-lg shadow-medium overflow-hidden border border-border relative`}>
-                      <iframe
-                        ref={iframeRef}
-                        srcDoc={htmlContent}
-                        className="w-full h-full border-0"
-                        title="Portfolio Preview"
-                        sandbox="allow-scripts allow-same-origin allow-forms"
-                        onLoad={handleIframeLoad}
-                      />
-                      
-                      {/* Edit Overlay */}
-                      {activeEdit && (
-                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50">
-                          <Card className="w-96 max-w-[90%]">
-                            <CardHeader>
-                              <CardTitle className="text-lg flex items-center">
-                                <Edit3 className="h-5 w-5 mr-2" />
-                                Edit Text
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div>
-                                <label className="text-sm font-medium text-muted-foreground">
-                                  New text content:
-                                </label>
-                                {editingText.length > 50 ? (
-                                  <Textarea
-                                    value={editingText}
-                                    onChange={(e) => setEditingText(e.target.value)}
-                                    className="mt-2"
-                                    rows={3}
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <Input
-                                    value={editingText}
-                                    onChange={(e) => setEditingText(e.target.value)}
-                                    className="mt-2"
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleSaveEdit();
-                                      if (e.key === 'Escape') handleCancelEdit();
-                                    }}
-                                  />
-                                )}
+              <div className="bg-white rounded-xl p-8 border border-[#06070A]/10 shadow-lg">
+                <div className="flex justify-center">
+                  <div className={`${getViewportClasses()} transition-all duration-300 bg-white rounded-lg shadow-lg overflow-hidden border border-[#06070A]/10 relative`}>
+                    <iframe
+                      ref={iframeRef}
+                      srcDoc={htmlContent}
+                      className="w-full h-full border-0"
+                      title="Portfolio Preview"
+                      sandbox="allow-scripts allow-same-origin allow-forms"
+                      onLoad={handleIframeLoad}
+                    />
+                    
+                    {/* Edit Overlay */}
+                    {activeEdit && (
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50">
+                        <div className="bg-[#FFFEEA] rounded-xl p-6 w-96 max-w-[90%] border border-[#06070A]/10 shadow-xl">
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                              <Edit3 className="h-5 w-5 text-[#06070A]" />
+                              <h3 className="text-lg font-light text-[#06070A]">Edit Text</h3>
+                            </div>
+                            
+                            <div>
+                              <label className="text-sm font-light text-[#06070A]/60">
+                                New text content:
+                              </label>
+                              {editingText.length > 50 ? (
+                                <Textarea
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  className="mt-2 border border-[#06070A]/20 focus:border-[#06070A] focus:ring-0 rounded-lg font-light"
+                                  rows={3}
+                                  autoFocus
+                                />
+                              ) : (
+                                <Input
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  className="mt-2 border border-[#06070A]/20 focus:border-[#06070A] focus:ring-0 rounded-lg font-light"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveEdit();
+                                    if (e.key === 'Escape') handleCancelEdit();
+                                  }}
+                                />
+                              )}
+                            </div>
+                            
+                            <div className="flex space-x-3">
+                              <div 
+                                className="group cursor-pointer flex-1"
+                                onClick={handleSaveEdit}
+                              >
+                                <div className="text-center py-2 bg-[#06070A] text-[#FFFEEA] rounded-lg transition-all duration-200 hover:bg-[#06070A]/80 group-hover:scale-105 font-light flex items-center justify-center space-x-1">
+                                  <Check className="h-4 w-4" />
+                                  <span>Save</span>
+                                </div>
                               </div>
-                              
-                              <div className="flex space-x-2">
-                                <Button
-                                  onClick={handleSaveEdit}
-                                  variant="default"
-                                  className="flex-1"
-                                >
-                                  <Check className="h-4 w-4 mr-2" />
-                                  Save
-                                </Button>
-                                <Button
-                                  onClick={handleCancelEdit}
-                                  variant="outline"
-                                  className="flex-1"
-                                >
-                                  <X className="h-4 w-4 mr-2" />
-                                  Cancel
-                                </Button>
+                              <div 
+                                className="group cursor-pointer flex-1"
+                                onClick={handleCancelEdit}
+                              >
+                                <div className="text-center py-2 border border-[#06070A]/10 text-[#06070A] rounded-lg transition-all duration-200 hover:bg-[#06070A]/5 group-hover:scale-105 font-light flex items-center justify-center space-x-1">
+                                  <X className="h-4 w-4" />
+                                  <span>Cancel</span>
+                                </div>
                               </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      )}
-
-                      {/* AI Processing Overlay */}
-                      {isProcessingAiRequest && (
-                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50">
-                          <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-2">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                            <span>Applying AI changes...</span>
+                            </div>
                           </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
+
+                    {/* AI Processing Overlay */}
+                    {isProcessingAiRequest && (
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-50">
+                        <div className="bg-white p-6 rounded-xl shadow-lg flex items-center space-x-3 border border-[#06070A]/10">
+                          <Loader2 className="h-8 w-8 animate-spin text-[#06070A]" />
+                          <span className="font-light text-[#06070A]">Applying AI changes...</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
 
             {/* Sidebar */}
@@ -1185,243 +1237,255 @@ const Preview = () => {
               <UsageStats />
 
               {/* AI Assistant */}
-              <Card className="shadow-medium border-0">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center">
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    AI Edit Assistant
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
+              <div className="bg-white rounded-xl p-6 border border-[#06070A]/10 shadow-lg">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="h-5 w-5 text-[#06070A]" />
+                    <h3 className="text-lg font-light text-[#06070A]">AI Edit Assistant</h3>
+                  </div>
+                  
                   <div className="space-y-3">
                     <Textarea
                       value={aiRequest}
                       onChange={(e) => setAiRequest(e.target.value)}
                       placeholder="Describe changes you'd like to make..."
-                      className="min-h-[100px]"
+                      className="min-h-[100px] border border-[#06070A]/20 focus:border-[#06070A] focus:ring-0 rounded-lg font-light"
                       disabled={isProcessingAiRequest}
                     />
-                    <Button
+                    <div 
+                      className="group cursor-pointer"
                       onClick={handleAiEditRequest}
-                      disabled={isProcessingAiRequest || !aiRequest.trim()}
-                      className="w-full"
                     >
+                      <div className={cn(
+                        "text-center py-2 rounded-lg transition-all duration-200 group-hover:scale-105 font-light flex items-center justify-center space-x-2",
+                        isProcessingAiRequest || !aiRequest.trim()
+                          ? "bg-[#06070A]/20 text-[#06070A]/50 cursor-not-allowed"
+                          : "bg-[#06070A] text-[#FFFEEA] hover:bg-[#06070A]/80"
+                      )}>
                       {isProcessingAiRequest ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Processing...
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Processing...</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Apply AI Changes
+                          <Sparkles className="h-4 w-4" />
+                          <span>Apply AI Changes</span>
                         </>
                       )}
-                    </Button>
-                    <div className="text-xs text-muted-foreground flex items-center">
-                      <Lightbulb className="h-3 w-3 mr-1" />
-                      Example: "Make the header smaller and use blue colors"
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Pro Upgrade (only show if not Pro) */}
-              {userLimits && userLimits.tier !== 'Pro' && (
-                <Card className="shadow-medium border-0 bg-gradient-to-br from-purple-50 to-blue-50">
-                  <CardContent className="p-4">
-                    <div className="text-center space-y-3">
-                      <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto">
-                        <Crown className="h-6 w-6 text-white" />
-                      </div>
-                      <h3 className="font-semibold text-gray-900">
-                        {userLimits.tier === 'Free' ? 'Unlock Deployment' : 'Unlock Unlimited'}
-                      </h3>
-                      <p className="text-xs text-gray-600">
-                        {userLimits.tier === 'Free' 
-                          ? 'Upgrade to Student or Pro to deploy your portfolio and make it live on the web'
-                          : 'Upgrade to Pro for unlimited deployments, custom styling, and priority support'
-                        }
-                      </p>
-                      <div className="flex flex-wrap justify-center gap-1 text-xs text-gray-500">
-                        {userLimits.tier === 'Free' ? (
-                          <>
-                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Portfolio Deployment</span>
-                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Live Web Hosting</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Unlimited Deployments</span>
-                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Custom Domains</span>
-                            <span className="flex items-center"><Lock className="h-2 w-2 mr-1" />Priority Support</span>
-                          </>
-                        )}
-                      </div>
-                      <Button 
-                        size="sm"
-                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-xs h-8"
-                        onClick={() => navigate('/pro-waitlist')}
-                      >
-                        <Crown className="h-3 w-3 mr-1" />
-                        Upgrade {userLimits.tier === 'Free' ? 'Now' : 'to Pro'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Editing Instructions */}
-              <Card className="shadow-medium border-0">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center">
-                    <Zap className="h-5 w-5 mr-2" />
-                    How to Edit
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-blue-600">1</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">Click on Text</p>
-                        <p className="text-muted-foreground text-xs">
-                          Hover over any text and click to edit
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-green-600">2</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">Use AI Assistant</p>
-                        <p className="text-muted-foreground text-xs">
-                          Describe changes you want to make
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-purple-600">3</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {userLimits?.canDeploy ? 'Deploy When Ready' : 'Upgrade to Deploy'}
-                        </p>
-                        <p className="text-muted-foreground text-xs">
-                          {userLimits?.canDeploy 
-                            ? 'Click deploy to make your portfolio live'
-                            : 'Upgrade your plan to deploy your portfolio'
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8 mt-8 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/', { state: location.state })}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            
-            {userLimits && userLimits.tier !== 'Pro' && (
-              <Button
-                variant="outline"
-                onClick={() => navigate('/pro-waitlist')}
-              >
-                <Crown className="h-4 w-4 mr-2" />
-                {userLimits.tier === 'Free' ? 'Upgrade to Deploy' : 'Upgrade to Pro'}
-              </Button>
-            )}
-
-            <Button
-              onClick={handleDeploy}
-              variant={userLimits?.canDeploy ? "build" : "outline"}
-              disabled={isDeploying || isIncomplete || !userLimits?.canDeploy}
-              className="px-8"
-            >
-              {!userLimits?.canDeploy && <Lock className="h-4 w-4 mr-2" />}
-              {isDeploying ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Deploying...
-                </>
-              ) : (
-                <>
-                  {userLimits?.canDeploy && <Rocket className="h-4 w-4 mr-2" />}
-                  {userLimits?.canDeploy ? 'Deploy Portfolio' : 'Upgrade to Deploy'}
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* Usage Tips */}
-          <Card className="shadow-medium border-0 mt-8 bg-gradient-subtle">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Edit3 className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Quick Text Edits</p>
-                    <p className="text-muted-foreground text-xs">
-                      Click any text to make instant changes to your content
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">AI Assistant</p>
-                    <p className="text-muted-foreground text-xs">
-                      Describe changes you want to make to your portfolio
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    {userLimits?.canDeploy ? (
-                      <Rocket className="h-4 w-4 text-purple-600" />
-                    ) : (
-                      <Lock className="h-4 w-4 text-purple-600" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium">
-                      {userLimits?.canDeploy ? 'One-Click Deploy' : 'Deployment Available'}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {userLimits?.canDeploy 
-                        ? 'Make your portfolio live on the web instantly'
-                        : 'Upgrade to deploy your portfolio to the web'
-                      }
-                    </p>
+                  <div className="text-xs text-[#06070A]/50 flex items-center font-light">
+                    <Lightbulb className="h-3 w-3 mr-1" />
+                    Example: "Make the header smaller and use blue colors"
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Pro Upgrade (only show if not Pro) */}
+            {userLimits && userLimits.tier !== 'Pro' && (
+              <div className="bg-white rounded-xl p-6 border border-[#06070A]/10 shadow-lg">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-400/10 to-blue-400/10 rounded-full flex items-center justify-center mx-auto">
+                    <Crown className="h-8 w-8 text-[#06070A]" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="font-light text-[#06070A] text-lg">
+                      {userLimits.tier === 'Free' ? 'Unlock Deployment' : 'Unlock Unlimited'}
+                    </h3>
+                    <p className="text-xs text-[#06070A]/60 font-light leading-relaxed">
+                      {userLimits.tier === 'Free' 
+                        ? 'Upgrade to Student or Pro to deploy your portfolio and make it live on the web'
+                        : 'Upgrade to Pro for unlimited deployments, custom styling, and priority support'
+                      }
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 text-xs text-[#06070A]/50">
+                    {userLimits.tier === 'Free' ? (
+                      <>
+                        <span className="flex items-center font-light"><Lock className="h-2 w-2 mr-1" />Portfolio Deployment</span>
+                        <span className="flex items-center font-light"><Lock className="h-2 w-2 mr-1" />Live Web Hosting</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex items-center font-light"><Lock className="h-2 w-2 mr-1" />Unlimited Deployments</span>
+                        <span className="flex items-center font-light"><Lock className="h-2 w-2 mr-1" />Custom Domains</span>
+                        <span className="flex items-center font-light"><Lock className="h-2 w-2 mr-1" />Priority Support</span>
+                      </>
+                    )}
+                  </div>
+                  <div 
+                    className="group cursor-pointer"
+                    onClick={() => navigate('/pro-waitlist')}
+                  >
+                    <div className="text-center py-2 bg-[#06070A] text-[#FFFEEA] rounded-lg transition-all duration-200 hover:bg-[#06070A]/80 group-hover:scale-105 text-xs font-light flex items-center justify-center space-x-1">
+                      <Crown className="h-3 w-3" />
+                      <span>Upgrade {userLimits.tier === 'Free' ? 'Now' : 'to Pro'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Editing Instructions */}
+            <div className="bg-white rounded-xl p-6 border border-[#06070A]/10 shadow-lg">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Zap className="h-5 w-5 text-[#06070A]" />
+                  <h3 className="text-lg font-light text-[#06070A]">How to Edit</h3>
+                </div>
+                
+                <div className="space-y-4 text-sm">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-light text-blue-600">1</span>
+                    </div>
+                    <div>
+                      <p className="font-light text-[#06070A]">Click on Text</p>
+                      <p className="text-[#06070A]/60 text-xs font-light">
+                        Hover over any text and click to edit
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-light text-green-600">2</span>
+                    </div>
+                    <div>
+                      <p className="font-light text-[#06070A]">Use AI Assistant</p>
+                      <p className="text-[#06070A]/60 text-xs font-light">
+                        Describe changes you want to make
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-light text-purple-600">3</span>
+                    </div>
+                    <div>
+                      <p className="font-light text-[#06070A]">
+                        {userLimits?.canDeploy ? 'Deploy When Ready' : 'Upgrade to Deploy'}
+                      </p>
+                      <p className="text-[#06070A]/60 text-xs font-light">
+                        {userLimits?.canDeploy 
+                          ? 'Click deploy to make your portfolio live'
+                          : 'Upgrade your plan to deploy your portfolio'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-12 mt-12 border-t border-[#06070A]/10">
+          <div 
+            className="group cursor-pointer"
+            onClick={() => navigate('/', { state: location.state })}
+          >
+            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white border border-[#06070A]/10 rounded-lg transition-all duration-200 hover:bg-[#06070A]/5 group-hover:scale-105 shadow-sm">
+              <Eye className="h-4 w-4" />
+              <span className="font-light text-sm">Back to Dashboard</span>
+            </div>
+          </div>
+          
+          {userLimits && userLimits.tier !== 'Pro' && (
+            <div 
+              className="group cursor-pointer"
+              onClick={() => navigate('/pro-waitlist')}
+            >
+              <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white border border-[#06070A]/10 rounded-lg transition-all duration-200 hover:bg-[#06070A]/5 group-hover:scale-105 shadow-sm">
+                <Crown className="h-4 w-4" />
+                <span className="font-light text-sm">{userLimits.tier === 'Free' ? 'Upgrade to Deploy' : 'Upgrade to Pro'}</span>
+              </div>
+            </div>
+          )}
+
+          <div 
+            className="group cursor-pointer"
+            onClick={handleDeploy}
+          >
+            <div className={cn(
+              "inline-flex items-center space-x-2 px-8 py-3 rounded-lg transition-all duration-200 group-hover:scale-105 shadow-lg font-light",
+              userLimits?.canDeploy 
+                ? "bg-[#06070A] text-[#FFFEEA] hover:bg-[#06070A]/80" 
+                : "bg-white border border-[#06070A]/10 text-[#06070A] opacity-60 cursor-not-allowed"
+            )}>
+              {!userLimits?.canDeploy && <Lock className="h-4 w-4" />}
+              {isDeploying ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Deploying...</span>
+                </>
+              ) : (
+                <>
+                  {userLimits?.canDeploy && <Rocket className="h-4 w-4" />}
+                  <span>{userLimits?.canDeploy ? 'Deploy Portfolio' : 'Upgrade to Deploy'}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Usage Tips */}
+        <div className="bg-white rounded-xl p-8 border border-[#06070A]/10 shadow-lg mt-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
+            <div className="flex items-start space-x-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Edit3 className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-light text-[#06070A] text-base mb-1">Quick Text Edits</p>
+                <p className="text-[#06070A]/60 text-xs font-light leading-relaxed">
+                  Click any text to make instant changes to your content
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-4">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Sparkles className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="font-light text-[#06070A] text-base mb-1">AI Assistant</p>
+                <p className="text-[#06070A]/60 text-xs font-light leading-relaxed">
+                  Describe changes you want to make to your portfolio
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                {userLimits?.canDeploy ? (
+                  <Rocket className="h-6 w-6 text-purple-600" />
+                ) : (
+                  <Lock className="h-6 w-6 text-purple-600" />
+                )}
+              </div>
+              <div>
+                <p className="font-light text-[#06070A] text-base mb-1">
+                  {userLimits?.canDeploy ? 'One-Click Deploy' : 'Deployment Available'}
+                </p>
+                <p className="text-[#06070A]/60 text-xs font-light leading-relaxed">
+                  {userLimits?.canDeploy 
+                    ? 'Make your portfolio live on the web instantly'
+                    : 'Upgrade to deploy your portfolio to the web'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default Preview;

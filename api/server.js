@@ -2369,22 +2369,47 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
   const processingStartTime = Date.now();
   
   try {
+    console.log('🚀 Starting Portfolio Generation with Enhanced Analysis...');
+    
+    // Extract all input data
     const portfolioData = req.portfolioData;
     const files = req.files || [];
     const isContinuation = req.body.continueGeneration === 'true';
     const partialHtml = req.body.partialHtml;
-
-    // 🚨 NEW: Parse skeleton and custom design request from form data
     const selectedSkeleton = req.body.selectedSkeleton || portfolioData.selectedSkeleton || 'none';
     const customDesignRequest = req.body.customDesignRequest || portfolioData.customDesignRequest || '';
 
-    console.log(`🎨 Portfolio generation request:
-    - Skeleton: ${selectedSkeleton}
-    - Custom request: ${customDesignRequest ? 'Provided ✅' : 'None ❌'}
-    - Moodboard images: ${files.filter(f => f.fieldname?.includes('moodboard')).length}
-    - Is continuation: ${isContinuation}`);
+    console.log(`📋 Generation Parameters:
+    - User: ${portfolioData.personalInfo?.name || 'Unknown'}
+    - Selected Skeleton: ${selectedSkeleton}
+    - Custom Design Request: ${customDesignRequest ? 'Yes' : 'No'}
+    - Total Files: ${files.length}
+    - Is Continuation: ${isContinuation}`);
 
-    // Track in Google Sheets if available
+    // Separate different types of files
+    const moodboardFiles = files.filter(file => {
+      const fieldName = (file.fieldname || '').toLowerCase();
+      return fieldName.includes('moodboard') || fieldName.startsWith('mood');
+    });
+
+    const projectImageFiles = files.filter(file => {
+      const fieldName = (file.fieldname || '').toLowerCase();
+      return fieldName.includes('process_') || fieldName.includes('final_') || fieldName.includes('project_');
+    });
+
+    console.log(`📁 File Analysis:
+    - Moodboard files: ${moodboardFiles.length}
+    - Project image files: ${projectImageFiles.length}`);
+
+    // Log moodboard file details for debugging
+    if (moodboardFiles.length > 0) {
+      console.log('🖼️ Moodboard Files Details:');
+      moodboardFiles.forEach((file, index) => {
+        console.log(`  ${index + 1}. ${file.originalname || 'unnamed'} - ${file.mimetype} - ${Math.round(file.buffer.length / 1024)}KB`);
+      });
+    }
+
+    // Track generation in Google Sheets
     if (sheetsTracker.initialized) {
       sheetsTracker.appendData(
         portfolioData, 
@@ -2393,173 +2418,152 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
       ).catch(() => {});
     }
 
-    // Get complete project data FIRST
-    console.log('📊 Fetching complete project data from Google Sheets...');
+    // STEP 1: Load complete project data from Google Sheets
+    console.log('📊 Loading complete project data from Google Sheets...');
     const completeProjectData = await getProjectImagesFromSheets(portfolioData.personalInfo.email);
     
-    console.log(`✅ Retrieved ${completeProjectData.totalProjects || 0} projects with ${completeProjectData.totalImages || 0} total images`);
+    if (!completeProjectData || !completeProjectData.projectImages) {
+      console.log('⚠️ No project data found, using portfolio data projects');
+      completeProjectData.projectImages = portfolioData.projects || [];
+      completeProjectData.totalProjects = completeProjectData.projectImages.length;
+      completeProjectData.totalImages = 0;
+    }
 
-    // 🚨 ENHANCED: Handle moodboard images with skeleton-aware analysis
-    let insaneAnalysis = null;
-    const moodboardFiles = files.filter(file => {
-      const fieldName = (file.fieldname || '').toLowerCase();
-      const originalName = (file.originalname || '').toLowerCase();
-      return fieldName.includes('moodboard') || originalName.includes('moodboard');
-    });
+    console.log(`✅ Project Data Loaded:
+    - Total Projects: ${completeProjectData.totalProjects || 0}
+    - Total Images: ${completeProjectData.totalImages || 0}`);
 
-    if ((moodboardFiles.length > 0 || selectedSkeleton !== 'none' || customDesignRequest) && !isContinuation) {
+    // STEP 2: Run Comprehensive Analysis (only if not continuation)
+    let comprehensiveAnalysis = null;
+    
+    if (!isContinuation) {
+      console.log('🔍 Running Comprehensive Analysis...');
+      
       try {
-        console.log(`🧠 Running Enhanced Analysis:
-        - Moodboard images: ${moodboardFiles.length}
-        - Selected skeleton: ${selectedSkeleton}
-        - Custom request: ${customDesignRequest ? 'Yes' : 'No'}`);
-        
-        // Create temporary paths for file-based analysis if moodboard provided
-        let moodboardPaths = [];
-        if (moodboardFiles.length > 0) {
-          moodboardPaths = await Promise.all(
-            moodboardFiles.map(async (file) => {
-              const tempPath = path.join(tempDir, 'temp_analysis', `moodboard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${path.extname(file.originalname)}`);
-              await fs.ensureDir(path.dirname(tempPath));
-              await fs.writeFile(tempPath, file.buffer);
-              return tempPath;
-            })
-          );
-        }
-
-        // 🚨 ENHANCED: Include skeleton and custom request in analysis
-        insaneAnalysis = await imageParser.runEnhancedAnalysis(
-          moodboardPaths,
+        // Enhanced analysis with all inputs
+        comprehensiveAnalysis = await imageParser.runComprehensiveAnalysis(
+          moodboardFiles,
           portfolioData,
           completeProjectData,
           {
             selectedSkeleton,
             customDesignRequest,
-            designPreferences: portfolioData.stylePreferences || {}
+            hasProjectImages: projectImageFiles.length > 0,
+            userAgent: req.headers['user-agent'] || 'unknown'
           }
         );
         
-        // Clean up temporary files immediately after analysis
-        if (moodboardPaths.length > 0) {
-          await Promise.all(moodboardPaths.map(tempPath => 
-            fs.remove(tempPath).catch(() => {})
-          ));
-        }
+        console.log(`✅ Comprehensive Analysis Complete:
+        - System Status: ${comprehensiveAnalysis.systemStatus}
+        - Overall Confidence: ${Math.round(comprehensiveAnalysis.overallConfidence * 100)}%
+        - Visual Style: ${comprehensiveAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.category || 'unknown'}
+        - Content Strategy: ${comprehensiveAnalysis.analysisLevels?.contentQuality?.strategy || 'unknown'}
+        - Industry Focus: ${comprehensiveAnalysis.analysisLevels?.industryIntelligence?.detectedIndustry || 'unknown'}`);
         
-        console.log(`🎯 Enhanced Analysis completed with ${insaneAnalysis.systemStatus} status (${Math.round(insaneAnalysis.overallConfidence * 100)}% confidence)`);
+        // Log detailed analysis results
+        if (comprehensiveAnalysis.analysisLevels?.visualIntelligence) {
+          const visual = comprehensiveAnalysis.analysisLevels.visualIntelligence;
+          console.log(`🎨 Visual Analysis Details:
+          - Category: ${visual.visualDNA?.category || 'unknown'}
+          - Mood: ${visual.visualDNA?.mood || 'unknown'}
+          - Colors: ${visual.colors?.palette?.slice(0, 3).join(', ') || 'none'}
+          - Analysis Method: ${visual.analysisMethod || 'unknown'}`);
+        }
         
       } catch (analysisError) {
-        console.error('❌ Enhanced Analysis failed:', analysisError);
-        
-        // Fallback analysis
-        console.log('⚠️ Falling back to basic analysis...');
-        try {
-          insaneAnalysis = await imageParser.createFallbackAnalysis(
-            portfolioData, 
-            completeProjectData, 
-            {
-              selectedSkeleton,
-              customDesignRequest,
-              moodboardFiles: moodboardFiles.length > 0 ? moodboardFiles : null
-            }
-          );
-          
-          console.log('✅ Fallback analysis completed');
-        } catch (fallbackError) {
-          console.error('❌ Fallback analysis also failed:', fallbackError);
-          insaneAnalysis = imageParser.createBasicAnalysis(portfolioData, completeProjectData);
-        }
-      }
-    } else if (!isContinuation) {
-      // Basic analysis even without moodboard/skeleton
-      console.log('📍 Running basic content and industry analysis...');
-      try {
-        insaneAnalysis = await imageParser.createBasicAnalysis(
+        console.error('❌ Comprehensive analysis failed:', analysisError);
+        comprehensiveAnalysis = await imageParser.createFallbackAnalysis(
           portfolioData, 
           completeProjectData,
-          {
-            selectedSkeleton,
-            customDesignRequest
-          }
+          { selectedSkeleton, customDesignRequest }
         );
-        
-        console.log(`📊 Basic analysis completed: ${Math.round(insaneAnalysis.overallConfidence * 100)}% confidence`);
-      } catch (basicAnalysisError) {
-        console.error('❌ Even basic analysis failed:', basicAnalysisError);
-        insaneAnalysis = null;
+        console.log('⚠️ Using fallback analysis');
       }
     }
 
-    // 🚨 ENHANCED: Generate messages using skeleton HTML and custom request
-    let anthropicMessages;
+    // STEP 3: Handle continuation requests
     if (isContinuation && partialHtml) {
-      anthropicMessages = [{
-        role: 'user',
-        content: htmlValidator.generateContinuationPrompt(partialHtml, portfolioData)
-      }];
-    } else {
+      console.log('🔄 Processing continuation request...');
+      
       try {
-        console.log('🤖 Generating enhanced prompt with skeleton HTML and custom request...');
-        
-        if (insaneAnalysis && insaneAnalysis.intelligentPrompt) {
-          // Use the enhanced INSANE system for message generation with skeleton HTML
-          anthropicMessages = await promptGenerator.generateEnhancedAnthropicMessages(
-            portfolioData, 
-            completeProjectData,
-            insaneAnalysis,
-            moodboardFiles,
-            {
-              selectedSkeleton,
-              customDesignRequest,
-              stylePreferences: portfolioData.stylePreferences || {}
-            }
-          );
-          
-          console.log(`✅ Enhanced prompt generated using ${insaneAnalysis.systemStatus} system with skeleton: ${selectedSkeleton}`);
-        } else {
-          // Fallback to skeleton-aware generation
-          console.log('⚠️ Using skeleton-aware fallback prompt generation');
-          anthropicMessages = await promptGenerator.generateSkeletonAwareMessages(
-            portfolioData, 
-            completeProjectData,
-            portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern',
-            {
-              selectedSkeleton,
-              customDesignRequest,
-              stylePreferences: portfolioData.stylePreferences || {}
-            }
-          );
-        }
-        
-      } catch (promptError) {
-        console.error('❌ Enhanced prompt generation failed:', promptError);
-        
-        // Final fallback
-        console.log('🔥 Using final fallback prompt generation with skeleton support...');
-        const designStyle = portfolioData.stylePreferences?.mood?.toLowerCase() || 'modern';
-        const basicPrompt = await promptGenerator.generateStyledPrompt(
+        const continuationResult = await processContinuationRequest(
+          partialHtml, 
           portfolioData, 
-          completeProjectData,
-          designStyle,
-          insaneAnalysis,
-          {
-            selectedSkeleton,
-            customDesignRequest
-          }
+          completeProjectData, 
+          comprehensiveAnalysis,
+          selectedSkeleton,
+          customDesignRequest
         );
         
-        anthropicMessages = [{
-          role: 'user',
-          content: basicPrompt
-        }];
+        if (continuationResult.success) {
+          console.log('✅ Continuation successful');
+          return res.json(continuationResult);
+        } else {
+          console.log('⚠️ Continuation failed, proceeding with fresh generation');
+        }
+      } catch (continuationError) {
+        console.error('❌ Continuation failed:', continuationError);
+        // Continue with fresh generation
       }
     }
+
+    // STEP 4: Generate Enhanced Anthropic Messages
+    console.log('🤖 Generating enhanced Anthropic messages...');
     
+    let anthropicMessages;
+    try {
+      // Use the enhanced prompt generator with all analysis data
+      anthropicMessages = await promptGenerator.generateEnhancedAnthropicMessages(
+        portfolioData, 
+        completeProjectData,
+        comprehensiveAnalysis,
+        moodboardFiles,
+        {
+          selectedSkeleton,
+          customDesignRequest,
+          hasProjectImages: projectImageFiles.length > 0,
+          systemStatus: comprehensiveAnalysis?.systemStatus || 'BASIC'
+        }
+      );
+      
+      console.log(`✅ Enhanced prompt generated successfully:
+      - Message count: ${anthropicMessages.length}
+      - Has moodboard images: ${moodboardFiles.length > 0}
+      - Skeleton: ${selectedSkeleton}
+      - Custom request: ${customDesignRequest ? 'Yes' : 'No'}`);
+      
+    } catch (promptError) {
+      console.error('❌ Enhanced prompt generation failed:', promptError);
+      
+      // Fallback to basic prompt
+      console.log('⚠️ Using fallback prompt generation');
+      const basicPrompt = `Create a professional portfolio website for ${portfolioData.personalInfo?.name || 'Creative Professional'}.
+      
+User Details:
+- Name: ${portfolioData.personalInfo?.name || 'Creative Professional'}
+- Title: ${portfolioData.personalInfo?.title || 'Designer'}
+- Email: ${portfolioData.personalInfo?.email || 'contact@portfolio.com'}
+- Bio: ${portfolioData.personalInfo?.bio || 'Passionate creative professional'}
+
+Projects: ${completeProjectData.totalProjects || 0} projects with ${completeProjectData.totalImages || 0} images
+
+${selectedSkeleton !== 'none' ? `Design Style: ${selectedSkeleton} skeleton` : ''}
+${customDesignRequest ? `Custom Request: ${customDesignRequest}` : ''}
+
+Create a complete, responsive HTML portfolio with embedded CSS and JavaScript. Include project galleries, contact section, and professional navigation.`;
+      
+      anthropicMessages = [{
+        role: 'user',
+        content: basicPrompt
+      }];
+    }
+    
+    // STEP 5: Call Anthropic API
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY not configured');
     }
     
-    console.log('🚀 Sending request to Claude with enhanced intelligence and skeleton preferences...');
+    console.log('🤖 Sending request to Claude...');
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 8000,
@@ -2567,85 +2571,123 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
       messages: anthropicMessages
     });
     
-    let cleanedHTML = response.content[0].text.trim();
-    if (isContinuation && partialHtml) {
-      cleanedHTML = htmlValidator.mergeHtmlParts(partialHtml, cleanedHTML);
-    } else {
-      if (cleanedHTML.startsWith('```html')) {
-        cleanedHTML = cleanedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
-      } else if (cleanedHTML.startsWith('```')) {
-        cleanedHTML = cleanedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
-      }
+    // STEP 6: Process HTML response
+    let generatedHTML = response.content[0].text.trim();
+    
+    // Clean up the response
+    if (generatedHTML.startsWith('```html')) {
+      generatedHTML = generatedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
+    } else if (generatedHTML.startsWith('```')) {
+      generatedHTML = generatedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
     }
 
-    // Update HTML with project image URLs using complete project data
-    cleanedHTML = updateHtmlWithProjectImages(cleanedHTML, completeProjectData);
+    console.log(`📄 Generated HTML length: ${generatedHTML.length} characters`);
 
-    // Validate completeness
-    const validation = htmlValidator.validateCompleteness(cleanedHTML);
+    // STEP 7: Update HTML with project images
+    console.log('🖼️ Updating HTML with project images...');
+    const htmlWithImages = updateHtmlWithProjectImages(generatedHTML, completeProjectData);
+    
+    if (htmlWithImages !== generatedHTML) {
+      console.log('✅ HTML successfully updated with project images');
+    }
+
+    // STEP 8: Validate HTML completeness
+    const validation = htmlValidator.validateCompleteness(htmlWithImages);
+    
+    console.log(`🔍 HTML Validation:
+    - Is Complete: ${validation.isComplete}
+    - Can Continue: ${validation.canContinue}
+    - Estimated Completion: ${Math.round((validation.estimatedCompletion || 0) * 100)}%`);
+
+    // STEP 9: Handle incomplete generation with auto-continuation
     if (!validation.isComplete && !isContinuation && validation.canContinue) {
+      console.log('🔄 Generation incomplete, attempting auto-continuation...');
+      
+      try {
+        const autoContinuationResult = await processAutoContinuation(
+          htmlWithImages, 
+          portfolioData, 
+          completeProjectData, 
+          comprehensiveAnalysis,
+          selectedSkeleton,
+          customDesignRequest,
+          1 // First attempt
+        );
+        
+        if (autoContinuationResult && autoContinuationResult.success) {
+          console.log('✅ Auto-continuation successful');
+          return res.json(autoContinuationResult);
+        }
+      } catch (autoError) {
+        console.error('❌ Auto-continuation failed:', autoError);
+      }
+      
+      // Return incomplete response if auto-continuation fails
       return res.json({
         success: false,
         incomplete: true,
-        partialHtml: cleanedHTML,
+        partialHtml: htmlWithImages,
         completionStatus: validation,
         error: 'Generation incomplete',
-        details: 'The AI response was cut off before completion. You can continue generation or start over.',
+        details: 'The AI response was cut off before completion. You can continue generation to complete it.',
         metadata: {
           estimatedCompletion: validation.estimatedCompletion,
           issues: validation.issues,
           canContinue: validation.canContinue,
           projectData: completeProjectData,
-          projectCount: completeProjectData.totalProjects,
-          imageCount: completeProjectData.totalImages,
-          selectedSkeleton,
-          customDesignRequest: customDesignRequest ? 'Provided' : 'None',
-          insaneAnalysis: insaneAnalysis ? {
-            systemStatus: insaneAnalysis.systemStatus,
-            confidence: insaneAnalysis.overallConfidence,
-            visualConfidence: insaneAnalysis.analysisLevels?.visualIntelligence?.confidence,
-            contentConfidence: insaneAnalysis.analysisLevels?.contentQuality?.confidence,
-            industryConfidence: insaneAnalysis.analysisLevels?.industryIntelligence?.confidence
-          } : null
+          comprehensiveAnalysis: comprehensiveAnalysis ? {
+            systemStatus: comprehensiveAnalysis.systemStatus,
+            confidence: comprehensiveAnalysis.overallConfidence
+          } : null,
+          autoContinuationAttempted: true,
+          processingTime: Date.now() - processingStartTime
         }
       });
     }
 
-    // Quality validation with enhanced analysis
-    let validatedHTML = cleanedHTML;
+    // STEP 10: Apply quality validation and auto-fixes
+    let finalHTML = htmlWithImages;
     let validationResults = null;
     let autoFixApplied = false;
     
     try {
+      console.log('🔍 Running quality validation...');
       validationResults = await qualityAnalyzer.validatePortfolio(
-        cleanedHTML,
+        htmlWithImages,
         portfolioData,
         completeProjectData
       );
 
+      console.log(`📊 Quality Score: ${validationResults.overall.score}/100`);
+
       if (validationResults.overall.score < 85) {
+        console.log('🔧 Applying auto-fixes...');
         const autoFixResult = await qualityAnalyzer.applyAutoFixes(
-          cleanedHTML,
+          htmlWithImages,
           validationResults,
           portfolioData,
           completeProjectData
         );
         
         if (autoFixResult.success && autoFixResult.improvedHtml) {
-          validatedHTML = autoFixResult.improvedHtml;
+          finalHTML = autoFixResult.improvedHtml;
           autoFixApplied = true;
+          console.log('✅ Auto-fixes applied successfully');
           
-          validatedHTML = updateHtmlWithProjectImages(validatedHTML, completeProjectData);
+          // Re-update with project images after fixes
+          finalHTML = updateHtmlWithProjectImages(finalHTML, completeProjectData);
           
+          // Re-validate after fixes
           validationResults = await qualityAnalyzer.validatePortfolio(
-            validatedHTML,
+            finalHTML,
             portfolioData,
             completeProjectData
           );
+          console.log(`📊 Quality Score after fixes: ${validationResults.overall.score}/100`);
         }
       }
     } catch (validationError) {
-      console.error('Validation error:', validationError);
+      console.error('❌ Quality validation error:', validationError);
       validationResults = {
         overall: { score: 75, status: 'unknown' },
         content: { score: 75, issues: [], suggestions: [] },
@@ -2656,101 +2698,95 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
       };
     }
     
-    if (!validatedHTML.includes('<html') && !validatedHTML.includes('<!DOCTYPE')) {
+    // STEP 11: Final validation
+    if (!finalHTML.includes('<html') && !finalHTML.includes('<!DOCTYPE')) {
       throw new Error('Generated content does not appear to be valid HTML');
     }
 
-    // Generate portfolio ID for download purposes
+    // STEP 12: Save portfolio files
     const portfolioId = `${portfolioData.personalInfo.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
     const portfolioFolder = path.join(tempDir, `portfolio_${portfolioId}`);
     await fs.ensureDir(portfolioFolder);
     
     const htmlFilePath = path.join(portfolioFolder, 'index.html');
-    await fs.writeFile(htmlFilePath, validatedHTML);
+    await fs.writeFile(htmlFilePath, finalHTML);
     
     const processingTimeMs = Date.now() - processingStartTime;
     
-    console.log(`🎉 Portfolio generated successfully with enhanced analysis`);
-    console.log(`📊 System Status: ${insaneAnalysis?.systemStatus || 'BASIC'}`);
-    console.log(`🎯 Overall Confidence: ${Math.round((insaneAnalysis?.overallConfidence || 0.5) * 100)}%`);
-    console.log(`🏗️ Selected Skeleton: ${selectedSkeleton}`);
-    console.log(`📝 Custom Request: ${customDesignRequest ? 'Provided' : 'None'}`);
-    console.log(`📁 Projects: ${completeProjectData.totalProjects} with ${completeProjectData.totalImages} images`);
+    console.log(`✅ Portfolio generation successful!
+    - Processing time: ${processingTimeMs}ms
+    - Final HTML length: ${finalHTML.length} characters
+    - Quality score: ${validationResults?.overall?.score || 'unknown'}
+    - Auto-fixes applied: ${autoFixApplied}`);
     
+    // STEP 13: Return success response
     res.json({
       success: true,
       portfolio: {
-        html: validatedHTML,
+        html: finalHTML,
         metadata: {
           title: `${portfolioData.personalInfo.name} - Portfolio`,
           overview: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
           generatedAt: new Date().toISOString(),
           processingTime: processingTimeMs,
-          designStyle: isContinuation ? 'continued' : (portfolioData.stylePreferences?.mood || 'intelligent'),
+          generationSystem: 'ENHANCED_V2',
           
-          // Enhanced metadata with skeleton and custom request
+          // Design inputs
           selectedSkeleton,
           customDesignRequest: customDesignRequest || null,
           hasCustomRequest: !!customDesignRequest,
           skeletonUsed: selectedSkeleton !== 'none',
+          moodboardImagesUsed: moodboardFiles.length,
           
           // Project data
           projectData: completeProjectData,
           projectCount: completeProjectData.totalProjects || 0,
           imageCount: completeProjectData.totalImages || 0,
-          projectsWithOverview: completeProjectData.projectSummary ? 
-            completeProjectData.projectSummary.filter(p => p.hasOverview).length : 0,
           
-          // Enhanced Analysis metadata
-          insaneAnalysis: insaneAnalysis ? {
-            systemStatus: insaneAnalysis.systemStatus,
-            overallConfidence: insaneAnalysis.overallConfidence,
-            visualIntelligence: {
-              confidence: insaneAnalysis.analysisLevels?.visualIntelligence?.confidence,
-              category: insaneAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.category,
-              mood: insaneAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.mood
-            },
-            contentStrategy: {
-              confidence: insaneAnalysis.analysisLevels?.contentQuality?.confidence,
-              strategy: insaneAnalysis.analysisLevels?.contentQuality?.strategy,
-              contentType: insaneAnalysis.analysisLevels?.contentQuality?.contentType
-            },
-            industryIntelligence: {
-              confidence: insaneAnalysis.analysisLevels?.industryIntelligence?.confidence,
-              detectedIndustry: insaneAnalysis.analysisLevels?.industryIntelligence?.detectedIndustry,
-              portfolioFocus: insaneAnalysis.analysisLevels?.industryIntelligence?.portfolioFocus
-            },
-            skeletonIntegration: {
-              selectedSkeleton,
-              skeletonInfluence: selectedSkeleton !== 'none' ? 'High' : 'None',
-              customRequestIntegration: customDesignRequest ? 'Integrated' : 'None'
-            }
+          // Analysis results
+          comprehensiveAnalysis: comprehensiveAnalysis ? {
+            systemStatus: comprehensiveAnalysis.systemStatus,
+            overallConfidence: comprehensiveAnalysis.overallConfidence,
+            visualStyle: comprehensiveAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.category,
+            visualMood: comprehensiveAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.mood,
+            contentStrategy: comprehensiveAnalysis.analysisLevels?.contentQuality?.strategy,
+            industryFocus: comprehensiveAnalysis.analysisLevels?.industryIntelligence?.detectedIndustry,
+            analysisMethod: comprehensiveAnalysis.analysisLevels?.visualIntelligence?.analysisMethod,
+            colorPalette: comprehensiveAnalysis.analysisLevels?.visualIntelligence?.colors?.palette?.slice(0, 4),
+            processingTime: comprehensiveAnalysis.processingTime
           } : null,
           
+          // Quality metrics
           isContinuation,
           validationResult: validation,
           qualityValidation: validationResults,
           autoFixApplied,
           qualityScore: validationResults?.overall?.score || 'unknown',
+          
+          // File management
           portfolioId: portfolioId,
           portfolioFolder: portfolioFolder
         }
       }
     });
     
-    // Clean up portfolio folder after 24 hours
+    // Clean up temporary files after 24 hours
     setTimeout(() => {
       fs.remove(portfolioFolder).catch(() => {});
     }, 24 * 60 * 60 * 1000);
     
   } catch (error) {
-    console.error('Portfolio generation error:', error);
+    console.error('❌ Portfolio generation error:', error);
     
+    const processingTimeMs = Date.now() - processingStartTime;
+    
+    // Enhanced error handling with specific error types
     if (error.message && error.message.includes('API key')) {
       return res.status(500).json({
         success: false,
         error: 'API Configuration Error',
-        details: 'Anthropic API key is not configured properly'
+        details: 'Anthropic API key is not configured properly',
+        processingTime: processingTimeMs
       });
     }
     
@@ -2758,18 +2794,392 @@ app.post('/api/generate-portfolio', upload.any(), validatePortfolioData, async (
       return res.status(429).json({
         success: false,
         error: 'Rate Limit Exceeded',
-        details: 'API rate limit exceeded. Please try again later.'
+        details: 'API rate limit exceeded. Please try again later.',
+        processingTime: processingTimeMs
+      });
+    }
+
+    if (error.message && error.message.includes('max_tokens')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content Too Large',
+        details: 'The portfolio content is too large to process. Try reducing the number of projects or images.',
+        processingTime: processingTimeMs
       });
     }
     
     res.status(500).json({
       success: false,
       error: 'Portfolio Generation Failed',
-      details: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred',
-      insaneAnalysisAvailable: !!insaneAnalysis
+      details: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred during portfolio generation',
+      timestamp: new Date().toISOString(),
+      processingTime: processingTimeMs,
+      errorType: error.name || 'UnknownError'
     });
   }
 });
+
+const processContinuationRequest = async (partialHtml, portfolioData, completeProjectData, comprehensiveAnalysis, selectedSkeleton, customDesignRequest) => {
+  console.log('🔄 Processing continuation request...');
+  
+  try {
+    const continuationPrompt = `Continue completing this HTML portfolio. The generation was cut off mid-way.
+
+CONTEXT:
+- User: ${portfolioData.personalInfo.name} - ${portfolioData.personalInfo.title}
+- Projects: ${completeProjectData.totalProjects || 0}
+- Images Available: ${completeProjectData.totalImages || 0}
+- Skeleton: ${selectedSkeleton}
+- Custom Request: ${customDesignRequest || 'None'}
+${comprehensiveAnalysis ? `- Detected Style: ${comprehensiveAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.category || 'modern'}` : ''}
+${comprehensiveAnalysis ? `- Color Palette: ${comprehensiveAnalysis.analysisLevels?.visualIntelligence?.colors?.palette?.slice(0, 3).join(', ') || 'modern colors'}` : ''}
+
+CURRENT INCOMPLETE HTML:
+\`\`\`html
+${partialHtml}
+\`\`\`
+
+INSTRUCTIONS:
+1. Complete the HTML exactly where it was cut off
+2. Maintain the same design aesthetic and structure established
+3. Ensure all HTML tags are properly closed
+4. Include responsive design for all screen sizes
+5. Integrate project data and images properly
+6. Apply the detected visual style consistently
+7. Ensure professional quality throughout
+
+Return ONLY the COMPLETE HTML starting with <!DOCTYPE html> and ending with </html>.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      temperature: 0.7,
+      messages: [{ role: 'user', content: continuationPrompt }]
+    });
+
+    let continuedHTML = response.content[0].text.trim();
+    
+    // Clean the response
+    if (continuedHTML.startsWith('```html')) {
+      continuedHTML = continuedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
+    } else if (continuedHTML.startsWith('```')) {
+      continuedHTML = continuedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+
+    // Update with project images
+    continuedHTML = updateHtmlWithProjectImages(continuedHTML, completeProjectData);
+
+    // Validate the continued result
+    const finalValidation = htmlValidator.validateCompleteness(continuedHTML);
+    
+    console.log(`✅ Continuation completed: ${finalValidation.isComplete ? 'Complete' : 'Still incomplete'}`);
+
+    const portfolioId = `${portfolioData.personalInfo.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+
+    return {
+      success: true,
+      portfolio: {
+        html: continuedHTML,
+        metadata: {
+          title: `${portfolioData.personalInfo.name} - Portfolio`,
+          overview: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
+          generatedAt: new Date().toISOString(),
+          generationSystem: 'ENHANCED_V2_CONTINUED',
+          selectedSkeleton,
+          customDesignRequest: customDesignRequest || null,
+          projectData: completeProjectData,
+          projectCount: completeProjectData.totalProjects || 0,
+          imageCount: completeProjectData.totalImages || 0,
+          comprehensiveAnalysis: comprehensiveAnalysis ? {
+            systemStatus: comprehensiveAnalysis.systemStatus,
+            overallConfidence: comprehensiveAnalysis.overallConfidence,
+            visualStyle: comprehensiveAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.category,
+            contentStrategy: comprehensiveAnalysis.analysisLevels?.contentQuality?.strategy,
+            industryFocus: comprehensiveAnalysis.analysisLevels?.industryIntelligence?.detectedIndustry
+          } : null,
+          isContinuation: true,
+          wasContinued: true,
+          validationResult: finalValidation,
+          portfolioId: portfolioId
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Continuation request failed:', error);
+    return {
+      success: false,
+      error: 'Continuation failed',
+      details: error.message
+    };
+  }
+};
+
+const processAutoContinuation = async (partialHtml, portfolioData, completeProjectData, comprehensiveAnalysis, selectedSkeleton, customDesignRequest, attempt = 1) => {
+  const maxAttempts = 2; // Reduced for faster response
+  
+  if (attempt > maxAttempts) {
+    console.log(`❌ Auto-continuation failed after ${maxAttempts} attempts`);
+    return {
+      success: false,
+      error: 'Max attempts reached',
+      partialHtml: partialHtml
+    };
+  }
+
+  console.log(`🔄 Auto-continuing generation (attempt ${attempt}/${maxAttempts})`);
+
+  try {
+    const continuationPrompt = `Continue and complete this HTML portfolio. It was cut off during generation.
+
+USER: ${portfolioData.personalInfo.name} - ${portfolioData.personalInfo.title}
+PROJECTS: ${completeProjectData.totalProjects || 0} projects
+${comprehensiveAnalysis ? `STYLE: ${comprehensiveAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.category || 'modern'} ${comprehensiveAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.mood || 'professional'}` : ''}
+${selectedSkeleton !== 'none' ? `SKELETON: ${selectedSkeleton}` : ''}
+${customDesignRequest ? `CUSTOM: ${customDesignRequest}` : ''}
+
+INCOMPLETE HTML:
+\`\`\`html
+${partialHtml}
+\`\`\`
+
+Complete the HTML with proper closing tags and responsive design. Return ONLY the complete HTML.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      temperature: 0.7,
+      messages: [{ role: 'user', content: continuationPrompt }]
+    });
+
+    let continuedHTML = response.content[0].text.trim();
+    
+    // Clean the response
+    if (continuedHTML.startsWith('```html')) {
+      continuedHTML = continuedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
+    } else if (continuedHTML.startsWith('```')) {
+      continuedHTML = continuedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+
+    // Update with project images
+    continuedHTML = updateHtmlWithProjectImages(continuedHTML, completeProjectData);
+
+    // Validate the continued result
+    const finalValidation = htmlValidator.validateCompleteness(continuedHTML);
+    
+    if (!finalValidation.isComplete && attempt < maxAttempts) {
+      console.log(`⚠️ Auto-continuation ${attempt} still incomplete, trying again...`);
+      return await processAutoContinuation(
+        continuedHTML, 
+        portfolioData, 
+        completeProjectData, 
+        comprehensiveAnalysis,
+        selectedSkeleton,
+        customDesignRequest,
+        attempt + 1
+      );
+    }
+
+    // Success - return completed portfolio
+    const portfolioId = `${portfolioData.personalInfo.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+
+    return {
+      success: true,
+      portfolio: {
+        html: continuedHTML,
+        metadata: {
+          title: `${portfolioData.personalInfo.name} - Portfolio`,
+          overview: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
+          generatedAt: new Date().toISOString(),
+          generationSystem: 'ENHANCED_V2_AUTO_CONTINUED',
+          continuationAttempts: attempt,
+          finalCompletion: finalValidation.isComplete,
+          selectedSkeleton,
+          customDesignRequest: customDesignRequest || null,
+          projectData: completeProjectData,
+          projectCount: completeProjectData.totalProjects || 0,
+          imageCount: completeProjectData.totalImages || 0,
+          comprehensiveAnalysis: comprehensiveAnalysis ? {
+            systemStatus: comprehensiveAnalysis.systemStatus,
+            overallConfidence: comprehensiveAnalysis.overallConfidence,
+            visualStyle: comprehensiveAnalysis.analysisLevels?.visualIntelligence?.visualDNA?.category,
+            contentStrategy: comprehensiveAnalysis.analysisLevels?.contentQuality?.strategy,
+            industryFocus: comprehensiveAnalysis.analysisLevels?.industryIntelligence?.detectedIndustry
+          } : null,
+          isContinuation: true,
+          wasAutoContinued: true,
+          validationResult: finalValidation,
+          portfolioId: portfolioId
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error(`❌ Auto-continuation attempt ${attempt} failed:`, error);
+    
+    if (attempt < maxAttempts) {
+      console.log(`🔄 Retrying auto-continuation in 1 second...`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return await processAutoContinuation(
+        partialHtml, 
+        portfolioData, 
+        completeProjectData, 
+        comprehensiveAnalysis,
+        selectedSkeleton,
+        customDesignRequest,
+        attempt + 1
+      );
+    }
+    
+    // Final failure
+    return {
+      success: false,
+      error: 'Auto-continuation failed after multiple attempts',
+      partialHtml: partialHtml,
+      continuationAttempts: attempt
+    };
+  }
+};
+
+const autoContinueGeneration = async (partialHtml, portfolioData, completeProjectData, enhancedAnalysis, selectedSkeleton, customDesignRequest, attempt = 1) => {
+  const maxAttempts = 3;
+  
+  if (attempt > maxAttempts) {
+    console.log(`❌ Auto-continuation failed after ${maxAttempts} attempts`);
+    return {
+      success: false,
+      error: 'Max attempts reached',
+      partialHtml: partialHtml
+    };
+  }
+
+  console.log(`🔄 Auto-continuing generation (attempt ${attempt}/${maxAttempts})`);
+
+  try {
+    // Prepare enhanced continuation prompt
+    const continuationPrompt = `Continue completing this HTML portfolio. The generation was cut off mid-way.
+
+CONTEXT:
+- User: ${portfolioData.personalInfo.name} - ${portfolioData.personalInfo.title}
+- Skeleton: ${selectedSkeleton}
+- Custom Request: ${customDesignRequest || 'None'}
+- Projects: ${completeProjectData.totalProjects}
+- Images Available: ${completeProjectData.totalImages}
+${enhancedAnalysis ? `- Detected Style: ${enhancedAnalysis.analysisSummary?.visualStyle || 'modern professional'}` : ''}
+${enhancedAnalysis ? `- Content Strategy: ${enhancedAnalysis.analysisLevels?.contentQuality?.strategy || 'balanced'}` : ''}
+
+CURRENT INCOMPLETE HTML:
+\`\`\`html
+${partialHtml}
+\`\`\`
+
+INSTRUCTIONS:
+1. Complete the HTML exactly where it was cut off
+2. Maintain the same design aesthetic and structure
+3. Ensure all HTML tags are properly closed
+4. Include responsive design for all screen sizes
+5. Integrate project images and data properly
+6. Apply any moodboard styling that was established
+7. Ensure professional quality throughout
+
+Return ONLY the COMPLETE HTML starting with <!DOCTYPE html> and ending with </html>.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      temperature: 0.7,
+      messages: [{ role: 'user', content: continuationPrompt }]
+    });
+
+    let continuedHTML = response.content[0].text.trim();
+    
+    // Clean the response
+    if (continuedHTML.startsWith('```html')) {
+      continuedHTML = continuedHTML.replace(/^```html\n/, '').replace(/\n```$/, '');
+    } else if (continuedHTML.startsWith('```')) {
+      continuedHTML = continuedHTML.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+
+    // Update with project images
+    continuedHTML = updateHtmlWithProjectImages(continuedHTML, completeProjectData);
+
+    // Validate the continued result
+    const finalValidation = htmlValidator.validateCompleteness(continuedHTML);
+    
+    if (!finalValidation.isComplete && attempt < maxAttempts) {
+      console.log(`⚠️ Continuation ${attempt} still incomplete, trying again...`);
+      return await autoContinueGeneration(
+        continuedHTML, 
+        portfolioData, 
+        completeProjectData, 
+        enhancedAnalysis,
+        selectedSkeleton,
+        customDesignRequest,
+        attempt + 1
+      );
+    }
+
+    // Success - return completed portfolio
+    const portfolioId = `${portfolioData.personalInfo.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+
+    return {
+      success: true,
+      portfolio: {
+        html: continuedHTML,
+        metadata: {
+          title: `${portfolioData.personalInfo.name} - Portfolio`,
+          overview: portfolioData.personalInfo.bio || `Portfolio of ${portfolioData.personalInfo.name}, ${portfolioData.personalInfo.title}`,
+          generatedAt: new Date().toISOString(),
+          designStyle: 'auto-continued',
+          generationSystem: 'V1_AUTO_CONTINUED',
+          continuationAttempts: attempt,
+          finalCompletion: finalValidation.isComplete,
+          selectedSkeleton,
+          customDesignRequest: customDesignRequest || null,
+          projectData: completeProjectData,
+          projectCount: completeProjectData.totalProjects || 0,
+          imageCount: completeProjectData.totalImages || 0,
+          enhancedAnalysis: enhancedAnalysis ? {
+            systemStatus: enhancedAnalysis.systemStatus,
+            overallConfidence: enhancedAnalysis.overallConfidence,
+            visualStyle: enhancedAnalysis.analysisSummary?.visualStyle,
+            contentStrategy: enhancedAnalysis.analysisLevels?.contentQuality?.strategy,
+            industryFocus: enhancedAnalysis.analysisLevels?.industryIntelligence?.detectedIndustry
+          } : null,
+          isContinuation: true,
+          wasAutoContinued: true,
+          validationResult: finalValidation,
+          portfolioId: portfolioId
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error(`❌ Auto-continuation attempt ${attempt} failed:`, error);
+    
+    if (attempt < maxAttempts) {
+      console.log(`🔄 Retrying auto-continuation in 2 seconds...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return await autoContinueGeneration(
+        partialHtml, 
+        portfolioData, 
+        completeProjectData, 
+        enhancedAnalysis,
+        selectedSkeleton,
+        customDesignRequest,
+        attempt + 1
+      );
+    }
+    
+    // Final failure
+    return {
+      success: false,
+      error: 'Auto-continuation failed after multiple attempts',
+      partialHtml: partialHtml,
+      continuationAttempts: attempt
+    };
+  }
+};
 
 const getProjectImagesFromSheets = async (userEmail) => {
   try {

@@ -8,19 +8,30 @@ const Navigation = () => {
   const location = useLocation();
   const { isSignedIn } = useUser();
 
-  // Define which pages should show the full navigation
+  // Define which pages should show the navigation
+  const pagesWithNav = ['/', '/home', '/features', '/pricing', '/showroom', '/dashboard'];
+  
+  // Check if current page should show navigation
+  const shouldShowNav = pagesWithNav.includes(location.pathname);
+
+  // Don't show navigation on other pages
+  if (!shouldShowNav) {
+    return null;
+  }
+
+  // Define which pages should show the full navigation (landing pages)
   const publicLandingPages = ['/', '/home', '/features', '/pricing', '/showroom'];
   const shouldShowFullNav = publicLandingPages.includes(location.pathname);
 
-  // For all other pages, show minimal navigation
+  // For dashboard, show minimal navigation
   if (!shouldShowFullNav) {
     return (
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FFFEEA]/80 backdrop-blur-md border-b border-[#06070A]/10">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Left side - Prism text */}
             <div className="flex-1">
-              <Link to="/" className="text-2xl font-bold text-foreground hover:opacity-80 transition-opacity">
+              <Link to="/" className="text-2xl font-light text-[#06070A] hover:opacity-80 transition-opacity">
                 Prism
               </Link>
             </div>
@@ -37,12 +48,12 @@ const Navigation = () => {
 
   // Full navigation for landing pages
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FFFEEA]/80 backdrop-blur-md border-b border-[#06070A]/10">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 relative">
           {/* Left side - Prism text */}
           <div className="flex-1 md:flex-none">
-            <Link to="/" className="text-2xl font-bold text-foreground hover:opacity-80 transition-opacity">
+            <Link to="/" className="text-2xl font-light text-[#06070A] hover:opacity-80 transition-opacity">
               Prism
             </Link>
           </div>
@@ -51,24 +62,24 @@ const Navigation = () => {
           <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center space-x-8">
             <Link 
               to="/features" 
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                location.pathname === '/features' ? 'text-primary' : 'text-muted-foreground'
+              className={`text-sm font-light transition-colors hover:text-[#06070A] ${
+                location.pathname === '/features' ? 'text-[#06070A]' : 'text-[#06070A]/60'
               }`}
             >
               Features
             </Link>
             <Link 
               to="/pricing" 
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                location.pathname === '/pricing' ? 'text-primary' : 'text-muted-foreground'
+              className={`text-sm font-light transition-colors hover:text-[#06070A] ${
+                location.pathname === '/pricing' ? 'text-[#06070A]' : 'text-[#06070A]/60'
               }`}
             >
               Pricing
             </Link>
             <Link 
               to="/showroom" 
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                location.pathname === '/showroom' ? 'text-primary' : 'text-muted-foreground'
+              className={`text-sm font-light transition-colors hover:text-[#06070A] ${
+                location.pathname === '/showroom' ? 'text-[#06070A]' : 'text-[#06070A]/60'
               }`}
             >
               Showroom
