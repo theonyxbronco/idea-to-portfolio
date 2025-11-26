@@ -1,3 +1,4 @@
+const { logger } = require("./../logger");
 // portfolio-backend/utils/validators/designValidator.js
 const { JSDOM } = require('jsdom');
 
@@ -16,7 +17,7 @@ class DesignValidator {
    * @returns {Object} Design validation results
    */
   async validate(htmlString, portfolioData, processedImages = {}) {
-    console.log('🎨 Running moodboard-first design validation...');
+    logger.info('🎨 Running moodboard-first design validation...');
     
     this.passedChecks = [];
     this.issues = [];
@@ -66,7 +67,7 @@ class DesignValidator {
       };
 
     } catch (error) {
-      console.error('Design validation error:', error);
+      logger.error('Design validation error:', error);
       return {
         score: 50,
         issues: [{ 
@@ -156,7 +157,7 @@ class DesignValidator {
    * MOODBOARD FIDELITY VALIDATION - Check if design truly reflects moodboard
    */
   async validateMoodboardFidelity(document, moodboardImages, generatedColors, layoutAnalysis) {
-    console.log(`🎨 Validating fidelity to ${moodboardImages.length} moodboard images...`);
+    logger.info(`🎨 Validating fidelity to ${moodboardImages.length} moodboard images...`);
 
     // This is a conceptual validation - in practice, you'd need image analysis APIs
     // For now, we'll check if the design shows creative interpretation vs template usage

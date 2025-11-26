@@ -1,3 +1,4 @@
+const { logger } = require("./../logger");
 // portfolio-backend/utils/validators/contentValidator.js
 const { JSDOM } = require('jsdom');
 
@@ -16,7 +17,7 @@ class ContentValidator {
    * @returns {Object} Content validation results
    */
   async validate(htmlString, portfolioData, processedImages = {}) {
-    console.log('📝 Running flexible content validation...');
+    logger.info('📝 Running flexible content validation...');
     
     this.passedChecks = [];
     this.issues = [];
@@ -62,7 +63,7 @@ class ContentValidator {
       };
 
     } catch (error) {
-      console.error('Content validation error:', error);
+      logger.error('Content validation error:', error);
       return {
         score: 0,
         issues: [{ 
@@ -172,7 +173,7 @@ class ContentValidator {
       return;
     }
 
-    console.log(`Validating ${projects.length} projects with ${hasMoodboard ? 'flexible' : 'traditional'} expectations...`);
+    logger.info(`Validating ${projects.length} projects with ${hasMoodboard ? 'flexible' : 'traditional'} expectations...`);
 
     let projectsDisplayed = 0;
     let projectsWithDescriptions = 0;
@@ -291,7 +292,7 @@ class ContentValidator {
       return;
     }
 
-    console.log(`Validating ${skills.length} skills with ${hasMoodboard ? 'flexible' : 'traditional'} expectations...`);
+    logger.info(`Validating ${skills.length} skills with ${hasMoodboard ? 'flexible' : 'traditional'} expectations...`);
 
     // For moodboard designs, skills might be integrated creatively
     const skillsDisplayed = skills.filter(skill => this.findTextContent(document, skill));
@@ -406,7 +407,7 @@ class ContentValidator {
    * Validate moodboard-driven content structure (flexible approach)
    */
   async validateMoodboardDrivenContent(document, portfolioData) {
-    console.log('🎨 Validating moodboard-driven content structure...');
+    logger.info('🎨 Validating moodboard-driven content structure...');
 
     // Check for creative content organization
     const sections = document.querySelectorAll('section, div[class*="section"], main > div, article, .content-block');
@@ -453,7 +454,7 @@ class ContentValidator {
    * Validate traditional content structure (stricter approach)
    */
   async validateTraditionalContent(document, portfolioData) {
-    console.log('📋 Validating traditional content structure...');
+    logger.info('📋 Validating traditional content structure...');
 
     // Check for essential sections (traditional approach)
     const essentialSections = [

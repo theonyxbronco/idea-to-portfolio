@@ -14,6 +14,7 @@
     "@clerk/clerk-sdk-node": "^5.1.6",
     "axios": "^1.11.0",
     "cloudinary": "^2.7.0",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
@@ -41,6 +42,6 @@
     "claude",
     "generator"
   ],
-  "author": "Your Name",
+  "author": "",
   "license": "MIT"
 }

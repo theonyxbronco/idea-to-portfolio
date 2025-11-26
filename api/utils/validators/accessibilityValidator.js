@@ -1,3 +1,4 @@
+const { logger } = require("./../logger");
 const { JSDOM } = require('jsdom');
 
 class AccessibilityValidator {
@@ -14,7 +15,7 @@ class AccessibilityValidator {
    * @returns {Object} Accessibility validation results
    */
   async validate(htmlString, portfolioData) {
-    console.log('♿ Running accessibility validation...');
+    logger.info('♿ Running accessibility validation...');
     
     this.passedChecks = [];
     this.issues = [];
@@ -48,7 +49,7 @@ class AccessibilityValidator {
       };
 
     } catch (error) {
-      console.error('Accessibility validation error:', error);
+      logger.error('Accessibility validation error:', error);
       return {
         score: 0,
         issues: [{ 

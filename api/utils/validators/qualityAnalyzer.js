@@ -1,3 +1,4 @@
+const { logger } = require("./../logger");
 // portfolio-backend/utils/validators/qualityAnalyzer.js
 const contentValidator = require('./contentValidator');
 const designValidator = require('./designValidator');
@@ -23,7 +24,7 @@ class QualityAnalyzer {
    * @returns {Object} Comprehensive validation report
    */
   async validatePortfolio(htmlString, portfolioData, processedImages = {}) {
-    console.log('🔍 Starting comprehensive portfolio validation...');
+    logger.info('🔍 Starting comprehensive portfolio validation...');
     const startTime = Date.now();
     
     const validationResults = {
@@ -54,9 +55,9 @@ class QualityAnalyzer {
       // Process content validation results
       if (contentResult.status === 'fulfilled') {
         validationResults.content = contentResult.value;
-        console.log(`✅ Content validation: ${contentResult.value.score}/100`);
+        logger.info(`✅ Content validation: ${contentResult.value.score}/100`);
       } else {
-        console.warn('⚠️ Content validation failed:', contentResult.reason);
+        logger.warn('⚠️ Content validation failed:', contentResult.reason);
         validationResults.content.issues.push({
           type: 'validation_error',
           severity: 'low',
@@ -67,9 +68,9 @@ class QualityAnalyzer {
       // Process design validation results
       if (designResult.status === 'fulfilled') {
         validationResults.design = designResult.value;
-        console.log(`🎨 Design validation: ${designResult.value.score}/100`);
+        logger.info(`🎨 Design validation: ${designResult.value.score}/100`);
       } else {
-        console.warn('⚠️ Design validation failed:', designResult.reason);
+        logger.warn('⚠️ Design validation failed:', designResult.reason);
         validationResults.design.issues.push({
           type: 'validation_error',
           severity: 'low',
@@ -80,9 +81,9 @@ class QualityAnalyzer {
       // Process technical validation results
       if (technicalResult.status === 'fulfilled') {
         validationResults.technical = technicalResult.value;
-        console.log(`🔧 Technical validation: ${technicalResult.value.score}/100`);
+        logger.info(`🔧 Technical validation: ${technicalResult.value.score}/100`);
       } else {
-        console.warn('⚠️ Technical validation failed:', technicalResult.reason);
+        logger.warn('⚠️ Technical validation failed:', technicalResult.reason);
         validationResults.technical.issues.push({
           type: 'validation_error',
           severity: 'low',
@@ -93,9 +94,9 @@ class QualityAnalyzer {
       // Process accessibility validation results
       if (accessibilityResult.status === 'fulfilled') {
         validationResults.accessibility = accessibilityResult.value;
-        console.log(`♿ Accessibility validation: ${accessibilityResult.value.score}/100`);
+        logger.info(`♿ Accessibility validation: ${accessibilityResult.value.score}/100`);
       } else {
-        console.warn('⚠️ Accessibility validation failed:', accessibilityResult.reason);
+        logger.warn('⚠️ Accessibility validation failed:', accessibilityResult.reason);
         validationResults.accessibility.issues.push({
           type: 'validation_error',
           severity: 'low',
@@ -127,12 +128,12 @@ class QualityAnalyzer {
       // Set validation time
       validationResults.metadata.validationTime = Date.now() - startTime;
 
-      console.log(`🎯 Overall quality score: ${overallScore}/100 (${validationResults.overall.status})`);
+      logger.info(`🎯 Overall quality score: ${overallScore}/100 (${validationResults.overall.status})`);
 
       return validationResults;
 
     } catch (error) {
-      console.error('❌ Validation failed:', error);
+      logger.error('❌ Validation failed:', error);
       validationResults.overall.status = 'error';
       validationResults.metadata.validationTime = Date.now() - startTime;
       return validationResults;
@@ -148,7 +149,7 @@ class QualityAnalyzer {
    * @returns {Object} Auto-fix results
    */
   async applyAutoFixes(htmlString, validationResults, portfolioData, processedImages) {
-    console.log('⚡ Applying automatic fixes...');
+    logger.info('⚡ Applying automatic fixes...');
     
     try {
       const dom = new JSDOM(htmlString);
@@ -186,7 +187,7 @@ class QualityAnalyzer {
 
       const improvedHtml = htmlModified ? dom.serialize() : htmlString;
 
-      console.log(`✅ Applied ${fixesApplied.length} automatic fixes`);
+      logger.info(`✅ Applied ${fixesApplied.length} automatic fixes`);
 
       return {
         success: true,
@@ -196,7 +197,7 @@ class QualityAnalyzer {
       };
 
     } catch (error) {
-      console.error('❌ Auto-fix failed:', error);
+      logger.error('❌ Auto-fix failed:', error);
       return {
         success: false,
         error: error.message,
@@ -264,7 +265,7 @@ class QualityAnalyzer {
             break;
         }
       } catch (fixError) {
-        console.warn('Failed to apply accessibility fix:', fixError);
+        logger.warn('Failed to apply accessibility fix:', fixError);
       }
     });
 
@@ -336,7 +337,7 @@ class QualityAnalyzer {
             break;
         }
       } catch (fixError) {
-        console.warn('Failed to apply technical fix:', fixError);
+        logger.warn('Failed to apply technical fix:', fixError);
       }
     });
 
@@ -393,7 +394,7 @@ class QualityAnalyzer {
             break;
         }
       } catch (fixError) {
-        console.warn('Failed to apply content fix:', fixError);
+        logger.warn('Failed to apply content fix:', fixError);
       }
     });
 
@@ -456,7 +457,7 @@ class QualityAnalyzer {
             break;
         }
       } catch (fixError) {
-        console.warn('Failed to apply design fix:', fixError);
+        logger.warn('Failed to apply design fix:', fixError);
       }
     });
 

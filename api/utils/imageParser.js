@@ -1,11 +1,13 @@
 const sharp = require('sharp');
 const fs = require('fs-extra');
 const path = require('path');
+const { Logger } = require('./logger');
 
 class ImageParser {
   constructor(anthropicClient) {
     this.anthropicClient = anthropicClient;
     this.useClaudeVision = !!anthropicClient;
+    this.logger = new Logger('ImageParser');
     
     // Enhanced visual DNA patterns
     this.visualDNAPatterns = {
@@ -87,7 +89,7 @@ class ImageParser {
    * This orchestrates the entire analysis process
    */
   async runComprehensiveAnalysis(moodboardFiles, portfolioData, projectImages, designOptions = {}) {
-    console.log('🚀 Starting Comprehensive Image Analysis...');
+    this.logger.info('🚀 Starting Comprehensive Image Analysis...');
     
     const startTime = Date.now();
     const analysis = {
@@ -103,34 +105,34 @@ class ImageParser {
 
     try {
       // PHASE 1: Visual Intelligence (Moodboard Analysis)
-      console.log('🧠 Phase 1: Visual Intelligence Analysis...');
+      this.logger.info('🧠 Phase 1: Visual Intelligence Analysis...');
       if (moodboardFiles && moodboardFiles.length > 0) {
         analysis.analysisLevels.visualIntelligence = await this.analyzeUploadedImages(moodboardFiles, 'moodboard');
-        console.log(`✅ Visual analysis completed: ${analysis.analysisLevels.visualIntelligence.visualDNA?.category || 'unknown'} style`);
+        this.logger.info(`✅ Visual analysis completed: ${analysis.analysisLevels.visualIntelligence.visualDNA?.category || 'unknown'} style`);
       } else {
         analysis.analysisLevels.visualIntelligence = this.getBasicFallback();
-        console.log('⚠️ No moodboard files, using fallback visual analysis');
+        this.logger.info('⚠️ No moodboard files, using fallback visual analysis');
       }
 
       // PHASE 2: Content Quality Analysis
-      console.log('🕵️ Phase 2: Content Quality Analysis...');
+      this.logger.info('🕵️ Phase 2: Content Quality Analysis...');
       analysis.analysisLevels.contentQuality = this.analyzeContentQuality(portfolioData, projectImages);
-      console.log(`✅ Content analysis: ${analysis.analysisLevels.contentQuality.strategy} strategy`);
+      this.logger.info(`✅ Content analysis: ${analysis.analysisLevels.contentQuality.strategy} strategy`);
 
       // PHASE 3: Industry Intelligence
-      console.log('🎯 Phase 3: Industry Detection...');
+      this.logger.info('🎯 Phase 3: Industry Detection...');
       analysis.analysisLevels.industryIntelligence = this.detectIndustry(portfolioData);
-      console.log(`✅ Industry detected: ${analysis.analysisLevels.industryIntelligence.detectedIndustry}`);
+      this.logger.info(`✅ Industry detected: ${analysis.analysisLevels.industryIntelligence.detectedIndustry}`);
 
       // PHASE 4: Design Options Integration
       if (designOptions.selectedSkeleton && designOptions.selectedSkeleton !== 'none') {
         analysis.skeletonIntegration = this.integrateSkeletonPreferences(analysis, designOptions.selectedSkeleton);
-        console.log(`✅ Skeleton integrated: ${designOptions.selectedSkeleton}`);
+        this.logger.info(`✅ Skeleton integrated: ${designOptions.selectedSkeleton}`);
       }
 
       if (designOptions.customDesignRequest) {
         analysis.customDesignIntegration = this.analyzeCustomDesignRequest(designOptions.customDesignRequest, analysis);
-        console.log(`✅ Custom design analyzed: ${analysis.customDesignIntegration.primaryStyle}`);
+        this.logger.info(`✅ Custom design analyzed: ${analysis.customDesignIntegration.primaryStyle}`);
       }
 
       // Calculate overall confidence
@@ -156,15 +158,15 @@ class ImageParser {
       }
 
       const processingTime = Date.now() - startTime;
-      console.log(`✅ Comprehensive Analysis Complete!`);
-      console.log(`🎯 System Status: ${analysis.systemStatus} (${Math.round(analysis.overallConfidence * 100)}% confidence)`);
-      console.log(`⏱️ Processing time: ${processingTime}ms`);
+      this.logger.info(`✅ Comprehensive Analysis Complete!`);
+      this.logger.info(`🎯 System Status: ${analysis.systemStatus} (${Math.round(analysis.overallConfidence * 100)}% confidence)`);
+      this.logger.info(`⏱️ Processing time: ${processingTime}ms`);
       
       analysis.processingTime = processingTime;
       return analysis;
 
     } catch (error) {
-      console.error('❌ Comprehensive analysis failed:', error);
+      this.logger.error('❌ Comprehensive analysis failed:', error);
       
       // Fallback analysis
       analysis.analysisLevels.visualIntelligence = this.getBasicFallback();
@@ -183,10 +185,10 @@ class ImageParser {
    * Handles both Sharp and Claude Vision analysis
    */
   async analyzeUploadedImages(uploadedFiles, type = 'moodboard') {
-    console.log(`🖼️ Analyzing ${uploadedFiles.length} uploaded ${type} images...`);
+    this.logger.info(`🖼️ Analyzing ${uploadedFiles.length} uploaded ${type} images...`);
     
     if (!uploadedFiles || uploadedFiles.length === 0) {
-      console.log('⚠️ No images provided');
+      this.logger.info('⚠️ No images provided');
       return this.getBasicFallback();
     }
 
@@ -196,21 +198,21 @@ class ImageParser {
     // Try Claude Vision first if available
     if (this.useClaudeVision) {
       try {
-        console.log('🤖 Running Claude Vision analysis...');
+        this.logger.info('🤖 Running Claude Vision analysis...');
         claudeAnalysis = await this.runClaudeVisionAnalysis(uploadedFiles, type);
-        console.log(`✅ Claude Vision analysis successful: ${claudeAnalysis?.visualDNA?.category || 'unknown'}`);
+        this.logger.info(`✅ Claude Vision analysis successful: ${claudeAnalysis?.visualDNA?.category || 'unknown'}`);
       } catch (error) {
-        console.warn('⚠️ Claude Vision failed:', error.message);
+        this.logger.warn('⚠️ Claude Vision failed:', error.message);
       }
     }
 
     // Always run Sharp analysis as backup/enhancement
     try {
-      console.log('🔍 Running Sharp analysis...');
+      this.logger.info('🔍 Running Sharp analysis...');
       sharpAnalysis = await this.runSharpAnalysis(uploadedFiles);
-      console.log(`✅ Sharp analysis successful: ${sharpAnalysis?.colors?.palette?.length || 0} colors extracted`);
+      this.logger.info(`✅ Sharp analysis successful: ${sharpAnalysis?.colors?.palette?.length || 0} colors extracted`);
     } catch (error) {
-      console.warn('⚠️ Sharp analysis failed:', error.message);
+      this.logger.warn('⚠️ Sharp analysis failed:', error.message);
     }
 
     // Combine results intelligently
@@ -224,7 +226,7 @@ async runClaudeVisionAnalysis(uploadedFiles, type) {
   const sharp = require('sharp');
   const imageContents = [];
   
-  console.log(`🤖 Running Claude Vision analysis on ${uploadedFiles.length} files...`);
+  this.logger.info(`🤖 Running Claude Vision analysis on ${uploadedFiles.length} files...`);
   
   // Process up to 4 images with proper Sharp normalization
   for (let i = 0; i < Math.min(uploadedFiles.length, 4); i++) {
@@ -233,18 +235,18 @@ async runClaudeVisionAnalysis(uploadedFiles, type) {
     try {
       // Validate the file has buffer data
       if (!file.buffer || file.buffer.length === 0) {
-        console.warn(`⚠️ File ${file.originalname} has no buffer data, skipping`);
+        this.logger.warn(`⚠️ File ${file.originalname} has no buffer data, skipping`);
         continue;
       }
 
-      console.log(`🔍 Processing ${file.originalname}: ${file.mimetype}, ${Math.round(file.buffer.length / 1024)}KB`);
+      this.logger.info(`🔍 Processing ${file.originalname}: ${file.mimetype}, ${Math.round(file.buffer.length / 1024)}KB`);
 
       // Use Sharp to normalize and re-encode the image
       const image = sharp(file.buffer);
       const metadata = await image.metadata();
       
       if (!metadata.format) {
-        console.warn(`⚠️ Could not detect format for ${file.originalname}, skipping`);
+        this.logger.warn(`⚠️ Could not detect format for ${file.originalname}, skipping`);
         continue;
       }
 
@@ -259,11 +261,11 @@ async runClaudeVisionAnalysis(uploadedFiles, type) {
       
       // Validate base64 data
       if (!base64Data || base64Data.length < 100) {
-        console.warn(`⚠️ Invalid base64 data for ${file.originalname}, skipping`);
+        this.logger.warn(`⚠️ Invalid base64 data for ${file.originalname}, skipping`);
         continue;
       }
 
-      console.log(`✅ Processed image ${i + 1}: ${file.originalname} → JPEG (${Math.round(normalizedBuffer.length / 1024)}KB)`);
+      this.logger.info(`✅ Processed image ${i + 1}: ${file.originalname} → JPEG (${Math.round(normalizedBuffer.length / 1024)}KB)`);
 
       imageContents.push({
         type: "image",
@@ -275,7 +277,7 @@ async runClaudeVisionAnalysis(uploadedFiles, type) {
       });
 
     } catch (error) {
-      console.error(`❌ Error processing image ${file.originalname}:`, error.message);
+      this.logger.error(`❌ Error processing image ${file.originalname}:`, error.message);
       continue; // Skip this image and continue with others
     }
   }
@@ -285,7 +287,7 @@ async runClaudeVisionAnalysis(uploadedFiles, type) {
     throw new Error('No valid images could be processed for Claude Vision analysis');
   }
 
-  console.log(`📤 Sending ${imageContents.length} normalized JPEG images to Claude Vision`);
+  this.logger.info(`📤 Sending ${imageContents.length} normalized JPEG images to Claude Vision`);
 
   const visionPrompt = this.generateEnhancedVisionPrompt(type, imageContents.length);
   
@@ -387,7 +389,7 @@ Be precise and actionable in your analysis.`;
         });
         
       } catch (error) {
-        console.warn(`Sharp analysis failed for ${file.originalname}:`, error.message);
+        this.logger.warn(`Sharp analysis failed for ${file.originalname}:`, error.message);
       }
     }
     
@@ -445,7 +447,7 @@ Be precise and actionable in your analysis.`;
       };
       
     } catch (error) {
-      console.warn('Color extraction failed:', error);
+      this.logger.warn('Color extraction failed:', error);
       return {
         palette: ['#333333', '#666666', '#999999'],
         dominant: '#333333',
@@ -519,7 +521,7 @@ Be precise and actionable in your analysis.`;
       };
 
     } catch (error) {
-      console.warn('Failed to parse vision response:', error);
+      this.logger.warn('Failed to parse vision response:', error);
       return {
         ...defaultAnalysis,
         analysisMethod: 'claude-vision-fallback',
@@ -534,7 +536,7 @@ Be precise and actionable in your analysis.`;
   combineAnalysisResults(claudeAnalysis, sharpAnalysis, imageCount) {
     // If we have Claude analysis, use it as primary with Sharp enhancement
     if (claudeAnalysis && claudeAnalysis.confidence > 0.6) {
-      console.log('🤖 Using Claude Vision as primary analysis');
+      this.logger.info('🤖 Using Claude Vision as primary analysis');
       
       // Enhance with Sharp color data if available
       if (sharpAnalysis && sharpAnalysis.colors && sharpAnalysis.colors.palette.length > 0) {
@@ -555,14 +557,14 @@ Be precise and actionable in your analysis.`;
     
     // Fallback to Sharp analysis if Claude failed
     if (sharpAnalysis) {
-      console.log('🔍 Using Sharp analysis as primary');
+      this.logger.info('🔍 Using Sharp analysis as primary');
       sharpAnalysis.imageCount = imageCount;
       sharpAnalysis.analysisMethod = 'sharp-primary';
       return sharpAnalysis;
     }
     
     // Final fallback
-    console.log('⚠️ Using basic fallback analysis');
+    this.logger.info('⚠️ Using basic fallback analysis');
     const fallback = this.getBasicFallback();
     fallback.imageCount = imageCount;
     return fallback;
@@ -676,7 +678,7 @@ Be precise and actionable in your analysis.`;
    * 🎯 ENHANCED CONTENT QUALITY ANALYSIS
    */
   analyzeContentQuality(portfolioData, projectImages) {
-    console.log('🕵️ Running Enhanced Content Quality Analysis...');
+    this.logger.info('🕵️ Running Enhanced Content Quality Analysis...');
     
     const analysis = {
       contentType: 'minimal',
@@ -772,7 +774,7 @@ Be precise and actionable in your analysis.`;
       imageDistribution: projectsWithImages > 0 ? (projectsWithImages / projects.length) : 0
     };
 
-    console.log(`✅ Content analysis complete: ${analysis.strategy} (${Math.round(analysis.confidence * 100)}%)`);
+    this.logger.info(`✅ Content analysis complete: ${analysis.strategy} (${Math.round(analysis.confidence * 100)}%)`);
     return analysis;
   }
 
@@ -780,7 +782,7 @@ Be precise and actionable in your analysis.`;
    * 🎯 ENHANCED INDUSTRY DETECTION
    */
   detectIndustry(portfolioData) {
-    console.log('🎯 Running Enhanced Industry Detection...');
+    this.logger.info('🎯 Running Enhanced Industry Detection...');
     
     const detectionSources = [
       portfolioData.personalInfo?.title || '',
@@ -832,7 +834,7 @@ Be precise and actionable in your analysis.`;
       keywordMatches: this.findKeywordMatches(detectionSources, bestMatch.patterns?.keywords || [])
     };
 
-    console.log(`✅ Industry detected: ${result.detectedIndustry} (${Math.round(result.confidence * 100)}%)`);
+    this.logger.info(`✅ Industry detected: ${result.detectedIndustry} (${Math.round(result.confidence * 100)}%)`);
     return result;
   }
 

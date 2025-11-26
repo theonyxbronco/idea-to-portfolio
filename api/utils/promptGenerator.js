@@ -1,8 +1,10 @@
 const fs = require('fs-extra');
 const path = require('path');
+const { Logger } = require('./logger');
 
 class PromptGenerator {
   constructor() {
+    this.logger = new Logger('PromptGenerator');
     this.skeletonsPath = path.join(__dirname, '..', 'api', 'skeletons');
     
     // 🎯 ULTRA-COMPRESSED SYSTEM PROMPT - Maximum efficiency
@@ -106,21 +108,17 @@ CRITICAL: Response = ONLY HTML. No explanations. Start with <!DOCTYPE html>, end
   async generateEnhancedAnthropicMessages(portfolioData, projectImages, enhancedAnalysis, moodboardFiles = [], designOptions = {}) {
     const { selectedSkeleton = 'none', customDesignRequest = '' } = designOptions;
     
-    console.log(`🚀 V1 Enhanced Prompt Generation:
-      - Skeleton: ${selectedSkeleton}
-      - Custom request: ${customDesignRequest ? 'Yes' : 'No'}
-      - Moodboard files: ${moodboardFiles?.length || 0}
-      - Analysis status: ${enhancedAnalysis?.systemStatus || 'None'}`);
+    this.logger.info(`🚀 V1 Enhanced Prompt Generation: Skeleton=${selectedSkeleton}, Custom=${customDesignRequest ? 'Yes' : 'No'}, Moodboard=${moodboardFiles?.length || 0}, Status=${enhancedAnalysis?.systemStatus || 'None'}`);
     
     // 🔧 FIX: Debug moodboard files structure  
     if (moodboardFiles && moodboardFiles.length > 0) {
-      console.log('📋 Moodboard files debug:');
+      this.logger.info('📋 Moodboard files debug:');
       moodboardFiles.forEach((file, index) => {
         const hasBuffer = !!file.buffer;
         const hasData = !!file.data;
         const mimetype = file.mimetype || file.type || 'unknown';
         const size = file.buffer ? file.buffer.length : (file.data ? file.data.length : 0);
-        console.log(`  ${index + 1}. ${file.originalname || 'unnamed'} - ${mimetype} - ${size} bytes - buffer:${hasBuffer} data:${hasData}`);
+        this.logger.info(`  ${index + 1}. ${file.originalname || 'unnamed'} - ${mimetype} - ${size} bytes - buffer:${hasBuffer} data:${hasData}`);
       });
     }
       
@@ -139,7 +137,7 @@ CRITICAL: Response = ONLY HTML. No explanations. Start with <!DOCTYPE html>, end
   async generateSkeletonMessages(skeletonId, compressedData, moodboardFiles, customRequest, enhancedAnalysis) {
     const template = this.skeletonTemplates[skeletonId];
     if (!template) {
-      console.warn(`⚠️ Unknown skeleton: ${skeletonId}, falling back to creative mode`);
+      this.logger.warn(`⚠️ Unknown skeleton: ${skeletonId}, falling back to creative mode`);
       return this.generateCreativeMessages(compressedData, moodboardFiles, customRequest, enhancedAnalysis);
     }
 
@@ -147,9 +145,9 @@ CRITICAL: Response = ONLY HTML. No explanations. Start with <!DOCTYPE html>, end
     let skeletonHTML = null;
     try {
       skeletonHTML = await this.loadSkeletonHTML(skeletonId);
-      console.log(`✅ Loaded skeleton HTML: ${skeletonId}`);
+      this.logger.info(`✅ Loaded skeleton HTML: ${skeletonId}`);
     } catch (error) {
-      console.warn(`⚠️ Could not load skeleton HTML: ${error.message}`);
+      this.logger.warn(`⚠️ Could not load skeleton HTML: ${error.message}`);
     }
 
     const contentArray = [
@@ -370,11 +368,11 @@ Create stunning production-ready portfolio`;
  */
 async addMoodboardImages(contentArray, moodboardFiles) {
   if (!moodboardFiles || moodboardFiles.length === 0) {
-    console.log('⚠️ No moodboard files provided to prompt generator');
+    this.logger.info('⚠️ No moodboard files provided to prompt generator');
     return;
   }
   
-  console.log(`🖼️ Processing ${moodboardFiles.length} moodboard images for Claude Vision...`);
+  this.logger.info(`🖼️ Processing ${moodboardFiles.length} moodboard images for Claude Vision...`);
   
   // Add instruction text for moodboard analysis
   contentArray.push({
@@ -404,23 +402,23 @@ Apply this extracted aesthetic throughout the entire portfolio design.`
       } else if (file.data) {
         imageBuffer = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data);
       } else {
-        console.warn(`⚠️ File ${index + 1} has unknown structure:`, Object.keys(file));
+        this.logger.warn(`⚠️ File ${index + 1} has unknown structure:`, Object.keys(file));
         continue;
       }
       
       if (!imageBuffer || imageBuffer.length === 0) {
-        console.warn(`⚠️ File ${index + 1} has empty buffer`);
+        this.logger.warn(`⚠️ File ${index + 1} has empty buffer`);
         continue;
       }
 
-      console.log(`🔍 Processing moodboard image ${index + 1}: ${file.originalname || `image_${index + 1}`}`);
+      this.logger.info(`🔍 Processing moodboard image ${index + 1}: ${file.originalname || `image_${index + 1}`}`);
 
       // Use Sharp to normalize the image (same as ImageParser)
       const image = sharp(imageBuffer);
       const metadata = await image.metadata();
       
       if (!metadata.format) {
-        console.warn(`⚠️ Could not detect format for image ${index + 1}, skipping`);
+        this.logger.warn(`⚠️ Could not detect format for image ${index + 1}, skipping`);
         continue;
       }
 
@@ -434,7 +432,7 @@ Apply this extracted aesthetic throughout the entire portfolio design.`
       
       // Validate base64 data
       if (!base64Image || base64Image.length < 100) {
-        console.warn(`⚠️ Image ${index + 1} produced invalid base64`);
+        this.logger.warn(`⚠️ Image ${index + 1} produced invalid base64`);
         continue;
       }
       
@@ -449,28 +447,28 @@ Apply this extracted aesthetic throughout the entire portfolio design.`
       
       processedCount++;
       const sizeKB = Math.round(normalizedBuffer.length / 1024);
-      console.log(`✅ Added moodboard image ${index + 1}: JPEG (${sizeKB}KB)`);
+      this.logger.info(`✅ Added moodboard image ${index + 1}: JPEG (${sizeKB}KB)`);
       
       // Limit to 4 images for API efficiency
       if (processedCount >= 4) {
-        console.log(`📏 Limiting to 4 images for API efficiency`);
+        this.logger.info(`📏 Limiting to 4 images for API efficiency`);
         break;
       }
       
     } catch (error) {
-      console.error(`❌ Failed to process moodboard image ${index + 1}:`, error.message);
+      this.logger.error(`❌ Failed to process moodboard image ${index + 1}:`, error.message);
       continue;
     }
   }
   
-  console.log(`✅ Successfully processed ${processedCount} moodboard images for Claude Vision`);
+  this.logger.info(`✅ Successfully processed ${processedCount} moodboard images for Claude Vision`);
 }
 
 /**
  * 🛡️ SAFE ANTHROPIC MESSAGES GENERATION WITH SHARP PROCESSING
  */
 async generateEnhancedAnthropicMessagesWithSafeImages(portfolioData, projectImages, enhancedAnalysis, moodboardFiles = [], designOptions = {}) {
-  console.log('🛡️ Using safe image processing for Anthropic messages');
+  this.logger.info('🛡️ Using safe image processing for Anthropic messages');
   
   const { selectedSkeleton = 'none', customDesignRequest = '' } = designOptions;
   
@@ -484,10 +482,10 @@ async generateEnhancedAnthropicMessagesWithSafeImages(portfolioData, projectImag
       designOptions
     );
   } catch (error) {
-    console.error('❌ Safe message generation failed:', error);
+    this.logger.error('❌ Safe message generation failed:', error);
     
     // Ultimate fallback - text only
-    console.log('⚠️ Falling back to text-only prompt');
+    this.logger.info('⚠️ Falling back to text-only prompt');
     
     const compressedData = this.compressPortfolioData(portfolioData, projectImages, enhancedAnalysis);
     
@@ -533,7 +531,7 @@ BUILD: Complete responsive HTML portfolio with embedded CSS/JS`;
     
     if (await fs.pathExists(skeletonPath)) {
       const html = await fs.readFile(skeletonPath, 'utf8');
-      console.log(`✅ Loaded skeleton: ${selectedSkeleton} (${Math.round(html.length / 1024)}KB)`);
+      this.logger.info(`✅ Loaded skeleton: ${selectedSkeleton} (${Math.round(html.length / 1024)}KB)`);
       return html;
     } else {
       throw new Error(`Skeleton file not found: ${skeletonPath}`);
@@ -652,7 +650,7 @@ BUILD: Complete responsive HTML portfolio with embedded CSS/JS`;
    * 📄 SKELETON-AWARE MESSAGES - V1 Compatibility
    */
   async generateSkeletonAwareMessages(portfolioData, projectImages, designStyle, designOptions = {}) {
-    console.log('🔄 V1 Skeleton-aware generation (compatibility mode)');
+    this.logger.info('🔄 V1 Skeleton-aware generation (compatibility mode)');
     return this.generateEnhancedAnthropicMessages(portfolioData, projectImages, null, [], designOptions);
   }
 
@@ -660,7 +658,7 @@ BUILD: Complete responsive HTML portfolio with embedded CSS/JS`;
    * 📝 STYLED PROMPT - V1 Compatibility
    */
   async generateStyledPrompt(portfolioData, projectImages, designStyle, enhancedAnalysis, designOptions = {}) {
-    console.log('🔄 V1 Text prompt generation (compatibility mode)');
+    this.logger.info('🔄 V1 Text prompt generation (compatibility mode)');
     const compressed = this.compressPortfolioData(portfolioData, projectImages, enhancedAnalysis);
     const { selectedSkeleton = 'none', customDesignRequest = '' } = designOptions || {};
     
@@ -678,7 +676,7 @@ BUILD: Complete responsive HTML portfolio with embedded CSS/JS`;
    * 📬 ANTHROPIC MESSAGES - V1 Compatibility
    */
   async generateAnthropicMessages(portfolioData, projectImages, designStyle = 'modern', analysisResults = null) {
-    console.log('🔄 V1 Legacy message generation (compatibility mode)');
+    this.logger.info('🔄 V1 Legacy message generation (compatibility mode)');
     return this.generateEnhancedAnthropicMessages(
       portfolioData,
       projectImages, 
@@ -701,7 +699,7 @@ BUILD: Complete responsive HTML portfolio with embedded CSS/JS`;
    */
   logOptimizationMetrics(originalSize, optimizedSize) {
     const reduction = Math.round(((originalSize - optimizedSize) / originalSize) * 100);
-    console.log(`📊 V1 Token optimization: ${originalSize} → ${optimizedSize} (${reduction}% reduction)`);
+    this.logger.info(`📊 V1 Token optimization: ${originalSize} → ${optimizedSize} (${reduction}% reduction)`);
   }
 }
 

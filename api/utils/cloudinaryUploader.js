@@ -1,5 +1,6 @@
 const cloudinary = require('cloudinary').v2;
 const path = require('path');
+const { logger } = require('./logger');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -49,7 +50,7 @@ class CloudinaryUploader {
         ).end(buffer);
       });
     } catch (error) {
-      console.error('Cloudinary upload error:', error);
+      logger.error('Cloudinary upload error:', error);
       throw error;
     }
   }
@@ -107,10 +108,10 @@ class CloudinaryUploader {
         };
 
         uploadedImages[category].push(imageData);
-        console.log(`✅ Uploaded ${category} image ${currentCount}: ${uploadResult.secure_url}`);
+        logger.info(`✅ Uploaded ${category} image ${currentCount}: ${uploadResult.secure_url}`);
 
       } catch (error) {
-        console.error(`❌ Failed to upload image ${file.originalname}:`, error);
+        logger.error(`❌ Failed to upload image ${file.originalname}:`, error);
         // Continue with other images even if one fails
       }
     }
@@ -149,7 +150,7 @@ class CloudinaryUploader {
       };
 
     } catch (error) {
-      console.error('Failed to upload single image:', error);
+      logger.error('Failed to upload single image:', error);
       throw error;
     }
   }
@@ -183,7 +184,7 @@ class CloudinaryUploader {
       const result = await cloudinary.api.delete_resources(publicIds);
       return result;
     } catch (error) {
-      console.error('Error deleting images from Cloudinary:', error);
+      logger.error('Error deleting images from Cloudinary:', error);
       throw error;
     }
   }
@@ -203,9 +204,9 @@ class CloudinaryUploader {
       await cloudinary.api.delete_resources_by_prefix(folderPath);
       // Delete the folder itself
       await cloudinary.api.delete_folder(folderPath);
-      console.log(`✅ Deleted Cloudinary folder: ${folderPath}`);
+      logger.info(`✅ Deleted Cloudinary folder: ${folderPath}`);
     } catch (error) {
-      console.error(`❌ Error deleting folder ${folderPath}:`, error);
+      logger.error(`❌ Error deleting folder ${folderPath}:`, error);
     }
   }
 
@@ -221,9 +222,9 @@ class CloudinaryUploader {
     try {
       // Delete all temporary analysis files older than 1 hour
       await cloudinary.api.delete_resources_by_prefix('temp_analysis/');
-      console.log('✅ Cleaned up temporary analysis files');
+      logger.info('✅ Cleaned up temporary analysis files');
     } catch (error) {
-      console.warn('Could not clean up temporary files:', error);
+      logger.warn('Could not clean up temporary files:', error);
     }
   }
 

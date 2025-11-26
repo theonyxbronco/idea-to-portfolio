@@ -1,3 +1,4 @@
+const { logger } = require("./../logger");
 // portfolio-backend/utils/validators/technicalValidator.js
 const { JSDOM } = require('jsdom');
 
@@ -16,7 +17,7 @@ class TechnicalValidator {
    * @returns {Object} Technical validation results
    */
   async validate(htmlString, portfolioData, processedImages = {}) {
-    console.log('🔧 Running technical validation...');
+    logger.info('🔧 Running technical validation...');
     
     this.passedChecks = [];
     this.issues = [];
@@ -48,7 +49,7 @@ class TechnicalValidator {
       };
 
     } catch (error) {
-      console.error('Technical validation error:', error);
+      logger.error('Technical validation error:', error);
       return {
         score: 0,
         issues: [{ 

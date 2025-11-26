@@ -1,6 +1,8 @@
 const { PortfolioValidator, ErrorFormatter } = require('../utils/validation');
+const { Logger } = require('../utils/logger');
 
 const validator = new PortfolioValidator();
+const logger = new Logger('Middleware');
 
 // Enhanced validation middleware
 
@@ -24,64 +26,22 @@ const validatePortfolioData = async (req, res, next) => {
       ));
     }
 
-    // ENHANCED: Log file information for debugging
+    // Validate files if present
     if (req.files && req.files.length > 0) {
-      console.log('\n=== FILE UPLOAD ANALYSIS ===');
-      console.log(`Total files received: ${req.files.length}`);
-      
-      const filesByType = {
-        moodboard: [],
-        process: [],
-        final: [],
-        other: []
-      };
-      
-      req.files.forEach((file, index) => {
-        const fieldName = file.fieldname || '';
-        const originalName = file.originalname || '';
-        
-        let type = 'other';
-        if (fieldName.includes('moodboard')) type = 'moodboard';
-        else if (fieldName.includes('process')) type = 'process';  
-        else if (fieldName.includes('final')) type = 'final';
-        
-        filesByType[type].push({
-          fieldName,
-          originalName,
-          size: file.size,
-          mimetype: file.mimetype
-        });
-        
-        console.log(`File ${index + 1}:`);
-        console.log(`  Field: ${fieldName}`);
-        console.log(`  Name: ${originalName}`);
-        console.log(`  Type: ${type}`);
-        console.log(`  Size: ${(file.size / 1024).toFixed(1)}KB`);
-        console.log(`  MIME: ${file.mimetype}`);
-      });
-      
-      console.log('\nFile Summary:');
-      console.log(`  Moodboard: ${filesByType.moodboard.length} files`);
-      console.log(`  Process: ${filesByType.process.length} files`);
-      console.log(`  Final: ${filesByType.final.length} files`);
-      console.log(`  Other: ${filesByType.other.length} files`);
-      console.log('=== END FILE ANALYSIS ===\n');
-      
-      // Validate files if present
+      logger.debug(`Received ${req.files.length} files for validation`);
+
       const fileValidation = validator.validateFiles(req.files);
       if (!fileValidation.isValid) {
-        console.log('File validation failed:', fileValidation.errors);
+        logger.warn('File validation failed', fileValidation.errors);
         return res.status(400).json(ErrorFormatter.formatValidationErrors(fileValidation.errors));
       }
-    } else {
-      console.log('No files received in request');
     }
 
     // Validate portfolio data
     const validation = validator.validateComplete(portfolioData);
-    
+
     if (!validation.isValid) {
-      console.log('Portfolio data validation failed:', validation.errors);
+      logger.warn('Portfolio data validation failed', validation.errors);
       return res.status(400).json(ErrorFormatter.formatValidationErrors(validation.errors));
     }
 
@@ -90,9 +50,9 @@ const validatePortfolioData = async (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error('Validation middleware error:', error);
+    logger.error('Validation middleware error', error);
     return res.status(500).json(ErrorFormatter.formatAPIError(
-      error, 
+      error,
       process.env.NODE_ENV === 'development'
     ));
   }
@@ -141,16 +101,16 @@ const rateLimit = (req, res, next) => {
 // Request logging middleware
 const requestLogger = (req, res, next) => {
   const start = Date.now();
-  
+
   // Log request
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - IP: ${req.ip}`);
-  
+  logger.request(req.method, req.path, req.ip);
+
   // Log response when it finishes
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+    logger.response(req.method, req.path, res.statusCode, duration);
   });
-  
+
   next();
 };
 
@@ -366,7 +326,7 @@ const detailedHealthCheck = async (req, res) => {
     res.status(statusCode).json(status);
 
   } catch (error) {
-    console.error('Health check error:', error);
+    logger.error('Health check error', error);
     res.status(500).json({
       status: 'ERROR',
       timestamp: new Date().toISOString(),
@@ -389,7 +349,7 @@ const formatUptime = (seconds) => {
 // Enhanced error handler
 const errorHandler = (error, req, res, next) => {
   // Log error with context
-  console.error('Error occurred:', {
+  logger.error('Error occurred', {
     timestamp: new Date().toISOString(),
     method: req.method,
     path: req.path,
@@ -421,7 +381,7 @@ const errorHandler = (error, req, res, next) => {
 // Function to clear rate limit (for testing)
 const clearRateLimit = () => {
   rateLimitMap.clear();
-  console.log('Rate limit cleared');
+  logger.info('Rate limit cleared');
 };
 
 // Health check specifically for Vercel functions

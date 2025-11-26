@@ -1,12 +1,14 @@
 const { google } = require('googleapis');
 const { JWT } = require('google-auth-library');
+const { Logger } = require('./logger');
 
 class GoogleSheetsTracker {
   constructor(config) {
+    this.logger = new Logger('GoogleSheetsTracker');
     try {
       // Validate required config - return gracefully if missing
       if (!config || !config.clientEmail || !config.privateKey || !config.sheetId) {
-        console.warn('Google Sheets Tracker: Missing required configuration (clientEmail, privateKey, or sheetId) - tracker disabled');
+        this.logger.warn('Google Sheets Tracker: Missing required configuration (clientEmail, privateKey, or sheetId) - tracker disabled');
         this.initialized = false;
         this.sheets = null;
         this.sheetId = null;
@@ -22,12 +24,12 @@ class GoogleSheetsTracker {
         
         // Ensure the key has proper BEGIN/END markers
         if (!cleanPrivateKey.includes('-----BEGIN PRIVATE KEY-----')) {
-          console.error('Google Sheets Tracker: Invalid private key format - missing BEGIN marker');
+          this.logger.error('Google Sheets Tracker: Invalid private key format - missing BEGIN marker');
           this.initialized = false;
           return;
         }
       } else {
-        console.error('Google Sheets Tracker: Private key must be a string');
+        this.logger.error('Google Sheets Tracker: Private key must be a string');
         this.initialized = false;
         return;
       }
@@ -45,10 +47,10 @@ class GoogleSheetsTracker {
       
       // Only log success in development to reduce Vercel logs
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`✅ Google Sheets Tracker initialized successfully for sheet: ${this.sheetId}`);
+        this.logger.info(`✅ Google Sheets Tracker initialized successfully for sheet: ${this.sheetId}`);
       }
     } catch (error) {
-      console.error('❌ Google Sheets Tracker initialization failed:', error.message);
+      this.logger.error('❌ Google Sheets Tracker initialization failed:', error.message);
       this.initialized = false;
       this.sheets = null;
       this.sheetId = null;
@@ -58,14 +60,14 @@ class GoogleSheetsTracker {
 
   async appendData(data, userAgent, screenSize) {
     if (!this.initialized || !this.sheets) {
-      console.warn('⚠️ Google Sheets Tracker not initialized - skipping tracking');
+      this.logger.warn('⚠️ Google Sheets Tracker not initialized - skipping tracking');
       return false;
     }
 
     try {
       // Validate data object
       if (!data || typeof data !== 'object') {
-        console.warn('⚠️ Invalid data provided to Google Sheets tracker');
+        this.logger.warn('⚠️ Invalid data provided to Google Sheets tracker');
         return false;
       }
 
@@ -137,28 +139,28 @@ class GoogleSheetsTracker {
       ]);
 
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`✅ Successfully tracked data in Google Sheets (${this.sheetId})`);
+        this.logger.info(`✅ Successfully tracked data in Google Sheets (${this.sheetId})`);
       }
       return true;
     } catch (error) {
-      console.error('❌ Error writing to Google Sheets:', error.message);
+      this.logger.error('❌ Error writing to Google Sheets:', error.message);
       
       // Log specific error details for debugging
       if (error.code) {
-        console.error('Error code:', error.code);
+        this.logger.error('Error code:', error.code);
         
         // Handle specific error codes
         if (error.code === 404) {
-          console.error('Sheet not found - check GOOGLE_SHEETS_ID and sheet name');
+          this.logger.error('Sheet not found - check GOOGLE_SHEETS_ID and sheet name');
         } else if (error.code === 403) {
-          console.error('Access denied - check service account permissions');
+          this.logger.error('Access denied - check service account permissions');
         } else if (error.code === 429) {
-          console.error('Rate limit exceeded - too many requests');
+          this.logger.error('Rate limit exceeded - too many requests');
         }
       }
       
       if (error.errors && Array.isArray(error.errors)) {
-        console.error('Error details:', error.errors.map(e => e.message).join(', '));
+        this.logger.error('Error details:', error.errors.map(e => e.message).join(', '));
       }
       
       return false;
@@ -181,7 +183,7 @@ class GoogleSheetsTracker {
   // Method to verify connection and sheet access
   async verifyConnection() {
     if (!this.initialized || !this.sheets) {
-      console.error('❌ Google Sheets Tracker not initialized');
+      this.logger.error('❌ Google Sheets Tracker not initialized');
       return false;
     }
     
@@ -196,27 +198,26 @@ class GoogleSheetsTracker {
         )
       ]);
       
-      console.log(`✅ Connected to Google Sheet: "${response.data.properties.title}"`);
+      this.logger.info(`✅ Connected to Google Sheet: "${response.data.properties.title}"`);
       const sheetExists = response.data.sheets.some(sheet => 
         sheet.properties.title === this.sheetName
       );
       
       if (!sheetExists) {
-        console.warn(`⚠️ Sheet "${this.sheetName}" not found in spreadsheet. Available sheets:`, 
-          response.data.sheets.map(s => s.properties.title));
+        this.logger.warn(`⚠️ Sheet "${this.sheetName}" not found in spreadsheet. Available sheets: ${response.data.sheets.map(s => s.properties.title).join(', ')}`);
         return false;
       }
       
-      console.log(`✅ Sheet "${this.sheetName}" found and accessible`);
+      this.logger.info(`✅ Sheet "${this.sheetName}" found and accessible`);
       return true;
     } catch (error) {
-      console.error('❌ Google Sheets connection verification failed:', error.message);
+      this.logger.error('❌ Google Sheets connection verification failed:', error.message);
       if (error.message === 'Connection timeout') {
-        console.error('Connection timed out - check network connectivity');
+        this.logger.error('Connection timed out - check network connectivity');
       } else if (error.code === 404) {
-        console.error('Sheet not found - check GOOGLE_SHEETS_ID');
+        this.logger.error('Sheet not found - check GOOGLE_SHEETS_ID');
       } else if (error.code === 403) {
-        console.error('Access denied - check service account permissions');
+        this.logger.error('Access denied - check service account permissions');
       }
       return false;
     }
@@ -239,7 +240,7 @@ class GoogleSheetsTracker {
       
       return response.data.values?.[0] || [];
     } catch (error) {
-      console.error('❌ Error getting sheet headers:', error.message);
+      this.logger.error('❌ Error getting sheet headers:', error.message);
       return null;
     }
   }
@@ -275,16 +276,16 @@ class GoogleSheetsTracker {
           )
         ]);
         
-        console.log('✅ Headers created in Google Sheet');
+        this.logger.info('✅ Headers created in Google Sheet');
         return true;
       }
       
       if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ Headers already exist in Google Sheet');
+        this.logger.info('✅ Headers already exist in Google Sheet');
       }
       return true;
     } catch (error) {
-      console.error('❌ Error ensuring headers:', error.message);
+      this.logger.error('❌ Error ensuring headers:', error.message);
       return false;
     }
   }

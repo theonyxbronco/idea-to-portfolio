@@ -2,6 +2,7 @@ const sharp = require('sharp');
 const fs = require('fs-extra');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const { logger } = require('./logger');
 
 class FileProcessor {
   constructor() {
@@ -21,7 +22,7 @@ class FileProcessor {
       await fs.ensureDir(path.join(this.uploadDir, 'temp'));
       await fs.ensureDir(path.join(this.uploadDir, 'processed'));
     } catch (error) {
-      console.error('Failed to initialize upload directory:', error);
+      logger.error('Failed to initialize upload directory:', error);
     }
   }
 
@@ -99,7 +100,7 @@ class FileProcessor {
       processed: true
     };
     } catch (error) {
-      console.error('Image processing error:', error);
+      logger.error('Image processing error:', error);
       throw new Error(`Failed to process image: ${error.message}`);
     }
   }
@@ -139,7 +140,7 @@ class FileProcessor {
         });
         processedImages.push(processed);
       } catch (error) {
-        console.error(`Failed to process project image ${image.originalname}:`, error);
+        logger.error(`Failed to process project image ${image.originalname}:`, error);
       }
     }
 
@@ -158,7 +159,7 @@ class FileProcessor {
         });
         processedImages.push(processed);
       } catch (error) {
-        console.error(`Failed to process moodboard image ${image.originalname}:`, error);
+        logger.error(`Failed to process moodboard image ${image.originalname}:`, error);
       }
     }
 
@@ -172,7 +173,7 @@ class FileProcessor {
         await fs.remove(filePath).catch(() => {}); // Ignore errors
       }
     } catch (error) {
-      console.error('Cleanup error:', error);
+      logger.error('Cleanup error:', error);
     }
   }
 
@@ -182,7 +183,7 @@ class FileProcessor {
       const buffer = await fs.readFile(filePath);
       return buffer.toString('base64');
     } catch (error) {
-      console.error('Base64 conversion error:', error);
+      logger.error('Base64 conversion error:', error);
       throw error;
     }
   }
@@ -197,7 +198,7 @@ class FileProcessor {
         format: metadata.format
       };
     } catch (error) {
-      console.error('Failed to get image dimensions:', error);
+      logger.error('Failed to get image dimensions:', error);
       return null;
     }
   }
